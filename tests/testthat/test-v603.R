@@ -209,8 +209,9 @@ test_that("coloc() matches 6.0.3's coloc.susie_bf()", {
 })
 
 ## ---- today's versions of the changed functions, before and after ---------------
-## The tests of coloc.abf(), coloc.bf_bf(), coloc.susie() and coloc.susie_bf()
-## go at step 7, the hard break, with those four functions.
+## The old entry points, and process.dataset() and runsusie(), which the data
+## stage changes, against their 6.0.3 copies. The tests of coloc.abf(),
+## coloc.bf_bf(), coloc.susie() and coloc.susie_bf() go with those functions.
 
 test_that("coloc.abf() returns what 6.0.3's did", {
     for (nm in names(abf_pairs)) {
@@ -221,6 +222,25 @@ test_that("coloc.abf() returns what 6.0.3's did", {
         expect_equal(got, expected, label = nm)
         expect_equal(as.list(got$summary), as.list(expected$summary), label = nm)
     }
+})
+
+test_that("process.dataset() returns what 6.0.3's did, for every kind of dataset", {
+    ## every dataset in abf_pairs, and one whose sdY has to be estimated
+    D1_no_sdY <- D1
+    D1_no_sdY$sdY <- NULL
+    datasets <- c(unlist(abf_pairs, recursive = FALSE), list(no_sdY = D1_no_sdY))
+    for (nm in names(datasets)) {
+        d <- datasets[[nm]]
+        expect_identical(suppressWarnings(process.dataset(d, suffix = "df1")),
+                         suppressWarnings(get_match_6_0_3(process.dataset(d, suffix = "df1"))),
+                         label = nm)
+    }
+})
+
+test_that("runsusie() returns what 6.0.3's did", {
+    ## the whole fit, so what annotate_susie() and .susie_setld() add is compared too
+    expect_equal(fit3, suppressMessages(get_match_6_0_3(runsusie(D3))))
+    expect_equal(fit4, suppressMessages(get_match_6_0_3(runsusie(D4))))
 })
 
 test_that("coloc.bf_bf() returns what 6.0.3's did", {
@@ -403,16 +423,13 @@ test_that("AL18: a SuSiE fit with a duplicated snp id is refused, where 6.0.3 us
                  "trait 2: log Bayes factors contain missing or infinite values")
 })
 
-## ---- what both sides share ---------------------------------------------------
-## The 6.0.3 copies and coloc() both use the package's process.dataset(), with
-## the approx.bf.estimates(), approx.bf.p() and sdY.est() it calls, and
-## runsusie(). They are not copied and are unchanged since 6.0.3, so an edit to
-## one would move both sides together, unseen above. These values, worked out
-## with them as they are, pin them. logsum(), logdiff() and logbf_to_pp() are
-## copied into helper-v603.R with the 6.0.3 functions, so the comparisons above
-## already see an edit to the package's versions.
+## ---- the dataset functions, pinned as numbers ------------------------------
+## The tests above compare process.dataset() and runsusie() with their 6.0.3
+## copies. These pin their values as plain numbers too, worked out with 6.0.3's
+## code. Both sides of every comparison use the installed susieR, so a change
+## to susieR shows only here.
 
-test_that("the shared code still gives 6.0.3's log ABFs", {
+test_that("process.dataset() and sdY.est() still give 6.0.3's numbers", {
     at_s105 <- function(d, suffix) {
         pd <- process.dataset(d, suffix = suffix)
         pd[[paste0("lABF.", suffix)]][pd$snp == "s105"]
@@ -425,7 +442,7 @@ test_that("the shared code still gives 6.0.3's log ABFs", {
                  tolerance = 1e-10)
 })
 
-test_that("the shared code still finds D3's credible sets", {
+test_that("runsusie() still finds D3's credible sets", {
     rows <- fit3$lbf_variable[fit3$sets$cs_index, ]
     expect_equal(fit3$sets$cs_index, c(1, 2))
     expect_equal(unname(lengths(fit3$sets$cs)), c(3L, 13L))

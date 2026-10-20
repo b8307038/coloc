@@ -1,17 +1,32 @@
 ## ---------------------------------------------------------------------------
 ## coloc 6.0.3, for the tests to compare against.
 ##
-## The functions coloc() replaces, the ones of theirs that have changed since,
-## and the arithmetic they share with the new engine, copied verbatim from
-## commit 8f20f0b (coloc 6.0.3). Never edit them: they are what "the same as
-## 6.0.3" means. What they call and is not copied, such as process.dataset()
-## and runsusie(), comes from the package and is unchanged since 6.0.3.
+## Copied verbatim from commit 8f20f0b (coloc 6.0.3): the functions coloc()
+## replaces and the ones of theirs that have changed since; the arithmetic they
+## share with the new engine; and the dataset-processing and SuSiE-fitting
+## functions, process.dataset() and runsusie() with what each calls. Never edit
+## them: they are what "the same as 6.0.3" means.
+##
+## The copies call each other, not the package's versions. What they still
+## take from outside is in the packages coloc imports: susieR's susie_rss(),
+## data.table and stats. Both sides of a comparison use the installed susieR,
+## so a change to susieR shows only in test-v603.R's tests pinned as numbers.
 ##
 ## get_match_6_0_3(), at the end, is how a test runs them.
 ## ---------------------------------------------------------------------------
 
 v603 <- new.env()
 local({
+
+## R/claudia.R:9-11
+Var.data <- function(f, N) {
+    1 / (2 * N * f * (1 - f))
+}
+
+## R/claudia.R:21-23
+Var.data.cc <- function(f, N, s) {
+    1 / (2 * N * f * (1 - f) * s * (1 - s))
+}
 
 ## R/claudia.R:33-37
 logsum <- function(x) {
@@ -25,6 +40,38 @@ logdiff <- function(x,y) {
     my.max <- max(x,y)                              ##take out the maximum value in log form
     my.res <- my.max + log(max(exp(x - my.max) - exp(y-my.max), 0))
     return(my.res)
+}
+
+## R/claudia.R:67-84
+approx.bf.p <- function(p,f,type, N, s, suffix=NULL) {
+    if(type=="quant") {
+        sd.prior <- 0.15
+        V <- Var.data(f, N)
+    } else {
+        sd.prior <- 0.2
+        V <- Var.data.cc(f, N, s)
+    }
+    z <- qnorm(0.5 * p, lower.tail = FALSE)
+    ## Shrinkage factor: ratio of the prior variance to the total variance
+    r <- sd.prior^2 / (sd.prior^2 + V)
+    ## Approximate BF  # I want ln scale to compare in log natural scale with LR diff
+    lABF = 0.5 * (log(1-r) + (r * z^2))
+    ret <- data.frame(V,z,r,lABF)
+    if(!is.null(suffix))
+        colnames(ret) <- paste(colnames(ret), suffix, sep=".")
+    return(ret)
+}
+
+## R/claudia.R:102-111
+approx.bf.estimates <- function (z, V, type, suffix=NULL, sdY=1,
+                                 effect_priors=c(quant=0.15,cc=0.2)) {
+    sd.prior <- if (type == "quant") { effect_priors["quant"] * sdY } else { effect_priors["cc"] }
+    r <- sd.prior^2/(sd.prior^2 + V)
+    lABF = 0.5 * (log(1 - r) + (r * z^2))
+    ret <- data.frame(V, z, r, lABF)
+    if(!is.null(suffix))
+        colnames(ret) <- paste(colnames(ret), suffix, sep = ".")
+    return(ret)
 }
 
 ## R/claudia.R:123-141
@@ -96,6 +143,84 @@ combine_abf_weighted <- function(l1, l2, p1, p2, p12,
   }
 
   pp_abf
+}
+
+## R/claudia.R:205-214
+sdY.est <- function(vbeta, maf, n) {
+    warning("estimating sdY from maf and varbeta, please directly supply sdY if known")
+    oneover <- 1/vbeta
+    nvx <- 2 * n * maf * (1-maf)
+    m <- lm(nvx ~ oneover - 1)
+    cf <- coef(m)[['oneover']]
+    if(cf < 0)
+        stop("estimated sdY is negative - this can happen with small datasets, or those with errors.  A reasonable estimate of sdY is required to continue.")
+    return(sqrt(cf))
+}
+
+## R/claudia.R:228-291
+process.dataset <- function(d, suffix, ...) {
+                                        #message('Processing dataset')
+
+    nd <- names(d)
+    ## if (! 'type' %in% nd)
+    ##   stop("dataset ",suffix,": ",'The variable type must be set, otherwise the Bayes factors cannot be computed')
+
+    ## if(!(d$type %in% c("quant","cc")))
+    ##     stop("dataset ",suffix,": ","type must be quant or cc")
+
+    ## if(d$type=="cc" & "pvalues" %in% nd) {
+    ## if(!( "s" %in% nd))
+    ##     stop("dataset ",suffix,": ","please give s, proportion of samples who are cases, if using p values")
+    ## if(!("MAF" %in% nd))
+    ##     stop("dataset ",suffix,": ","please give MAF if using p values")
+    ## if(d$s<=0 || d$s>=1)
+    ##     stop("dataset ",suffix,": ","s must be between 0 and 1")
+    ## }
+
+    ## if(d$type=="quant") {
+    ##     if(!("sdY" %in% nd || ("MAF" %in% nd && "N" %in% nd )))
+    ##         stop("dataset ",suffix,": ","must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
+    ## }
+
+    if("beta" %in% nd && "varbeta" %in% nd) {  ## use beta/varbeta.  sdY should be estimated by now for quant
+        ## if(length(d$beta) != length(d$varbeta))
+        ##   stop("dataset ",suffix,": ","Length of the beta vectors and variance vectors must match")
+        ## if(!("snp" %in% nd))
+        ##   d$snp <- sprintf("SNP.%s",1:length(d$beta))
+        ## if(length(d$snp) != length(d$beta))
+        ##   stop("dataset ",suffix,": ","Length of snp names and beta vectors must match")
+
+        if(d$type=="quant" && !('sdY' %in% nd))
+            d$sdY <- sdY.est(d$varbeta, d$MAF, d$N)
+        df <- approx.bf.estimates(z=d$beta/sqrt(d$varbeta),
+                                  V=d$varbeta, type=d$type, suffix=suffix, sdY=d$sdY)
+        df$snp <- as.character(d$snp)
+        if("position" %in% nd)
+            df <- cbind(df,position=d$position)
+        return(df)
+    }
+
+    if("pvalues" %in% nd & "MAF" %in% nd & "N" %in% nd) { ## no beta/varbeta: use p value / MAF approximation
+        ## if (length(d$pvalues) != length(d$MAF))
+        ##   stop('Length of the P-value vectors and MAF vector must match')
+        ## if(!("snp" %in% nd))
+        ##   d$snp <- sprintf("SNP.%s",1:length(d$pvalues))
+        df <- data.frame(pvalues = d$pvalues,
+                         MAF = d$MAF,
+                         N=d$N,
+                         snp=as.character(d$snp))
+        snp.index <- which(colnames(df)=="snp")
+        colnames(df)[-snp.index] <- paste(colnames(df)[-snp.index], suffix, sep=".")
+        ## keep <- which(df$MAF>0 & df$pvalues > 0) # all p values and MAF > 0
+        ## df <- df[keep,]
+        abf <- approx.bf.p(p=df$pvalues, f=df$MAF, type=d$type, N=df$N, s=d$s, suffix=suffix)
+        df <- cbind(df, abf)
+        if("position" %in% nd)
+            df <- cbind(df,position=d$position)
+        return(df)
+    }
+
+    stop("Must give, as a minimum, one of:\n(beta, varbeta, type, sdY)\n(beta, varbeta, type, MAF)\n(pvalues, MAF, N, type)")
 }
 
 ## R/claudia.R:356-363
@@ -421,6 +546,102 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
               })
 }
 
+## R/susie.R:421-479
+runsusie=function(d,suffix=1,
+                  maxit=100,repeat_until_convergence=TRUE,
+                  s_init=NULL, ...) {
+  check_dataset(d,suffix,req=c("beta","varbeta","LD","snp","N"))
+  check_ld(d,d$LD)
+  ##make copies of z and LD so we can subset if needed
+  if(!("z" %in% names(d)))
+    z=d$beta/sqrt(d$varbeta)
+  else
+    z=d$z
+  LD=d$LD[d$snp,d$snp] # just in case
+  names(z)=d$snp
+  snp=d$snp
+
+  converged=FALSE;
+  ## set some defaults for susie arguments
+  susie_args=list(...)
+  if("max_iter" %in% names(susie_args)) {
+    maxit=susie_args$max_iter
+    susie_args = susie_args[ setdiff(names(susie_args), "max_iter") ]
+  }
+  ## at 0.12.6 susieR introduced need for n = sample size
+  if(!("n" %in% names(susie_args)))
+	  susie_args=c(list(n=d$N), susie_args)
+
+  while(!converged) {
+    message("running max iterations: ",maxit)
+    res=do.call(susie_rss,
+                c(list(z=z, R=LD, max_iter=maxit), susie_args))
+    converged=res$converged; #s_init=res; maxit=maxit*2
+    message("\tconverged: ",converged)
+    if(!converged && repeat_until_convergence==FALSE)
+      stop("susie_rss() did not converge in ",maxit," iterations. Try running with run_until_convergence=TRUE")
+    if(!converged)
+      maxit=maxit * 100 # no point in half measures!
+  }
+ res=annotate_susie(res, snp, LD)
+  ## ## prune sets in high LD
+  ## if(!is.null(r2.prune))
+  ##   res=.susie_prune(res,r2.prune)
+
+  ## if(!all(keep)) {
+  ##   res$trimz=trimz
+  ##   res$trimpeaks=trimpeaks
+  ##   snps_to_add=setdiff(dbak$snp,snp)
+  ##   res$pip=c(structure(rep(0,length(snps_to_add)), names=snps_to_add),
+  ##             res$pip)
+  ##   res$alpha=cbind(matrix(apply(res$alpha,1,min,na.rm=TRUE),
+  ##                          nrow(res$alpha),length(snps_to_add),
+  ##                          dimnames=list(rownames(res$alpha),snps_to_add)),
+  ##                   res$alpha)
+  ##   res$alpha=res$alpha/matrix(rowSums(res$alpha),nrow(res$alpha),ncol(res$alph))
+  ##   res$lbf_variable=cbind(matrix(apply(res$lbf_variable,1,min,na.rm=TRUE),
+  ##                                 nrow(res$lbf_variable),length(snps_to_add),
+  ##                                 dimnames=list(rownames(res$lbf_variable),snps_to_add)),
+  ##                          res$lbf_variable)
+  ## }
+  res
+}
+
+## R/susie.R:499-510
+annotate_susie=function(res,snp, LD) {
+    ## if(ncol(res$lbf_variable) != length(snp)+1)
+    ##     stop("length of snp vector should be 1 less than ncol(res$lbf_variable)")
+    colnames(res$lbf_variable) = c(snp,"null")[1:ncol(res$lbf_variable)]
+    colnames(res$alpha) = c(snp,"null")[1:ncol(res$alpha)]
+    names(res$pip)=snp
+    if(length(res$sets$cs))
+        res$sets$cs = lapply(res$sets$cs, function(x) { names(x) = snp[x]; x })
+    res$sld=.susie_setld(res$sets$cs,LD)
+    res$pruned=FALSE
+    res
+}
+
+## R/susie.R:525-543
+.susie_setld=function(s,ld) {
+  ## stmp=lapply(s, setdiff, ncol(ld)+1)
+  stmp=lapply(s, names)
+  if(!length(stmp))
+    return(0)
+  if(length(stmp)==1)
+    return(matrix(0,1,1,dimnames=list(names(stmp),names(stmp))))
+  sld=matrix(0,length(stmp),length(stmp),dimnames=list(names(stmp),names(stmp)))
+  for(i in 2:length(stmp)) {
+    for(j in 1:(i-1)) {
+      if(length(stmp[[i]]) && length(stmp[[j]])) {
+        sld[i,j]=max(ld[stmp[[i]],stmp[[j]]]^2, na.rm=TRUE)
+      } else {
+        sld[i,j]=0
+      }
+    }
+  }
+  sld
+}
+
 ## R/check.R:65-169
 check_dataset <- function(d,
                           suffix="",
@@ -528,6 +749,22 @@ check_dataset <- function(d,
     NULL
 }
 
+## R/check.R:180-193
+check_ld <- function(D,LD) {
+    if(is.null(LD))
+      stop("LD required")
+    if(!is.matrix(LD))
+      stop("LD must be of class matrix")
+    ## if(any(LD[upper.tri(LD)]==1))
+    ##   stop("LD includes SNPs in perfect LD")
+    if(nrow(LD)!=ncol(LD))
+        stop("LD not square")
+    if(!identical(colnames(LD),rownames(LD)))
+      stop("LD rownames != colnames")
+    if(length(setdiff(D$snp,colnames(LD))))
+        stop("colnames in LD do not contain all SNPs")
+}
+
 }, envir = v603)
 
 ## What 6.0.3 returns for a call, written exactly as it was made in 6.0.3:
@@ -535,7 +772,9 @@ check_dataset <- function(d,
 ## D1 and D2. Warnings and errors come through; what 6.0.3 prints does not.
 get_match_6_0_3 <- function(call) {
     value <- NULL
+    ## all.names, or a copy named with a leading dot, such as .susie_setld(),
+    ## would be missed and the package's version run instead
     utils::capture.output(
-        value <- eval(substitute(call), as.list(v603), parent.frame()))
+        value <- eval(substitute(call), as.list(v603, all.names = TRUE), parent.frame()))
     value
 }
