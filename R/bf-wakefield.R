@@ -36,6 +36,7 @@
 ##'     studies: comparison with P-values. Genetic Epidemiology 33(1),
 ##'     79-86. \doi{10.1002/gepi.20359}
 ##' @seealso [finemap.abf()], which turns these into posterior probabilities
+##' @author Claudia Giambartolomei, Vincent Plagnol, Chris Wallace
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
@@ -50,8 +51,21 @@ wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
              effect_priors[c("quant", "cc")] > 0))
         stop("effect_priors should be positive numbers named quant and cc")
     check_dataset(d)
+    bf <- .wakefield_bf(d, effect_priors)
+    data.frame(snp = as.character(d$snp),
+               position = if ("position" %in% names(d)) d$position
+                          else rep(NA_integer_, nrow(bf)),
+               bf, row.names = NULL)
+}
+
+## The arithmetic of wakefield_bf(), unchecked: z, V, r and lABF for each snp,
+## from beta and varbeta when the dataset has both, else from p-values, MAF
+## and N. process.dataset() calls it directly, as its callers check the
+## dataset first, so a dataset is checked, and warned about, once.
+.wakefield_bf <- function(d, effect_priors) {
     nd <- names(d)
-    ## by the type's label: [[ would take a factor type by its code
+    ## by the type's label: [[ would take a factor type by its code. A type
+    ## other than quant gets cc's prior, as in 6.0.3
     sd_prior <- effect_priors[[if (d$type == "quant") "quant" else "cc"]]
     if ("beta" %in% nd && "varbeta" %in% nd) {
         z <- d$beta / sqrt(d$varbeta)
@@ -62,15 +76,10 @@ wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
             sd_prior <- sd_prior *
                 (if ("sdY" %in% nd) d$sdY else sdY.est(d$varbeta, d$MAF, d$N))
     } else {
-        ## check_dataset() has made sure of p-values, MAF and N, and of s for
-        ## a case-control trait
         z <- qnorm(0.5 * d$pvalues, lower.tail = FALSE)
         V <- if (d$type == "quant") Var.data(d$MAF, d$N)
              else Var.data.cc(d$MAF, d$N, d$s)
     }
     r <- sd_prior^2 / (sd_prior^2 + V)
-    data.frame(snp = as.character(d$snp),
-               position = if ("position" %in% nd) d$position else NA_integer_,
-               z = z, V = V, r = r,
-               lABF = 0.5 * (log(1 - r) + (r * z^2)))
+    data.frame(z = z, V = V, r = r, lABF = 0.5 * (log(1 - r) + (r * z^2)))
 }

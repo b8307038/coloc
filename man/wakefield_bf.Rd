@@ -59,3 +59,6 @@ studies: comparison with P-values. Genetic Epidemiology 33(1),
 \seealso{
 \code{\link[=finemap.abf]{finemap.abf()}}, which turns these into posterior probabilities
 }
+\author{
+Claudia Giambartolomei, Vincent Plagnol, Chris Wallace
+}

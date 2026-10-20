@@ -60,6 +60,16 @@ test_that("wakefield_bf() returns one row per snp, with no suffixes", {
     expect_named(got, c("snp", "position", "z", "V", "r", "lABF"))
     expect_identical(got$snp, D1$snp)
     expect_identical(got$position, D1$position)
+    ## the row names are row numbers, whatever the input's vectors are named
+    named <- D1
+    names(named$beta) <- names(named$position) <- D1$snp
+    expect_identical(rownames(wakefield_bf(named)), as.character(seq_along(D1$snp)))
+    ## no snps and no position: no rows, where a single NA position would fail
+    none <- D1
+    for (v in c("beta", "varbeta", "MAF", "snp"))
+        none[[v]] <- none[[v]][0]
+    none$position <- NULL
+    expect_identical(nrow(suppressWarnings(wakefield_bf(none))), 0L)
 })
 
 test_that("effect_priors reaches both routes", {

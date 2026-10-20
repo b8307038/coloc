@@ -11,8 +11,7 @@ process.dataset(d, suffix, ...)
 
 \item{suffix}{"df1" or "df2"}
 
-\item{...}{used to pass parameters to approx.bf.estimates, in
-particular the effect_priors parameter}
+\item{...}{ignored; \code{\link[=wakefield_bf]{wakefield_bf()}} takes \code{effect_priors}}
 }
 \value{
 data.frame with log(abf) or log(bf)

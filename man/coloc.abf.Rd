@@ -42,8 +42,7 @@ probability a SNP is associated with trait 1}
 \item{prior_weights2}{Non-negative weights for the prior
 probability a SNP is asscoiated with trait 2}
 
-\item{...}{used to pass parameters to approx.bf.estimates, in
-particular the effect_priors parameter}
+\item{...}{ignored}
 }
 \value{
 a list of two \code{data.frame}s: \itemize{ \item summary
