@@ -51,7 +51,8 @@ wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
         stop("effect_priors should be positive numbers named quant and cc")
     check_dataset(d)
     nd <- names(d)
-    sd_prior <- effect_priors[[d$type]]
+    ## by the type's label: [[ would take a factor type by its code
+    sd_prior <- effect_priors[[if (d$type == "quant") "quant" else "cc"]]
     if ("beta" %in% nd && "varbeta" %in% nd) {
         z <- d$beta / sqrt(d$varbeta)
         V <- d$varbeta
