@@ -82,7 +82,7 @@ coloc_prior <- function(p1 = 1e-4, p2 = 1e-4, p12 = 5e-6,
                         weights1 = NULL, weights2 = NULL) {
     prior <- validate_coloc_prior(new_coloc_prior(p1, p2, p12, weights1, weights2))
     ## coloc.abf()'s advice (R/claudia.R:439-443), given here so it outlives
-    ## coloc.abf() at step 7
+    ## coloc.abf()
     if (!is.null(weights1) && !is.null(weights2))
         warning("Prior weights specified for both traits.\n",
                 "  The two weight vectors should be derived from independent sources of\n",

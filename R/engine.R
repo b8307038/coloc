@@ -22,9 +22,12 @@
 ## them here is how 6.0.3 ended up with p12 = 1e-5 in coloc.abf() and 5e-6 in
 ## coloc.bf_bf() (allowlist AL01), so the engine derives them instead.
 ##
-## The OLD doors keep the literals in their own signatures on purpose: those
-## are 6.0.3's published API, frozen until the hard break, and they are always
-## passed down explicitly rather than falling through to these.
+## The OLD doors keep 6.0.3's literals where 6.0.3 had them, as its published
+## API, for as long as they exist: coloc.abf(), coloc.bf_bf() and
+## coloc.susie_bf() declare p1, p2 and p12 and pass them down explicitly.
+## coloc.susie() declares none, so it takes these defaults through
+## .prior_from_dots(), as coloc.susie_bf() takes its control through
+## .control_from_dots(); test-v603.R checks they equal 6.0.3's.
 .default_prior   <- function() unclass(coloc_prior())
 .default_control <- function() unclass(coloc_control())
 

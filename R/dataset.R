@@ -92,15 +92,18 @@ as_coloc_dataset <- function(x, warn.minp = 1e-6) {
 
 ##' @export
 print.coloc_dataset <- function(x, ...) {
+    ## the type by its label, as check_dataset() reads it: identical() would
+    ## also compare a factor's or a named type's attributes
     cat("coloc dataset:",
-        if (identical(x$type, "cc")) "case-control trait" else "quantitative trait,",
-        length(x$snp), "snps\n")
+        if (isTRUE(x$type == "cc")) "case-control" else "quantitative",
+        "trait,", length(x$snp), "snps\n")
     cat("  per-snp:", paste(intersect(c("beta", "varbeta", "pvalues", "MAF", "position"), names(x)), collapse = ", "), "\n")
     sc <- unlist(x[intersect(c("N", "s", "sdY"), names(x))])
     if (length(sc))
         cat("  ", paste(names(sc), signif(sc, 4), sep = " = ", collapse = ", "),
             "\n", sep = "")
-    if (!is.null(x$LD)) cat("  LD:", nrow(x$LD), "x", ncol(x$LD), "\n")
+    ## [[ matches the name exactly, where $ would take an element like LD_ref
+    if (!is.null(x[["LD"]])) cat("  LD:", nrow(x[["LD"]]), "x", ncol(x[["LD"]]), "\n")
     other <- setdiff(names(x), .dataset_items)
     if (length(other)) cat("  other elements:", paste(other, collapse = ", "), "\n")
     invisible(x)

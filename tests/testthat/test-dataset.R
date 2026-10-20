@@ -78,5 +78,14 @@ test_that("print() summarises the dataset", {
     expect_output(print(D), "quantitative trait, 5 snps")
     expect_output(print(D), "sdY = 1")
     cc <- small; cc$type <- "cc"; cc$s <- 0.4; cc$sdY <- NULL
-    expect_output(print(as_coloc_dataset(cc)), "case-control trait")
+    expect_output(print(as_coloc_dataset(cc)), "coloc dataset: case-control trait, 5 snps", fixed = TRUE)
+    ## the type is read by its label, as check_dataset() reads it: a factor, or
+    ## a named type such as meta["type"] gives, is still case-control
+    for (type in list(factor("cc", levels = c("cc", "quant")), c(type = "cc"))) {
+        cc$type <- type
+        expect_output(print(as_coloc_dataset(cc)), "coloc dataset: case-control trait, 5 snps", fixed = TRUE)
+    }
+    ## LD only for an element of that name, not one like LD_ref
+    ref <- small; ref$LD_ref <- diag(3)
+    expect_false(any(grepl("LD:", capture.output(print(as_coloc_dataset(ref))), fixed = TRUE)))
 })
