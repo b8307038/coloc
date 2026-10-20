@@ -107,3 +107,205 @@ test_that("Infinite values in beta/varbeta triggers specific error", {
   D1_varbeta_inf$varbeta[[1]] <- 0
   expect_error(check_dataset(D1_varbeta_inf), "Zero")
 })
+
+## ---- check_dataset(), today's against 6.0.3's, one test per rule ------------
+## The data stage replaces check_dataset() with a list of rules. Before it does,
+## each rule of today's function has a case for each thing it tests: a dataset
+## that breaks it, checked by today's function and by 6.0.3's copy in
+## helper-v603.R, which must give the same value, error and warnings. Other
+## cases are valid datasets, datasets that break two rules (these fix the order
+## the rules run in), and the arguments req and warn.minp. Three things differ
+## from 6.0.3 on purpose. Two are tested in test-v603.R: the range of p-values,
+## above 0 and at most 1 (AL16), and a dataset with no type when type isn't
+## required, as on the SuSiE route (AL17). The third, tested at the end, is the
+## p-value warning, which a coloc_dataset gives when it is made (PR #2).
+
+## what a call gives: its value, its error message (NA when there is none) and
+## its warnings
+outcome <- function(expr) {
+    value <- NULL
+    warned <- character(0)
+    error <- tryCatch(withCallingHandlers({
+        value <- expr
+        NA_character_
+    }, warning = function(w) {
+        warned <<- c(warned, conditionMessage(w))
+        invokeRestart("muffleWarning")
+    }), error = conditionMessage)
+    list(value = value, error = error, warned = warned)
+}
+
+## the datasets the cases are made from: D1 as given (beta and varbeta), and
+## D1 as p-values, MAF and N
+pv1 <- D1
+pv1$pvalues <- 2 * pnorm(-abs(D1$beta / sqrt(D1$varbeta)))
+pv1[c("beta", "varbeta", "sdY")] <- NULL
+## each case: the dataset, any arguments besides the dataset and its suffix,
+## and the error or warning both versions give
+cases <- list(
+    ## valid datasets
+    "a valid dataset passes" =
+        list(d = D1),
+    "a dataset given as p-values passes" =
+        list(d = pv1),
+    "a case-control trait with beta and varbeta needs neither s nor sdY" =
+        list(d = local({ d <- D1; d$type <- "cc"; d$sdY <- NULL; d })),
+    "a dataset without LD passes" =
+        list(d = local({ d <- D1; d$LD <- NULL; d })),
+    "an element check_dataset() doesn't know may hold missing values" =
+        list(d = local({ d <- D1; d$extra <- NA; d })),
+    ## the rules, in the order the function checks them
+    "the dataset is a list" =
+        list(d = 1:3, error = "dataset 1: is not a list"),
+    "the required elements are there" =
+        list(d = local({ d <- D1; d$snp <- NULL; d }),
+             error = "dataset 1: missing required element(s) snp"),
+    "every missing required element is named" =
+        list(d = local({ d <- D1; d$type <- NULL; d$snp <- NULL; d }),
+             error = "dataset 1: missing required element(s) type, snp"),
+    "no missing values in beta" =
+        list(d = local({ d <- D1; d$beta[1] <- NA; d }),
+             error = "dataset 1: beta contains missing values"),
+    "no missing values in MAF" =
+        list(d = local({ d <- D1; d$MAF[1] <- NA; d }),
+             error = "dataset 1: MAF contains missing values"),
+    "type is quant or cc" =
+        list(d = local({ d <- D1; d$type <- "binary"; d }),
+             error = "dataset 1: type must be quant or cc"),
+    "the snp ids are unique" =
+        list(d = local({ d <- D1; d$snp[2] <- d$snp[1]; d }),
+             error = "dataset 1: duplicated snps found"),
+    "snp is not a factor" =
+        list(d = local({ d <- D1; d$snp <- factor(d$snp); d }),
+             error = "dataset 1: snp should be a character vector but is a factor"),
+    "MAF is above 0" =
+        list(d = local({ d <- D1; d$MAF[1] <- 0; d }),
+             error = "dataset 1: MAF should be a numeric, strictly >0 & <1"),
+    "MAF is below 1" =
+        list(d = local({ d <- D1; d$MAF[1] <- 1; d }),
+             error = "dataset 1: MAF should be a numeric, strictly >0 & <1"),
+    "MAF is numeric" =
+        list(d = local({ d <- D1; d$MAF <- as.character(d$MAF); d }),
+             error = "dataset 1: MAF should be a numeric, strictly >0 & <1"),
+    "the vectors have the same length" =
+        list(d = local({ d <- D1; d$beta <- d$beta[-1]; d }),
+             error = "dataset 1: lengths of inputs don't match: "),
+    "N is a single number" =
+        list(d = local({ d <- D1; d$N <- c(1000, 1000); d }),
+             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes."),
+    "N is numeric" =
+        list(d = local({ d <- D1; d$N <- as.character(d$N); d }),
+             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes."),
+    "s is between 0 and 1" =
+        list(d = local({ d <- D1; d$type <- "cc"; d$s <- 1.5; d }),
+             error = "dataset 1: s must be between 0 and 1"),
+    "s is above 0" =
+        list(d = local({ d <- D1; d$type <- "cc"; d$s <- 0; d }),
+             error = "dataset 1: s must be between 0 and 1"),
+    "s is below 1" =
+        list(d = local({ d <- D1; d$type <- "cc"; d$s <- 1; d }),
+             error = "dataset 1: s must be between 0 and 1"),
+    "s is numeric" =
+        list(d = local({ d <- D1; d$type <- "cc"; d$s <- "0.5"; d }),
+             error = "dataset 1: s must be between 0 and 1"),
+    "beta without varbeta needs p-values and MAF" =
+        list(d = local({ d <- D1; d$varbeta <- NULL; d }),
+             error = "dataset 1: require p values and MAF if beta, varbeta are unavailable"),
+    "without beta and varbeta, there are p-values" =
+        list(d = local({ d <- D1; d$beta <- NULL; d$varbeta <- NULL; d }),
+             error = "dataset 1: require p values and MAF if beta, varbeta are unavailable"),
+    "without beta and varbeta, there is MAF" =
+        list(d = local({ d <- pv1; d$MAF <- NULL; d }),
+             error = "dataset 1: require p values and MAF if beta, varbeta are unavailable"),
+    "a case-control trait given as p-values has s" =
+        list(d = local({ d <- pv1; d$type <- "cc"; d }),
+             error = "dataset 1: require, s, proportion of samples who are cases, if beta, varbeta are unavailable"),
+    "a trait given as p-values has N" =
+        list(d = local({ d <- pv1; d$N <- NULL; d }),
+             error = "dataset 1: sample size N <=0 or not set"),
+    "a trait given as p-values has N above 0" =
+        list(d = local({ d <- pv1; d$N <- 0; d }),
+             error = "dataset 1: sample size N <=0 or not set"),
+    "beta and varbeta are finite" =
+        list(d = local({ d <- D1; d$beta[1] <- Inf; d }),
+             error = "dataset 1: Infinite values in beta and/or varbeta"),
+    "varbeta has no zeros" =
+        list(d = local({ d <- D1; d$varbeta[1] <- 0; d }),
+             error = "dataset 1: Zero values in varbeta"),
+    "a warning when no p-value is small" =
+        list(d = local({ d <- D1; d$beta <- d$beta / 100; d }),
+             warning = "minimum p value is: "),
+    "a warning when no p-value is small, given as p-values" =
+        list(d = local({ d <- pv1; d$pvalues[] <- 0.5; d }),
+             warning = "minimum p value is: "),
+    "a quantitative trait without sdY has MAF" =
+        list(d = local({ d <- D1; d$sdY <- NULL; d$MAF <- NULL; d }),
+             error = "dataset 1: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
+    "a quantitative trait without sdY has N" =
+        list(d = local({ d <- D1; d$sdY <- NULL; d$N <- NULL; d }),
+             error = "dataset 1: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
+    "LD is square" =
+        list(d = local({ d <- D1; d$LD <- d$LD[, -1]; d }),
+             error = "LD not square"),
+    "LD's row and column names are the same" =
+        list(d = local({ d <- D1; rownames(d$LD)[1] <- "x"; d }),
+             error = "LD rownames != colnames"),
+    "LD covers every snp" =
+        list(d = local({ d <- D1; d$LD <- d$LD[-1, -1]; d }),
+             error = "colnames in LD do not contain all SNPs"),
+    ## the arguments
+    "warn.minp sets when the warning is given" =
+        list(d = D1, args = list(warn.minp = 1e-30),
+             warning = "minimum p value is: "),
+    "req sets the required elements" =
+        list(d = D1, args = list(req = c("snp", "pvalues")),
+             error = "dataset 1: missing required element(s) pvalues"),
+    ## datasets that break two rules, where the rule checked first decides
+    "type is checked before the snp ids" =
+        list(d = local({ d <- D1; d$type <- "binary"
+                         d$snp[2] <- d$snp[1]; d }),
+             error = "dataset 1: type must be quant or cc"),
+    "s is checked before the p-values a dataset without beta needs" =
+        list(d = local({ d <- D1; d$beta <- NULL; d$varbeta <- NULL
+                         d$type <- "cc"; d$s <- 1.5; d }),
+             error = "dataset 1: s must be between 0 and 1"),
+    "the p-value warning comes before the LD checks" =
+        list(d = local({ d <- D1; d$beta <- d$beta / 100
+                         d$LD <- d$LD[, -1]; d }),
+             error = "LD not square", warning = "minimum p value is: "))
+
+for (what in names(cases)) {
+    test_that(paste0("check_dataset(), today's and 6.0.3's: ", what), {
+        case <- cases[[what]]
+        args <- c(list(case$d, 1), case$args)
+        now <- outcome(do.call(check_dataset, args))
+        expect_identical(now,
+                         outcome(get_match_6_0_3(do.call(check_dataset, args))))
+        ## and it stops at the rule it is meant to break, or passes, with the
+        ## warning it is meant to give
+        if (is.null(case$error)) {
+            expect_identical(now$error, NA_character_)
+        } else {
+            expect_identical(now$error, case$error)
+        }
+        if (is.null(case$warning)) {
+            expect_length(now$warned, 0)
+        } else {
+            expect_match(now$warned, case$warning, fixed = TRUE)
+        }
+    })
+}
+
+test_that("check_dataset() doesn't repeat the p-value warning for a coloc_dataset, where 6.0.3 did (PR #2)", {
+    ## a coloc_dataset gave the warning when it was made; a plain list still
+    ## gives it each time, as test-dataset.R checks
+    weak <- D1
+    weak$beta <- weak$beta / 100
+    made <- suppressWarnings(as_coloc_dataset(weak))
+    now <- outcome(check_dataset(made, 1))
+    then <- outcome(get_match_6_0_3(check_dataset(made, 1)))
+    expect_length(now$warned, 0)
+    expect_match(then$warned, "minimum p value is: ", fixed = TRUE)
+    ## the warning is the only difference
+    expect_identical(now[c("value", "error")], then[c("value", "error")])
+})

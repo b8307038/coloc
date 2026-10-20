@@ -404,6 +404,12 @@ test_that("AL17: check_dataset() reports a dataset with no type, where 6.0.3 gav
     ## with type required, as coloc.abf() asks, the two agree
     expect_error(get_match_6_0_3(check_dataset(d, 1)), "missing required element")
     expect_error(check_dataset(d, 1), "missing required element")
+    ## the guard also changes R's own error for a malformed type, which neither
+    ## version checks: c("quant", "cc") gives "'length = 2' in coercion to
+    ## 'logical(1)'", where 6.0.3 gave "the condition has length > 1", and
+    ## character(0) gives "missing value where TRUE/FALSE needed", where 6.0.3
+    ## gave "argument is of length zero". These are R's messages, not coloc's,
+    ## so they aren't pinned; the rule list should give one of its own
 })
 
 test_that("AL18: a SuSiE fit with a duplicated snp id is refused, where 6.0.3 used the first", {
