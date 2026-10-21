@@ -292,13 +292,7 @@ for (what in names(cases)) {
 
 ## ---- what else check_dataset() and check_ld() must keep -----------------------
 ## The rules run in .gate() (R/check.R), but an error or warning shows the call
-## the user made, as 6.0.3's did
-
-## the call in a call's error or warning; NULL when it gives neither
-call_of <- function(expr) tryCatch({
-    expr
-    NULL
-}, error = conditionCall, warning = conditionCall)
+## the user made, as 6.0.3's did (call_of() is in helper-datasets.R)
 
 test_that("check_dataset() errors and warns with its own call, as 6.0.3's did", {
     dup <- D1

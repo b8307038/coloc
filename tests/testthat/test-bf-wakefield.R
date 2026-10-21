@@ -107,7 +107,7 @@ test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_datas
     bad <- D1
     bad$beta[1] <- NA
     expect_identical(tryCatch(wakefield_bf(bad), error = conditionCall),
-                     quote(check_dataset(d, warn.minp = warn.minp)))
+                     quote(as_coloc_dataset(d)))
     expect_identical(tryCatch(wakefield_bf(changed), error = conditionCall),
                      quote(check_dataset(d)))
 })

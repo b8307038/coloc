@@ -38,6 +38,12 @@ outcome <- function(expr) {
     list(value = value, error = error, warned = warned)
 }
 
+## the call in a call's error or warning; NULL when it gives neither
+call_of <- function(expr) tryCatch({
+    expr
+    NULL
+}, error = conditionCall, warning = conditionCall)
+
 ## 6.0.3's messages with the prefix as check_dataset() gives it now. "dataset N: "
 ## stays, "dataset : " goes, and the four messages that named no dataset, and
 ## the minimum p-value warning, gain "dataset N: ". suffix is recycled over msg,

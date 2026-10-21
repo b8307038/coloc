@@ -23,7 +23,9 @@
 ##'
 ##' A dataset is checked when it is made. If you change its elements
 ##' afterwards, coloc's functions check it again when they use it, but don't
-##' do that.
+##' do that. `as_coloc_dataset()` returns a coloc_dataset as it is:
+##' [check_dataset()] checks one again for errors, and
+##' `as_coloc_dataset(unclass(x))` makes it again.
 ##' 
 ##' @param snp character vector of snp ids
 ##' @param type `"quant"` for a quantitative trait, `"cc"` for
@@ -70,7 +72,7 @@ coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
               snp = snp, position = position,
               N = N, type = type, s = s, sdY = sdY, LD = LD)
     d <- d[!sapply(d, is.null)]
-    .new_coloc_dataset(d, warn.minp = warn.minp)
+    .new_coloc_dataset(d, warn.minp = warn.minp, call = sys.call())
 }
 
 ##' @rdname coloc_dataset
@@ -81,12 +83,18 @@ as_coloc_dataset <- function(x, warn.minp = 1e-6) {
     ## a data.frame and a susie fit are lists too, but neither is a dataset
     if (!is.list(x) || is.data.frame(x) || inherits(x, "susie"))
         stop("expected a coloc dataset: a list, or the result of coloc_dataset(), not a ", class(x)[1])
-    .new_coloc_dataset(unclass(x), warn.minp = warn.minp)
+    .new_coloc_dataset(unclass(x), warn.minp = warn.minp, call = sys.call())
 }
 
-## The one place the class is set, so nothing gets it without being checked.
-.new_coloc_dataset <- function(d, warn.minp = 1e-6) {
-    check_dataset(d, warn.minp = warn.minp)
+## The one place a dataset gets the coloc_dataset class, so every
+## coloc_dataset has been checked. `call` is the call R shows in an error or
+## warning: coloc_dataset(...) or as_coloc_dataset(x) as the user typed it,
+## or as_coloc_dataset(d) when wakefield_bf() converts a list for them. The
+## check runs before the class is set, so the minimum p-value warning goes
+## only to a dataset that isn't a coloc_dataset yet.
+.new_coloc_dataset <- function(d, warn.minp = 1e-6, call) {
+    .gate(d, req = eval(formals(check_dataset)$req), warn.minp = warn.minp,
+          call = call)
     structure(d, class = c("coloc_dataset", "list"))
 }
 

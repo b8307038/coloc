@@ -74,7 +74,9 @@ a quantitative one.
 
 A dataset is checked when it is made. If you change its elements
 afterwards, coloc's functions check it again when they use it, but don't
-do that.
+do that. \code{as_coloc_dataset()} returns a coloc_dataset as it is:
+\code{\link[=check_dataset]{check_dataset()}} checks one again for errors, and
+\code{as_coloc_dataset(unclass(x))} makes it again.
 }
 \examples{
 D <- coloc_dataset(snp = paste0("s", 1:5),

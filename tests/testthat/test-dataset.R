@@ -54,6 +54,30 @@ test_that("the p value warning is given once, when the dataset is made", {
     expect_warning(check_dataset(weak), "minimum p value")
 })
 
+test_that("a mistake when a dataset is made shows the constructor's call, and no trait", {
+    bad <- small
+    bad$beta[2] <- NA
+    expect_identical(call_of(as_coloc_dataset(bad)), quote(as_coloc_dataset(bad)))
+    expect_error(as_coloc_dataset(bad), "^beta contains missing values$")
+    expect_identical(call_of(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
+                                           varbeta = bad$varbeta, sdY = 1)),
+                     quote(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
+                                         varbeta = bad$varbeta, sdY = 1)))
+    ## and so does the minimum p-value warning
+    weak <- small
+    weak$beta <- rep(0.01, 5)
+    expect_identical(call_of(as_coloc_dataset(weak)), quote(as_coloc_dataset(weak)))
+    expect_warning(as_coloc_dataset(weak), "^minimum p value is: ")
+})
+
+test_that("as_coloc_dataset() returns a coloc_dataset as it is, even one changed since it was made", {
+    broken <- as_coloc_dataset(small)
+    broken$beta[2] <- NA                # still a coloc_dataset: $<- keeps the class
+    expect_identical(as_coloc_dataset(broken), broken)
+    ## check_dataset() is the way to check it again, as the help says
+    expect_error(check_dataset(broken), "^beta contains missing values$")
+})
+
 test_that("a dataset changed after it was made is checked again when used", {
     D <- as_coloc_dataset(D1)
     D$beta[1] <- NA
