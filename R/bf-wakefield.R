@@ -50,22 +50,15 @@ wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
         !all(is.finite(effect_priors[c("quant", "cc")]) &
              effect_priors[c("quant", "cc")] > 0))
         stop("effect_priors should be positive numbers named quant and cc")
-    check_dataset(d)
-    bf <- .wakefield_bf(d, effect_priors)
-    data.frame(snp = as.character(d$snp),
-               position = if ("position" %in% names(d)) d$position
-                          else rep(NA_integer_, nrow(bf)),
-               bf, row.names = NULL)
-}
-
-## The arithmetic of wakefield_bf(), unchecked: z, V, r and lABF for each snp,
-## from beta and varbeta when the dataset has both, else from p-values, MAF
-## and N. process.dataset() calls it directly, as its callers check the
-## dataset first, so a dataset is checked, and warned about, once.
-.wakefield_bf <- function(d, effect_priors) {
+    if (inherits(d, "coloc_dataset")) {
+        ## checked again, as coloc's functions do: its elements may have been
+        ## changed since it was made
+        check_dataset(d)
+    } else {
+        d <- as_coloc_dataset(d)
+    }
     nd <- names(d)
-    ## by the type's label: [[ would take a factor type by its code. A type
-    ## other than quant gets cc's prior, as in 6.0.3
+    ## by the type's label: [[ would take a factor type by its code
     sd_prior <- effect_priors[[if (d$type == "quant") "quant" else "cc"]]
     if ("beta" %in% nd && "varbeta" %in% nd) {
         z <- d$beta / sqrt(d$varbeta)
@@ -81,5 +74,9 @@ wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
              else Var.data.cc(d$MAF, d$N, d$s)
     }
     r <- sd_prior^2 / (sd_prior^2 + V)
-    data.frame(z = z, V = V, r = r, lABF = 0.5 * (log(1 - r) + (r * z^2)))
+    data.frame(snp = as.character(d$snp),
+               position = if ("position" %in% nd) d$position
+                          else rep(NA_integer_, length(z)),
+               z = z, V = V, r = r, lABF = 0.5 * (log(1 - r) + (r * z^2)),
+               row.names = NULL)
 }

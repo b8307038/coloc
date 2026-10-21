@@ -177,17 +177,37 @@ process.dataset <- function(d, suffix, ...) {
     beta_route <- "beta" %in% nd && "varbeta" %in% nd
     if(!beta_route && !("pvalues" %in% nd && "MAF" %in% nd && "N" %in% nd))
         stop("Must give, as a minimum, one of:\n(beta, varbeta, type, sdY)\n(beta, varbeta, type, MAF)\n(pvalues, MAF, N, type)")
-    ## 6.0.3's priors, which process.dataset() never let a caller change
-    bf <- .wakefield_bf(d, c(quant = 0.15, cc = 0.2))
-    V <- bf$V
-    z <- bf$z
+    ## wakefield_bf()'s arithmetic, kept here so that process.dataset(), and
+    ## through it coloc.abf(), finemap.abf() and coloc(), keep 6.0.3's answers
+    ## for any dataset, as wakefield_bf() checks its input. It goes when
+    ## process.dataset() does. The priors are 6.0.3's, which process.dataset()
+    ## never let a caller change; a type other than quant gets cc's, as in 6.0.3
+    sd_prior <- c(quant = 0.15, cc = 0.2)[[if (d$type == "quant") "quant" else "cc"]]
+    if(beta_route) {
+        z <- d$beta / sqrt(d$varbeta)
+        V <- d$varbeta
+        if (d$type == "quant")
+            sd_prior <- sd_prior *
+                (if ("sdY" %in% nd) d$sdY else sdY.est(d$varbeta, d$MAF, d$N))
+    } else {
+        z <- qnorm(0.5 * d$pvalues, lower.tail = FALSE)
+        V <- if (d$type == "quant") Var.data(d$MAF, d$N)
+             else Var.data.cc(d$MAF, d$N, d$s)
+    }
+    ## names dropped, so the rows take their names only from beta's and
+    ## varbeta's, put back below. With one snp and neither named, 6.0.3 named
+    ## the row "quant" or "cc", after its prior; here it is "1" (AL21)
+    r <- unname(sd_prior^2 / (sd_prior^2 + V))
+    lABF <- unname(0.5 * (log(1 - r) + (r * z^2)))
+    V <- unname(V)
+    z <- unname(z)
     if(beta_route) {
         ## 6.0.3's data.frame() took its row names from varbeta's names, or
         ## beta's, when they had any; named so, it does the same here
         names(V) <- names(d$varbeta)
         names(z) <- names(d$beta)
     }
-    df <- data.frame(V = V, z = z, r = bf$r, lABF = bf$lABF)
+    df <- data.frame(V = V, z = z, r = r, lABF = lABF)
     if(!is.null(suffix))
         colnames(df) <- paste(colnames(df), suffix, sep=".")
     if(beta_route) {

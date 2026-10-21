@@ -101,6 +101,35 @@ test_that("wakefield_bf() checks its dataset, and takes a coloc_dataset", {
     expect_identical(wakefield_bf(as_coloc_dataset(D1)), wakefield_bf(D1))
 })
 
+test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_dataset again", {
+    ## a list goes through as_coloc_dataset(), which refuses a data.frame,
+    ## where check_dataset() alone would report "missing required element(s) type"
+    expect_error(wakefield_bf(as.data.frame(D1[c("snp", "beta", "varbeta")])),
+                 "expected a coloc dataset", fixed = TRUE)
+    ## a coloc_dataset changed since it was made is checked again
+    changed <- as_coloc_dataset(D1)
+    changed$beta[1] <- NA
+    expect_error(wakefield_bf(changed), "beta contains missing values", fixed = TRUE)
+    ## a weak list gets the minimum p-value warning once
+    weak <- D1
+    weak$beta <- weak$beta / 100
+    warned <- character(0)
+    withCallingHandlers(wakefield_bf(weak), warning = function(w) {
+        warned <<- c(warned, conditionMessage(w))
+        invokeRestart("muffleWarning")
+    })
+    expect_length(grep("minimum p value", warned, fixed = TRUE), 1)
+    ## for now an error shows the call of the check inside, as_coloc_dataset()'s
+    ## for a list and check_dataset()'s for a coloc_dataset; pinned, so that a
+    ## change to it is made on purpose
+    bad <- D1
+    bad$beta[1] <- NA
+    expect_identical(tryCatch(wakefield_bf(bad), error = conditionCall),
+                     quote(check_dataset(d, warn.minp = warn.minp)))
+    expect_identical(tryCatch(wakefield_bf(changed), error = conditionCall),
+                     quote(check_dataset(d)))
+})
+
 test_that("wakefield_bf() refuses effect_priors without a positive number for each type", {
     msg <- "effect_priors should be positive numbers named quant and cc"
     expect_error(wakefield_bf(D1, effect_priors = c(quant = 0.15)), msg, fixed = TRUE)
