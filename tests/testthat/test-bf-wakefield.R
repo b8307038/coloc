@@ -4,31 +4,14 @@ data(coloc_test_data)
 D1 <- coloc_test_data$D1
 
 ## D1 on each route wakefield_bf() takes
-as_cc <- function(d) {
-    d$type <- "cc"
-    d$s <- 0.3
-    d$sdY <- NULL
-    d
-}
-to_pvalues <- function(d) {
-    d$pvalues <- 2 * pnorm(-abs(d$beta / sqrt(d$varbeta)))
-    d[c("beta", "varbeta", "sdY")] <- NULL
-    d
-}
-## type as a factor: with levels cc and quant, as a data frame column holding
-## both types gives, or with its own level alone
-type_factor <- function(d, levels) {
-    d$type <- factor(d$type, levels = levels)
-    d
-}
 routes <- list(
     "beta and varbeta, sdY given" = D1,
     "beta and varbeta, sdY estimated" = local({ d <- D1; d$sdY <- NULL; d }),
     "beta and varbeta, case-control" = as_cc(D1),
     "p-values" = to_pvalues(D1),
     "p-values, case-control" = to_pvalues(as_cc(D1)),
-    "beta and varbeta, no position" = local({ d <- D1; d$position <- NULL; d }),
-    "p-values, no position" = local({ d <- to_pvalues(D1); d$position <- NULL; d }),
+    "beta and varbeta, no position" = no_position(D1),
+    "p-values, no position" = no_position(to_pvalues(D1)),
     "beta and varbeta, type a factor" = type_factor(D1, c("cc", "quant")),
     "p-values, case-control, type a factor" = type_factor(to_pvalues(as_cc(D1)), "cc"))
 
@@ -65,10 +48,9 @@ test_that("wakefield_bf() returns one row per snp, with no suffixes", {
     names(named$beta) <- names(named$position) <- D1$snp
     expect_identical(rownames(wakefield_bf(named)), as.character(seq_along(D1$snp)))
     ## no snps and no position: no rows, where a single NA position would fail
-    none <- D1
+    none <- no_position(D1)
     for (v in c("beta", "varbeta", "MAF", "snp"))
         none[[v]] <- none[[v]][0]
-    none$position <- NULL
     expect_identical(nrow(suppressWarnings(wakefield_bf(none))), 0L)
 })
 

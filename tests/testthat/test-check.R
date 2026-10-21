@@ -120,26 +120,9 @@ test_that("Infinite values in beta/varbeta triggers specific error", {
 ## required, as on the SuSiE route (AL17). The third, tested at the end, is the
 ## p-value warning, which a coloc_dataset gives when it is made (PR #2).
 
-## what a call gives: its value, its error message (NA when there is none) and
-## its warnings
-outcome <- function(expr) {
-    value <- NULL
-    warned <- character(0)
-    error <- tryCatch(withCallingHandlers({
-        value <- expr
-        NA_character_
-    }, warning = function(w) {
-        warned <<- c(warned, conditionMessage(w))
-        invokeRestart("muffleWarning")
-    }), error = conditionMessage)
-    list(value = value, error = error, warned = warned)
-}
-
 ## the datasets the cases are made from: D1 as given (beta and varbeta), and
 ## D1 as p-values, MAF and N
-pv1 <- D1
-pv1$pvalues <- 2 * pnorm(-abs(D1$beta / sqrt(D1$varbeta)))
-pv1[c("beta", "varbeta", "sdY")] <- NULL
+pv1 <- to_pvalues(D1)
 ## each case: the dataset, any arguments besides the dataset and its suffix,
 ## and the error or warning both versions give
 cases <- list(

@@ -20,18 +20,6 @@ bf_a <- matrix(c(0, 0, 8, 2, 0, 0, 0, 0,
 bf_b <- matrix(c(0, 0, 7, 3, 0, 0, 0, 0), nrow = 1, dimnames = list("sig1", snps))
 with_null <- function(m) cbind(m, null = 0)
 
-## the same datasets in other forms
-as_cc <- function(d) {
-    d$type <- "cc"
-    d$s <- 0.3
-    d$sdY <- NULL
-    d
-}
-to_pvalues <- function(d) {
-    d$pvalues <- 2 * pnorm(-abs(d$beta / sqrt(d$varbeta)))
-    d[c("beta", "varbeta", "sdY")] <- NULL
-    d
-}
 ## the same snps listed in the opposite order, as two studies sorted differently would be
 reverse <- function(d) {
     for (v in c("beta", "varbeta", "MAF", "snp", "position"))
@@ -233,10 +221,6 @@ test_that("process.dataset() returns what 6.0.3's did, for every kind of dataset
     ## and quant, or its own level alone); one snp, given as p-values (with
     ## beta and varbeta it is AL21); no snps; and, unchecked, a type that is
     ## neither quant nor cc, and a dataset with neither route
-    no_position <- function(d) {
-        d$position <- NULL
-        d
-    }
     D1_no_sdY <- D1
     D1_no_sdY$sdY <- NULL
     weak <- D1
