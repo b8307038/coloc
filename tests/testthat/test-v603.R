@@ -502,6 +502,30 @@ test_that("AL21: process.dataset() no longer names a one-snp result's row after 
     }
 })
 
+test_that("check_dataset() doesn't repeat the minimum p-value warning for a coloc_dataset, where 6.0.3 did", {
+    ## PR #2: a coloc_dataset gave the warning when it was made; a plain list
+    ## still gives it each time, as test-dataset.R checks
+    weak <- D1
+    weak$beta <- weak$beta / 100
+    made <- suppressWarnings(as_coloc_dataset(weak))
+    now <- outcome(check_dataset(made, 1))
+    then <- outcome(get_match_6_0_3(check_dataset(made, 1)))
+    expect_length(now$warned, 0)
+    expect_match(then$warned, "minimum p value is: ", fixed = TRUE)
+    ## the warning is the only difference
+    expect_identical(now[c("value", "error")], then[c("value", "error")])
+    ## only the comparison is skipped: the p-values are still worked out, so a
+    ## coloc_dataset changed to hold a negative varbeta passes with R's warning
+    ## from sqrt(), where 6.0.3 went on to compare a NaN and stopped
+    made$varbeta[1] <- -made$varbeta[1]
+    now <- outcome(check_dataset(made, 1))
+    then <- outcome(get_match_6_0_3(check_dataset(made, 1)))
+    expect_identical(now$error, NA_character_)
+    expect_identical(now$warned, "NaNs produced")
+    expect_identical(then$error, "missing value where TRUE/FALSE needed")
+    expect_identical(then$warned, "NaNs produced")
+})
+
 ## ---- the dataset functions, pinned as numbers ------------------------------
 ## The tests above compare process.dataset() and runsusie() with their 6.0.3
 ## copies. These pin their values as plain numbers too, worked out with 6.0.3's

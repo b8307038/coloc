@@ -115,10 +115,10 @@ test_that("Infinite values in beta/varbeta triggers specific error", {
 ## helper-v603.R, which must give the same value, error and warnings. Other
 ## cases are valid datasets, datasets that break two rules (these fix the order
 ## the rules run in), and the arguments req and warn.minp. Three things differ
-## from 6.0.3 on purpose. Two are tested in test-v603.R: the range of p-values,
-## above 0 and at most 1 (AL16), and a dataset with no type when type isn't
-## required, as on the SuSiE route (AL17). The third, tested at the end, is the
-## p-value warning, which a coloc_dataset gives when it is made (PR #2).
+## from 6.0.3 on purpose, each tested in test-v603.R: the range of p-values,
+## above 0 and at most 1; a dataset with no type when type isn't required, as
+## on the SuSiE route; and the p-value warning, which a coloc_dataset gives
+## when it is made and not again (from PR #2).
 
 ## the datasets the cases are made from: D1 as given (beta and varbeta), and
 ## D1 as p-values, MAF and N
@@ -278,17 +278,3 @@ for (what in names(cases)) {
         }
     })
 }
-
-test_that("check_dataset() doesn't repeat the p-value warning for a coloc_dataset, where 6.0.3 did (PR #2)", {
-    ## a coloc_dataset gave the warning when it was made; a plain list still
-    ## gives it each time, as test-dataset.R checks
-    weak <- D1
-    weak$beta <- weak$beta / 100
-    made <- suppressWarnings(as_coloc_dataset(weak))
-    now <- outcome(check_dataset(made, 1))
-    then <- outcome(get_match_6_0_3(check_dataset(made, 1)))
-    expect_length(now$warned, 0)
-    expect_match(then$warned, "minimum p value is: ", fixed = TRUE)
-    ## the warning is the only difference
-    expect_identical(now[c("value", "error")], then[c("value", "error")])
-})
