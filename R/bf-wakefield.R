@@ -4,30 +4,32 @@
 ##'
 ##' `wakefield_bf()` gives Wakefield's approximate Bayes factor (ABF) for each
 ##' snp in a dataset, on the log scale: the evidence for an effect at that snp
-##' against no effect. These are the per-snp Bayes factors [coloc.abf()] and
-##' [finemap.abf()] use, here one row per snp with the working kept.
+##' against no effect.
 ##'
-##' The route depends on what the dataset has:
+##' Wakefield showed we could get ABF as
 ##'
-##' - `beta` and `varbeta`: z is `beta / sqrt(varbeta)` and V is `varbeta`.
-##'   For a quantitative trait the effect prior is in units of the trait's
-##'   standard deviation, so it is multiplied by `sdY`; when the dataset has
-##'   no `sdY`, it is estimated from `varbeta`, `MAF` and `N`, with a warning.
-##' - `pvalues`, `MAF` and `N`, and `s` for a case-control trait: z comes from
-##'   the p-value, and V from `MAF`, `N` and `s`, for a trait with standard
-##'   deviation 1.
+##' log ABF = (log(1 - r) + r z^2) / 2
 ##'
-##' Either way, with W the prior standard deviation squared, r = W / (W + V)
-##' and the log ABF is (log(1 - r) + r z^2) / 2. With the default
-##' `effect_priors`, the numbers are those of [process.dataset()].
+##' We assume the true effect size ~ N(0,W), and set r = W / (W + V)
+##' where V is the variance of the estimated effect size. z is the
+##' usual Z score (beta/se(beta)). W is given by the `effect_priors`
+##' parameter.
 ##'
-##' The dataset is checked with [check_dataset()] first.
+##' Where the dataset includes beta and varbeta, this is
+##' straightforward. Where it does not, we approximate the result from
+##' pvalues, MAF and N. Please give beta and varbeta where available.
 ##'
-##' @param d a dataset made with [coloc_dataset()], or a list with the same
-##'     elements
+##' For a quantitative trait the effect prior is in units of the
+##' trait's standard deviation, so it is multiplied by `sdY`; when the
+##' dataset has no `sdY`, it is estimated from `varbeta`, `MAF` and
+##' `N`, with a warning. Again, please give sdY if known.
+##'
+##' @param d a dataset made with [coloc_dataset()]
 ##' @param effect_priors the prior standard deviation of a causal snp's
 ##'     effect, named by the type of trait: `quant` in units of the trait's
-##'     standard deviation, and `cc` on the log odds ratio scale
+##'     standard deviation, and `cc` on the log odds ratio scale. This option
+##'     exists for special cases - do not change the standard priors unless
+##'     you know what you are doing!
 ##' @return a data frame with one row per snp and the columns `snp`,
 ##'     `position` (`NA` when the dataset has none), `z`, `V` (the variance
 ##'     of the effect estimate), `r` (the shrinkage factor) and `lABF` (the
@@ -36,14 +38,12 @@
 ##'     studies: comparison with P-values. Genetic Epidemiology 33(1),
 ##'     79-86. \doi{10.1002/gepi.20359}
 ##' @seealso [finemap.abf()], which turns these into posterior probabilities
-##' @author Claudia Giambartolomei, Vincent Plagnol, Chris Wallace
+##' [check_dataset()], which gives more detail on how to structure a coloc dataset
+##' @author Wei-Yu Lin, Claudia Giambartolomei, Vincent Plagnol, Chris Wallace
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
 ##' head(wakefield_bf(coloc_test_data$D1))
-##'
-##' ## a wider prior for the effect of a causal snp
-##' head(wakefield_bf(coloc_test_data$D1, effect_priors = c(quant = 0.3, cc = 0.2)))
 wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
     if (!is.numeric(effect_priors) ||
         !all(c("quant", "cc") %in% names(effect_priors)) ||

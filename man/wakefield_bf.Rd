@@ -7,12 +7,13 @@
 wakefield_bf(d, effect_priors = c(quant = 0.15, cc = 0.2))
 }
 \arguments{
-\item{d}{a dataset made with \code{\link[=coloc_dataset]{coloc_dataset()}}, or a list with the same
-elements}
+\item{d}{a dataset made with \code{\link[=coloc_dataset]{coloc_dataset()}}}
 
 \item{effect_priors}{the prior standard deviation of a causal snp's
 effect, named by the type of trait: \code{quant} in units of the trait's
-standard deviation, and \code{cc} on the log odds ratio scale}
+standard deviation, and \code{cc} on the log odds ratio scale. This option
+exists for special cases - do not change the standard priors unless
+you know what you are doing!}
 }
 \value{
 a data frame with one row per snp and the columns \code{snp},
@@ -23,33 +24,30 @@ log ABF)
 \description{
 \code{wakefield_bf()} gives Wakefield's approximate Bayes factor (ABF) for each
 snp in a dataset, on the log scale: the evidence for an effect at that snp
-against no effect. These are the per-snp Bayes factors \code{\link[=coloc.abf]{coloc.abf()}} and
-\code{\link[=finemap.abf]{finemap.abf()}} use, here one row per snp with the working kept.
+against no effect.
 }
 \details{
-The route depends on what the dataset has:
-\itemize{
-\item \code{beta} and \code{varbeta}: z is \code{beta / sqrt(varbeta)} and V is \code{varbeta}.
-For a quantitative trait the effect prior is in units of the trait's
-standard deviation, so it is multiplied by \code{sdY}; when the dataset has
-no \code{sdY}, it is estimated from \code{varbeta}, \code{MAF} and \code{N}, with a warning.
-\item \code{pvalues}, \code{MAF} and \code{N}, and \code{s} for a case-control trait: z comes from
-the p-value, and V from \code{MAF}, \code{N} and \code{s}, for a trait with standard
-deviation 1.
-}
+Wakefield showed we could get ABF as
 
-Either way, with W the prior standard deviation squared, r = W / (W + V)
-and the log ABF is (log(1 - r) + r z^2) / 2. With the default
-\code{effect_priors}, the numbers are those of \code{\link[=process.dataset]{process.dataset()}}.
+log ABF = (log(1 - r) + r z^2) / 2
 
-The dataset is checked with \code{\link[=check_dataset]{check_dataset()}} first.
+We assume the true effect size ~ N(0,W), and set r = W / (W + V)
+where V is the variance of the estimated effect size. z is the
+usual Z score (beta/se(beta)). W is given by the \code{effect_priors}
+parameter.
+
+Where the dataset includes beta and varbeta, this is
+straightforward. Where it does not, we approximate the result from
+pvalues, MAF and N. Please give beta and varbeta where available.
+
+For a quantitative trait the effect prior is in units of the
+trait's standard deviation, so it is multiplied by \code{sdY}; when the
+dataset has no \code{sdY}, it is estimated from \code{varbeta}, \code{MAF} and
+\code{N}, with a warning. Again, please give sdY if known.
 }
 \examples{
 data(coloc_test_data)
 head(wakefield_bf(coloc_test_data$D1))
-
-## a wider prior for the effect of a causal snp
-head(wakefield_bf(coloc_test_data$D1, effect_priors = c(quant = 0.3, cc = 0.2)))
 }
 \references{
 Wakefield J (2009). Bayes factors for genome-wide association
@@ -58,7 +56,8 @@ studies: comparison with P-values. Genetic Epidemiology 33(1),
 }
 \seealso{
 \code{\link[=finemap.abf]{finemap.abf()}}, which turns these into posterior probabilities
+\code{\link[=check_dataset]{check_dataset()}}, which gives more detail on how to structure a coloc dataset
 }
 \author{
-Claudia Giambartolomei, Vincent Plagnol, Chris Wallace
+Wei-Yu Lin, Claudia Giambartolomei, Vincent Plagnol, Chris Wallace
 }
