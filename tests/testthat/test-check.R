@@ -278,3 +278,49 @@ for (what in names(cases)) {
         }
     })
 }
+
+## ---- what else check_dataset() and check_ld() must keep -----------------------
+## The rules run in .gate() (R/check.R), but an error or warning shows the call
+## the user made, as 6.0.3's did
+
+## the call in a call's error or warning; NULL when it gives neither
+call_of <- function(expr) tryCatch({
+    expr
+    NULL
+}, error = conditionCall, warning = conditionCall)
+
+test_that("check_dataset() errors and warns with its own call, as 6.0.3's did", {
+    dup <- D1
+    dup$snp[2] <- dup$snp[1]
+    weak <- D1
+    weak$beta <- weak$beta / 100
+    per_snp_N <- D1
+    per_snp_N$N <- rep(D1$N, length(D1$snp))
+    expect_identical(call_of(check_dataset(dup, 1)), quote(check_dataset(dup, 1)))
+    expect_identical(call_of(check_dataset(dup, 1)),
+                     call_of(get_match_6_0_3(check_dataset(dup, 1))))
+    expect_identical(call_of(check_dataset(weak, 1)),
+                     call_of(get_match_6_0_3(check_dataset(weak, 1))))
+    expect_identical(call_of(check_dataset(1:3, 1)),
+                     call_of(get_match_6_0_3(check_dataset(1:3, 1))))
+    expect_identical(call_of(check_dataset(per_snp_N, 1)),
+                     call_of(get_match_6_0_3(check_dataset(per_snp_N, 1))))
+    ## and through a function that calls it
+    expect_identical(call_of(suppressMessages(coloc.abf(dup, D1))),
+                     quote(check_dataset(d = dataset1, 1)))
+})
+
+test_that("check_ld(), today's against 6.0.3's", {
+    names_differ <- D3$LD
+    rownames(names_differ) <- paste0("r", seq_len(nrow(names_differ)))
+    lds <- list(valid = D3$LD, missing = NULL, data_frame = as.data.frame(D3$LD),
+                not_square = D3$LD[, -1], names_differ = names_differ,
+                snp_missing = D3$LD[-1, -1])
+    for (nm in names(lds)) {
+        LD <- lds[[nm]]
+        expect_identical(outcome(check_ld(D3, LD)),
+                         outcome(get_match_6_0_3(check_ld(D3, LD))), label = nm)
+        expect_identical(call_of(check_ld(D3, LD)),
+                         call_of(get_match_6_0_3(check_ld(D3, LD))), label = nm)
+    }
+})

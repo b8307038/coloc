@@ -72,108 +72,9 @@ check_dataset <- function(d,
                           suffix="",
                           req=c("type","snp"),
                           warn.minp=1e-6) {
-    if(!is.list(d) )
-        stop("dataset ",suffix,": is not a list")
-    recognised_items <- .dataset_items # defined in R/dataset.R
-    nd <- intersect(names(d), recognised_items)
-
-    ## no missing values - make people clean their own data rather
-    ## than make assumptions here for datasets I don't know
-    n <- 0
-    
-    if(length(setdiff(req,nd)))
-        stop("dataset ",suffix,": missing required element(s) ",paste(setdiff(req,nd),collapse=", "))
-
-    for(v in nd) {
-        if(any(is.na(d[[v]])))
-            stop("dataset ",suffix,": ",v," contains missing values")
-    }
-
-    ## guarded, so a dataset with no type reaches "variable type not set"
-    ## below rather than failing here on a zero-length condition: runsusie()
-    ## leaves type out of req
-    if ("type" %in% nd && !(d$type %in% c("quant", "cc")))
-        stop("dataset ", suffix, ": ", "type must be quant or cc")
-
-    ## snps should be unique
-    if("snp" %in% nd && any(duplicated(d$snp)))
-        stop("dataset ",suffix,": duplicated snps found")
-    if("snp" %in% nd && is.factor(d$snp))
-        stop("dataset ",suffix,": snp should be a character vector but is a factor")
-
-    ## MAF should be > 0, < 1
-    if("MAF" %in% nd && (!is.numeric(d$MAF) || any(is.na(d$MAF)) ||
-                         any(d$MAF<=0) || any(d$MAF>=1)))
-        stop("dataset ",suffix,": MAF should be a numeric, strictly >0 & <1")
-
-    ## lengths of vector arguments should match
-    l <- -1 # impossible length
-    shouldmatch <- intersect(nd, c("pvalues","MAF","beta","varbeta","snp","position"))
-    for(v in shouldmatch)
-        if(l<0) { ## update
-            l <- length(d[[v]])
-        } else { ## check
-            if(length(d[[v]])!=l) {
-                stop("dataset ",suffix,": lengths of inputs don't match: ")
-                print(shouldmatch)
-            }
-        }
-    ## N should be scalar if present
-    if("N" %in% nd && (!is.numeric(d[["N"]]) || length(d[["N"]])!=1))
-       stop("N should be a single numeric. coloc does not accomodate per-snp sample sizes.")
-
-    ## type of data
-    if (! ('type' %in% nd))
-        stop("dataset ",suffix,": variable type not set")
-    if(!(d$type %in% c("quant","cc")))
-        stop("dataset ",suffix,": ","type must be quant or cc")
-
-    ## no beta/varbeta
-    if(("s" %in% nd) && (!is.numeric(d$s) || d$s<=0 || d$s>=1))
-        stop("dataset ",suffix,": ","s must be between 0 and 1")
-    if(!("beta" %in% nd) || !("varbeta" %in% nd)) { # need to estimate var (Y)
-        if(!("pvalues" %in% nd) || !( "MAF" %in% nd))
-            stop("dataset ",suffix,": ","require p values and MAF if beta, varbeta are unavailable")
-        if(any(d$pvalues<=0 | d$pvalues>1))
-            stop("dataset ",suffix,": ","pvalues must be above 0 and at most 1")
-        if(d$type=="cc" && !("s" %in% nd))
-            stop("dataset ",suffix,": ","require, s, proportion of samples who are cases, if beta, varbeta are unavailable")
-        if (!('N' %in% nd) || is.null(d$N) || any(d$N<=0) )
-            stop("dataset ",suffix,": sample size N <=0 or not set")
-        p=d$pvalues
-    } else {
-        p=pnorm( -abs( d$beta/sqrt(d$varbeta) ) ) * 2
-    }
-
-    # Infinite values.
-    if (any(is.infinite(d$beta) | is.infinite(d$varbeta))) {
-      stop("dataset ", suffix,": Infinite values in beta and/or varbeta")
-    }
-
-    # zero variance.
-    if (any(d$varbeta==0)) {
-      stop("dataset ", suffix,": Zero values in varbeta")
-    }
-
-    ## minp. A coloc_dataset gave this warning when it was made, so it is not
-    ## repeated each time the dataset is used
-    if(!inherits(d, "coloc_dataset") && min(p) > warn.minp)
-        warning("minimum p value is: ",format.pval(min(p)),"\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette.")
-
-    ## sdY
-    if(d$type=="quant" && !("sdY" %in% nd))
-        if(!("MAF" %in% nd && "N" %in% nd ))
-            stop("dataset ",suffix,": ","must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
-
-    if("LD" %in% nd) {
-        if(nrow(d$LD)!=ncol(d$LD))
-            stop("LD not square")
-        if(!identical(colnames(d$LD),rownames(d$LD)))
-            stop("LD rownames != colnames")
-        if(length(setdiff(d$snp,colnames(d$LD))))
-            stop("colnames in LD do not contain all SNPs")
-    }
-
+    ## the rules are .dataset_rules, below; the call is passed on so that an
+    ## error still shows this call, not .gate()'s
+    .gate(d, suffix, req, warn.minp, call = sys.call())
     ## if we reach here, no badness detected
     NULL
 }
@@ -187,6 +88,150 @@ check.dataset=function(...) {
 }
 
 
+## ---- check_dataset()'s rules ------------------------------------------------
+## One entry of .dataset_rules per rule, in the order check_dataset() checks
+## them: the order decides which message a dataset with two mistakes gets, and
+## test-check.R pins it against 6.0.3's. Each condition is the one
+## check_dataset() had, word for word, so R's own errors on input no rule
+## expects stay as they were.
+
+## One rule. check is function(d, ctx): NULL when the dataset passes, else the
+## message without "dataset N: ", which .gate() adds unless prefix is FALSE.
+## about names the elements the rule reads, so check_ld() can pick out the LD
+## rules. level "warning" is the minimum p-value step alone: .gate() warns and
+## goes on.
+.rule <- function(id, check, about = character(0), level = c("error", "warning"),
+                  prefix = TRUE) {
+    list(id = id, check = check, about = about, level = match.arg(level),
+         prefix = prefix)
+}
+
+## the p-value route: no beta, or no varbeta
+.p_route <- function(ctx) !("beta" %in% ctx$nd) || !("varbeta" %in% ctx$nd)
+
+## ctx is list(nd, req, warn.minp), nd being the elements of d coloc knows
+.dataset_rules <- list(
+    .rule("required", function(d, ctx)
+        if (length(setdiff(ctx$req, ctx$nd)))
+            paste0("missing required element(s) ",
+                   paste(setdiff(ctx$req, ctx$nd), collapse = ", "))),
+    ## no missing values - make people clean their own data rather than make
+    ## assumptions here for datasets I don't know
+    .rule("no_na", function(d, ctx) {
+        for (v in ctx$nd)
+            if (any(is.na(d[[v]])))
+                return(paste0(v, " contains missing values"))
+        NULL
+    }),
+    ## guarded, so a dataset with no type reaches "variable type not set"
+    ## below rather than failing here on a zero-length condition: runsusie()
+    ## leaves type out of req
+    .rule("type_valid", about = "type", function(d, ctx)
+        if ("type" %in% ctx$nd && !(d$type %in% c("quant", "cc")))
+            "type must be quant or cc"),
+    .rule("snp_unique", about = "snp", function(d, ctx)
+        if ("snp" %in% ctx$nd && any(duplicated(d$snp)))
+            "duplicated snps found"),
+    .rule("snp_character", about = "snp", function(d, ctx)
+        if ("snp" %in% ctx$nd && is.factor(d$snp))
+            "snp should be a character vector but is a factor"),
+    .rule("maf_range", about = "MAF", function(d, ctx)
+        if ("MAF" %in% ctx$nd && (!is.numeric(d$MAF) || any(is.na(d$MAF)) ||
+                                  any(d$MAF <= 0) || any(d$MAF >= 1)))
+            "MAF should be a numeric, strictly >0 & <1"),
+    ## the per-snp elements, compared in the dataset's own order
+    .rule("lengths", function(d, ctx) {
+        l <- -1 # impossible length
+        for (v in intersect(ctx$nd, c("pvalues", "MAF", "beta", "varbeta", "snp", "position")))
+            if (l < 0) {
+                l <- length(d[[v]])
+            } else if (length(d[[v]]) != l) {
+                return("lengths of inputs don't match: ")
+            }
+        NULL
+    }),
+    .rule("N_single", about = "N", prefix = FALSE, function(d, ctx)
+        if ("N" %in% ctx$nd && (!is.numeric(d[["N"]]) || length(d[["N"]]) != 1))
+            "N should be a single numeric. coloc does not accomodate per-snp sample sizes."),
+    .rule("type_set", function(d, ctx)
+        if (!("type" %in% ctx$nd))
+            "variable type not set"),
+    .rule("s_range", about = "s", function(d, ctx)
+        if (("s" %in% ctx$nd) && (!is.numeric(d$s) || d$s <= 0 || d$s >= 1))
+            "s must be between 0 and 1"),
+    ## the p-value route: beta and varbeta are needed to estimate var(Y) without them
+    .rule("route", function(d, ctx)
+        if (.p_route(ctx) && (!("pvalues" %in% ctx$nd) || !("MAF" %in% ctx$nd)))
+            "require p values and MAF if beta, varbeta are unavailable"),
+    .rule("p_range", about = "pvalues", function(d, ctx)
+        if (.p_route(ctx) && any(d$pvalues <= 0 | d$pvalues > 1))
+            "pvalues must be above 0 and at most 1"),
+    .rule("s_needed", function(d, ctx)
+        if (.p_route(ctx) && d$type == "cc" && !("s" %in% ctx$nd))
+            "require, s, proportion of samples who are cases, if beta, varbeta are unavailable"),
+    .rule("N_p_route", function(d, ctx)
+        if (.p_route(ctx) && (!("N" %in% ctx$nd) || is.null(d$N) || any(d$N <= 0)))
+            "sample size N <=0 or not set"),
+    .rule("finite", function(d, ctx)
+        if (any(is.infinite(d$beta) | is.infinite(d$varbeta)))
+            "Infinite values in beta and/or varbeta"),
+    .rule("zero_varbeta", function(d, ctx)
+        if (any(d$varbeta == 0))
+            "Zero values in varbeta"),
+    ## A coloc_dataset gave this warning when it was made, so it is not
+    ## repeated each time the dataset is used. The p-values are worked
+    ## out all the same, as before the rules were a list
+    .rule("min_p", level = "warning", function(d, ctx) {
+        p <- if (.p_route(ctx)) d$pvalues else pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2
+        if (!inherits(d, "coloc_dataset") && min(p) > ctx$warn.minp)
+            paste0("minimum p value is: ", format.pval(min(p)),
+                   "\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette.")
+    }),
+    .rule("sdY", function(d, ctx)
+        if (d$type == "quant" && !("sdY" %in% ctx$nd))
+            if (!("MAF" %in% ctx$nd && "N" %in% ctx$nd))
+                "must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
+    .rule("LD_square", about = "LD", prefix = FALSE, function(d, ctx)
+        if ("LD" %in% ctx$nd && nrow(d$LD) != ncol(d$LD))
+            "LD not square"),
+    .rule("LD_dimnames", about = "LD", prefix = FALSE, function(d, ctx)
+        if ("LD" %in% ctx$nd && !identical(colnames(d$LD), rownames(d$LD)))
+            "LD rownames != colnames"),
+    .rule("LD_covers", about = "LD", prefix = FALSE, function(d, ctx)
+        if ("LD" %in% ctx$nd && length(setdiff(d$snp, colnames(d$LD))))
+            "colnames in LD do not contain all SNPs")
+)
+names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
+
+## the rules that read one element, in list order
+.rules_about <- function(element)
+    Filter(function(rule) element %in% rule$about, .dataset_rules)
+
+## Run the rules in order and stop at the first that fails. An error carries
+## "dataset {suffix}: " unless the rule's prefix is FALSE; the warning carries
+## none. Both carry `call`, the call of the function the user called.
+## .makeMessage() joins the parts as stop() did. Returns invisible NULL.
+.gate <- function(d, suffix = "", req = character(0), warn.minp = 1e-6,
+                  call = NULL, rules = .dataset_rules) {
+    if (!is.list(d))
+        stop(simpleError(.makeMessage("dataset ", suffix, ": is not a list"), call))
+    ctx <- list(nd = intersect(names(d), .dataset_items), # defined in R/dataset.R
+                req = req, warn.minp = warn.minp)
+    for (rule in rules) {
+        problem <- rule$check(d, ctx)
+        if (is.null(problem))
+            next
+        if (rule$level == "warning") {
+            warning(simpleWarning(problem, call))
+            next
+        }
+        if (rule$prefix)
+            problem <- .makeMessage("dataset ", suffix, ": ", problem)
+        stop(simpleError(problem, call))
+    }
+    invisible(NULL)
+}
+
 check_ld <- function(D,LD) {
     if(is.null(LD))
       stop("LD required")
@@ -194,12 +239,8 @@ check_ld <- function(D,LD) {
       stop("LD must be of class matrix")
     ## if(any(LD[upper.tri(LD)]==1))
     ##   stop("LD includes SNPs in perfect LD")
-    if(nrow(LD)!=ncol(LD))
-        stop("LD not square")
-    if(!identical(colnames(LD),rownames(LD)))
-      stop("LD rownames != colnames")
-    if(length(setdiff(D$snp,colnames(LD))))
-        stop("colnames in LD do not contain all SNPs")
+    ## the rest are check_dataset()'s LD rules
+    .gate(list(snp = D$snp, LD = LD), call = sys.call(), rules = .rules_about("LD"))
 }
 
 ##' check alignment between beta and LD
