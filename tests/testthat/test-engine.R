@@ -122,7 +122,7 @@ test_that("trimmed pairs report PP.H0 as the product of each trait's", {
 test_that("an all-NA signal changes only its own pair, which 6.0.3 rewrote to a certainty", {
     ## 6.0.3 reported an all-NA signal as PP.H2 = 1 (AL12 in test-v603.R).
     ## coloc() rejects the NA, but today's coloc.bf_bf() still brings it to the
-    ## engine, until step 7 (the hard break, in a later stage)
+    ## engine
     x <- rbind(a, matrix(c(0, 0, 0, 0, 0, 7, 1, 0), nrow = 1, dimnames = list("sig2", snps)))
     x[1, ] <- NA
     expected <- get_match_6_0_3(coloc.bf_bf(x, b, trim_by_posterior = FALSE))

@@ -47,6 +47,7 @@ Collate:
     'boundaries.R'
     'check.R'
     'dataset.R'
+    'bf-wakefield.R'
     'claudia.R'
     'result.R'
     'engine.R'

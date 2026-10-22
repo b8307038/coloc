@@ -42,8 +42,10 @@ test_that("prior weights must be positive and not NA", {
 
 test_that("weights for both traits warn, as coloc.abf() did", {
     ## coloc.abf() warned that the two traits' weights should come from
-    ## independent sources; coloc_prior() now gives that warning, so coloc() and
-    ## every old entry point do (AL15 in test-v603.R)
+    ## independent sources. coloc_prior() now gives that warning when the prior
+    ## is made, so coloc() given one warns (AL15 in test-v603.R); coloc.abf()
+    ## still warns from its own copy, and the other old entry points, which
+    ## build plain lists, don't
     expect_warning(coloc_prior(weights1 = c(1, 2), weights2 = c(1, 2)), "both traits")
     expect_silent(coloc_prior(weights1 = c(1, 2)))
 })

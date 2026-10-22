@@ -1,7 +1,7 @@
 ## The old entry points, coloc.abf(), coloc.bf_bf(), coloc.susie() and
-## coloc.susie_bf(), which now run on the new engine until step 7 (the hard
-## break, in a later stage) deletes them. test-v603.R checks they return the
-## same values as 6.0.3's. These tests check what comparing values cannot:
+## coloc.susie_bf(), which now run on the new engine; these tests stay as long
+## as they do. test-v603.R checks they return the same values as 6.0.3's.
+## These tests check what comparing values cannot:
 ## - that other code can still use their results: coloc.abf()'s $summary keeps
 ##   the names and order sensitivity() needs, and sensitivity() still accepts
 ##   it; the susie functions keep their old shapes;

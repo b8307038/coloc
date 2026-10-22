@@ -43,7 +43,7 @@ test_that(".resolve_method() resolves each trait against its own input", {
 test_that(".adapt_single() hands the engine process.dataset()'s log ABFs", {
     for (trait in 1:2) {
         d <- coloc_test_data[[trait]]                 # D1, D2
-        pd <- process.dataset(d, suffix = paste0("df", trait))
+        pd <- get_match_6_0_3(process.dataset(d, suffix = paste0("df", trait)))
         a <- .adapt_single(d, trait)
         expect_equal(a$bf, matrix(pd[[paste0("lABF.df", trait)]], nrow = 1,
                                   dimnames = list("sig1", pd$snp)))
@@ -60,7 +60,7 @@ test_that(".adapt_single() checks the dataset first, naming the trait", {
 test_that(".adapt_susie() hands the engine the credible-set rows", {
     skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
     for (d in coloc_test_data[c("D3", "D4")]) {
-        fit <- suppressMessages(runsusie(d))
+        fit <- suppressMessages(get_match_6_0_3(runsusie(d)))
         a <- suppressMessages(.adapt_susie(d))
         expect_equal(unname(a$bf), unname(fit$lbf_variable[fit$sets$cs_index, , drop = FALSE]))
         expect_equal(colnames(a$bf), colnames(fit$lbf_variable))

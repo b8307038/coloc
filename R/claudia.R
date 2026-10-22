@@ -52,65 +52,6 @@ logdiff <- function(x,y) {
 }
 
 
-##' Internal function, approx.bf.p
-##'
-##' Calculate approximate Bayes Factors
-##' @title Internal function, approx.bf.p
-##' @param p p value
-##' @param f MAF
-##' @param type "quant" or "cc"
-##' @param N sample size
-##' @param s proportion of samples that are cases, ignored if type=="quant"
-##' @param suffix suffix to append to column names of returned data.frame
-##' @return data.frame containing lABF and intermediate calculations
-##' @author Claudia Giambartolomei, Chris Wallace
-approx.bf.p <- function(p,f,type, N, s, suffix=NULL) {
-    if(type=="quant") {
-        sd.prior <- 0.15
-        V <- Var.data(f, N)
-    } else {
-        sd.prior <- 0.2
-        V <- Var.data.cc(f, N, s)
-    }
-    z <- qnorm(0.5 * p, lower.tail = FALSE)
-    ## Shrinkage factor: ratio of the prior variance to the total variance
-    r <- sd.prior^2 / (sd.prior^2 + V)
-    ## Approximate BF  # I want ln scale to compare in log natural scale with LR diff
-    lABF = 0.5 * (log(1-r) + (r * z^2))
-    ret <- data.frame(V,z,r,lABF)
-    if(!is.null(suffix))
-        colnames(ret) <- paste(colnames(ret), suffix, sep=".")
-    return(ret)
-}
-
-##' Internal function, approx.bf.estimates
-##'
-##' Calculate approximate Bayes Factors using supplied variance of the
-##' regression coefficients
-##' @title Internal function, approx.bf.estimates
-##' @param z normal deviate associated with regression coefficient and
-##'     its variance
-##' @param V its variance
-##' @param sdY standard deviation of the trait. If not supplied, will
-##'     be estimated.
-##' @param effect_priors named vector with variance of prior effect
-##'     sizes for quantitative and case-control traits. don't change
-##'     unless you know what you are doing!
-##' @inheritParams approx.bf.p
-##' @return data.frame containing lABF and intermediate calculations
-##' @author Vincent Plagnol, Chris Wallace
-approx.bf.estimates <- function (z, V, type, suffix=NULL, sdY=1,
-                                 effect_priors=c(quant=0.15,cc=0.2)) {
-    sd.prior <- if (type == "quant") { effect_priors["quant"] * sdY } else { effect_priors["cc"] }
-    r <- sd.prior^2/(sd.prior^2 + V)
-    lABF = 0.5 * (log(1 - r) + (r * z^2))
-    ret <- data.frame(V, z, r, lABF)
-    if(!is.null(suffix))
-        colnames(ret) <- paste(colnames(ret), suffix, sep = ".")
-    return(ret)
-}
-
-
 ##' Internal function, calculate posterior probabilities for configurations, given logABFs for each SNP and prior probs
 ##'
 ##' @title combine.abf
@@ -220,8 +161,7 @@ sdY.est <- function(vbeta, maf, n) {
 ##' @title process.dataset
 ##' @param d list
 ##' @param suffix "df1" or "df2"
-##' @param ... used to pass parameters to approx.bf.estimates, in
-##'     particular the effect_priors parameter
+##' @param ... ignored; [wakefield_bf()] takes `effect_priors`
 ##' @return data.frame with log(abf) or log(bf)
 ##' @export
 ##' @author Chris Wallace
@@ -229,68 +169,62 @@ sdY.est <- function(vbeta, maf, n) {
 ##' data(coloc_test_data)
 ##' head(process.dataset(coloc_test_data$D1, suffix = "df1"))
 process.dataset <- function(d, suffix, ...) {
-                                        #message('Processing dataset')
-
+    ## wakefield_bf()'s numbers in 6.0.3's columns: each named for its
+    ## dataset, so that coloc.abf() can merge two, and on the p-value route
+    ## the p-values, MAF and N as well. Unchecked, as process.dataset() never
+    ## checked its dataset; ... is ignored, as it was (AL06)
     nd <- names(d)
-    ## if (! 'type' %in% nd)
-    ##   stop("dataset ",suffix,": ",'The variable type must be set, otherwise the Bayes factors cannot be computed')
-
-    ## if(!(d$type %in% c("quant","cc")))
-    ##     stop("dataset ",suffix,": ","type must be quant or cc")
-
-    ## if(d$type=="cc" & "pvalues" %in% nd) {
-    ## if(!( "s" %in% nd))
-    ##     stop("dataset ",suffix,": ","please give s, proportion of samples who are cases, if using p values")
-    ## if(!("MAF" %in% nd))
-    ##     stop("dataset ",suffix,": ","please give MAF if using p values")
-    ## if(d$s<=0 || d$s>=1)
-    ##     stop("dataset ",suffix,": ","s must be between 0 and 1")
-    ## }
-
-    ## if(d$type=="quant") {
-    ##     if(!("sdY" %in% nd || ("MAF" %in% nd && "N" %in% nd )))
-    ##         stop("dataset ",suffix,": ","must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
-    ## }
-
-    if("beta" %in% nd && "varbeta" %in% nd) {  ## use beta/varbeta.  sdY should be estimated by now for quant
-        ## if(length(d$beta) != length(d$varbeta))
-        ##   stop("dataset ",suffix,": ","Length of the beta vectors and variance vectors must match")
-        ## if(!("snp" %in% nd))
-        ##   d$snp <- sprintf("SNP.%s",1:length(d$beta))
-        ## if(length(d$snp) != length(d$beta))
-        ##   stop("dataset ",suffix,": ","Length of snp names and beta vectors must match")
-
-        if(d$type=="quant" && !('sdY' %in% nd))
-            d$sdY <- sdY.est(d$varbeta, d$MAF, d$N)
-        df <- approx.bf.estimates(z=d$beta/sqrt(d$varbeta),
-                                  V=d$varbeta, type=d$type, suffix=suffix, sdY=d$sdY)
-        df$snp <- as.character(d$snp)
-        if("position" %in% nd)
-            df <- cbind(df,position=d$position)
-        return(df)
+    beta_route <- "beta" %in% nd && "varbeta" %in% nd
+    if(!beta_route && !("pvalues" %in% nd && "MAF" %in% nd && "N" %in% nd))
+        stop("Must give, as a minimum, one of:\n(beta, varbeta, type, sdY)\n(beta, varbeta, type, MAF)\n(pvalues, MAF, N, type)")
+    ## wakefield_bf()'s arithmetic, kept here so that process.dataset(), and
+    ## through it coloc.abf(), finemap.abf() and coloc(), keep 6.0.3's answers
+    ## for any dataset, as wakefield_bf() checks its input. It goes when
+    ## process.dataset() does. The priors are 6.0.3's, which process.dataset()
+    ## never let a caller change; a type other than quant gets cc's, as in 6.0.3
+    sd_prior <- c(quant = 0.15, cc = 0.2)[[if (d$type == "quant") "quant" else "cc"]]
+    if(beta_route) {
+        z <- d$beta / sqrt(d$varbeta)
+        V <- d$varbeta
+        if (d$type == "quant")
+            sd_prior <- sd_prior *
+                (if ("sdY" %in% nd) d$sdY else sdY.est(d$varbeta, d$MAF, d$N))
+    } else {
+        z <- qnorm(0.5 * d$pvalues, lower.tail = FALSE)
+        V <- if (d$type == "quant") Var.data(d$MAF, d$N)
+             else Var.data.cc(d$MAF, d$N, d$s)
     }
-
-    if("pvalues" %in% nd & "MAF" %in% nd & "N" %in% nd) { ## no beta/varbeta: use p value / MAF approximation
-        ## if (length(d$pvalues) != length(d$MAF))
-        ##   stop('Length of the P-value vectors and MAF vector must match')
-        ## if(!("snp" %in% nd))
-        ##   d$snp <- sprintf("SNP.%s",1:length(d$pvalues))
-        df <- data.frame(pvalues = d$pvalues,
+    ## names dropped, so the rows take their names only from beta's and
+    ## varbeta's, put back below. With one snp and neither named, 6.0.3 named
+    ## the row "quant" or "cc", after its prior; here it is "1" (AL21)
+    r <- unname(sd_prior^2 / (sd_prior^2 + V))
+    lABF <- unname(0.5 * (log(1 - r) + (r * z^2)))
+    V <- unname(V)
+    z <- unname(z)
+    if(beta_route) {
+        ## 6.0.3's data.frame() took its row names from varbeta's names, or
+        ## beta's, when they had any; named so, it does the same here
+        names(V) <- names(d$varbeta)
+        names(z) <- names(d$beta)
+    }
+    df <- data.frame(V = V, z = z, r = r, lABF = lABF)
+    if(!is.null(suffix))
+        colnames(df) <- paste(colnames(df), suffix, sep=".")
+    if(beta_route) {
+        df$snp <- as.character(d$snp)
+    } else {
+        pv <- data.frame(pvalues = d$pvalues,
                          MAF = d$MAF,
                          N=d$N,
                          snp=as.character(d$snp))
-        snp.index <- which(colnames(df)=="snp")
-        colnames(df)[-snp.index] <- paste(colnames(df)[-snp.index], suffix, sep=".")
-        ## keep <- which(df$MAF>0 & df$pvalues > 0) # all p values and MAF > 0
-        ## df <- df[keep,]
-        abf <- approx.bf.p(p=df$pvalues, f=df$MAF, type=d$type, N=df$N, s=d$s, suffix=suffix)
-        df <- cbind(df, abf)
-        if("position" %in% nd)
-            df <- cbind(df,position=d$position)
-        return(df)
+        ## unguarded, unlike the names above: a NULL suffix gives "pvalues.",
+        ## "MAF." and "N.", as in 6.0.3
+        colnames(pv) <- c(paste(c("pvalues", "MAF", "N"), suffix, sep="."), "snp")
+        df <- cbind(pv, df)
     }
-
-    stop("Must give, as a minimum, one of:\n(beta, varbeta, type, sdY)\n(beta, varbeta, type, MAF)\n(pvalues, MAF, N, type)")
+    if("position" %in% nd)
+        df <- cbind(df,position=d$position)
+    df
 }
 
 ##' Bayesian finemapping analysis
@@ -400,8 +334,7 @@ adjust_prior=function(p,nsnps,suffix="") {
 ##'     probability a SNP is associated with trait 1
 ##' @param prior_weights2 Non-negative weights for the prior
 ##'     probability a SNP is asscoiated with trait 2
-##' @param ... used to pass parameters to approx.bf.estimates, in
-##'     particular the effect_priors parameter
+##' @param ... ignored
 ##' @return a list of two \code{data.frame}s: \itemize{ \item summary
 ##'     is a vector giving the number of SNPs analysed, and the
 ##'     posterior probabilities of H0 (no causal variant), H1 (causal

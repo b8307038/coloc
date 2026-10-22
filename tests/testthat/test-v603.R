@@ -209,8 +209,9 @@ test_that("coloc() matches 6.0.3's coloc.susie_bf()", {
 })
 
 ## ---- today's versions of the changed functions, before and after ---------------
-## The tests of coloc.abf(), coloc.bf_bf(), coloc.susie() and coloc.susie_bf()
-## go at step 7, the hard break, with those four functions.
+## The old entry points, and process.dataset() and runsusie(), which the data
+## stage changes, against their 6.0.3 copies. The tests of coloc.abf(),
+## coloc.bf_bf(), coloc.susie() and coloc.susie_bf() go with those functions.
 
 test_that("coloc.abf() returns what 6.0.3's did", {
     for (nm in names(abf_pairs)) {
@@ -221,6 +222,95 @@ test_that("coloc.abf() returns what 6.0.3's did", {
         expect_equal(got, expected, label = nm)
         expect_equal(as.list(got$summary), as.list(expected$summary), label = nm)
     }
+})
+
+test_that("process.dataset() returns what 6.0.3's did, for every kind of dataset", {
+    ## every dataset in abf_pairs; one whose sdY has to be estimated; both
+    ## routes without position; one with no small p-value, which 6.0.3's
+    ## process.dataset() didn't warn about, as it never checked its dataset;
+    ## and named vectors, which gave 6.0.3's result its row names. Then what
+    ## those miss: a factor type, as a data frame column gives (with levels cc
+    ## and quant, or its own level alone); one snp, given as p-values (with
+    ## beta and varbeta it is AL21); no snps; and, unchecked, a type that is
+    ## neither quant nor cc, and a dataset with neither route
+    no_position <- function(d) {
+        d$position <- NULL
+        d
+    }
+    D1_no_sdY <- D1
+    D1_no_sdY$sdY <- NULL
+    weak <- D1
+    weak$beta <- weak$beta / 100
+    beta_named <- D1
+    names(beta_named$beta) <- D1$snp
+    both_named <- beta_named
+    names(both_named$varbeta) <- paste0("v", D1$snp)
+    pvalues_named <- to_pvalues(D1)
+    names(pvalues_named$pvalues) <- D1$snp
+    factor_type <- D1
+    factor_type$type <- factor("quant", levels = c("cc", "quant"))
+    factor_cc_pvalues <- to_pvalues(as_cc(D1))
+    factor_cc_pvalues$type <- factor("cc")
+    one_snp_pvalues <- to_pvalues(D1)
+    for (v in c("pvalues", "MAF", "snp", "position"))
+        one_snp_pvalues[[v]] <- one_snp_pvalues[[v]][105]
+    no_snps <- no_position(D1)
+    for (v in c("beta", "varbeta", "MAF", "snp"))
+        no_snps[[v]] <- no_snps[[v]][0]
+    binary <- D1
+    binary$type <- "binary"
+    no_route <- to_pvalues(D1)
+    no_route$pvalues <- NULL
+    datasets <- c(unlist(abf_pairs, recursive = FALSE),
+                  list(no_sdY = D1_no_sdY,
+                       no_position = no_position(D1),
+                       pvalues_no_position = no_position(to_pvalues(D1)),
+                       weak = weak,
+                       beta_named = beta_named,
+                       both_named = both_named,
+                       pvalues_named = pvalues_named,
+                       factor_type = factor_type,
+                       factor_cc_pvalues = factor_cc_pvalues,
+                       one_snp_pvalues = one_snp_pvalues,
+                       no_snps = no_snps,
+                       binary = binary,
+                       no_route = no_route))
+    ## the value; the warnings, which suppressWarnings() would hide; and an
+    ## error's message and call, as 6.0.3's process.dataset() raised its own
+    run <- function(expr) {
+        warned <- character(0)
+        value <- tryCatch(withCallingHandlers(expr, warning = function(w) {
+            warned <<- c(warned, conditionMessage(w))
+            invokeRestart("muffleWarning")
+        }), error = function(e) list(error = conditionMessage(e),
+                                     call = deparse(conditionCall(e))))
+        list(value = value, warned = warned)
+    }
+    ## coloc.abf() names the columns df1 and df2, finemap.abf() "", which
+    ## leaves a dot; NULL leaves V, z, r and lABF bare, but on the p-value
+    ## route gives pvalues., MAF. and N.
+    suffixes <- list("df1", "", NULL)
+    for (nm in names(datasets)) {
+        d <- datasets[[nm]]
+        for (suffix in suffixes)
+            expect_identical(run(process.dataset(d, suffix = suffix)),
+                             run(get_match_6_0_3(process.dataset(d, suffix = suffix))),
+                             label = paste0(nm, ", suffix ", deparse(suffix)))
+    }
+    expect_error(process.dataset(no_route, suffix = "df1"),
+                 "Must give, as a minimum, one of", fixed = TRUE)
+    ## ... is ignored, as it was (AL06)
+    wide <- c(quant = 0.3, cc = 0.4)
+    expect_identical(process.dataset(D1, suffix = "df1", effect_priors = wide),
+                     get_match_6_0_3(process.dataset(D1, suffix = "df1", effect_priors = wide)))
+    expect_identical(process.dataset(D1, suffix = "df1", effect_priors = wide),
+                     process.dataset(D1, suffix = "df1"))
+})
+
+test_that("runsusie() returns what 6.0.3's did", {
+    ## the whole fit, so what annotate_susie() and .susie_setld() add is compared too
+    expect_equal(fit3, suppressMessages(get_match_6_0_3(runsusie(D3))))
+    expect_equal(fit4, suppressMessages(get_match_6_0_3(runsusie(D4))))
 })
 
 test_that("coloc.bf_bf() returns what 6.0.3's did", {
@@ -384,6 +474,12 @@ test_that("AL17: check_dataset() reports a dataset with no type, where 6.0.3 gav
     ## with type required, as coloc.abf() asks, the two agree
     expect_error(get_match_6_0_3(check_dataset(d, 1)), "missing required element")
     expect_error(check_dataset(d, 1), "missing required element")
+    ## the guard also changes R's own error for a malformed type, which neither
+    ## version checks: c("quant", "cc") gives "'length = 2' in coercion to
+    ## 'logical(1)'", where 6.0.3 gave "the condition has length > 1", and
+    ## character(0) gives "missing value where TRUE/FALSE needed", where 6.0.3
+    ## gave "argument is of length zero". These are R's messages, not coloc's,
+    ## so they aren't pinned; the rule list should give one of its own
 })
 
 test_that("AL18: a SuSiE fit with a duplicated snp id is refused, where 6.0.3 used the first", {
@@ -403,16 +499,32 @@ test_that("AL18: a SuSiE fit with a duplicated snp id is refused, where 6.0.3 us
                  "trait 2: log Bayes factors contain missing or infinite values")
 })
 
-## ---- what both sides share ---------------------------------------------------
-## The 6.0.3 copies and coloc() both use the package's process.dataset(), with
-## the approx.bf.estimates(), approx.bf.p() and sdY.est() it calls, and
-## runsusie(). They are not copied and are unchanged since 6.0.3, so an edit to
-## one would move both sides together, unseen above. These values, worked out
-## with them as they are, pin them. logsum(), logdiff() and logbf_to_pp() are
-## copied into helper-v603.R with the 6.0.3 functions, so the comparisons above
-## already see an edit to the package's versions.
+test_that("AL21: process.dataset() no longer names a one-snp result's row after its type", {
+    ## 6.0.3's approx.bf.estimates() took the prior as effect_priors["quant"],
+    ## which keeps the name, so with one snp, and no names on beta or varbeta,
+    ## data.frame() named the row "quant" or "cc". Its p-value route used an
+    ## unnamed prior and never did
+    one <- D1
+    for (v in c("beta", "varbeta", "MAF", "snp", "position"))
+        one[[v]] <- one[[v]][105]
+    for (d in list(one, as_cc(one))) {
+        got <- process.dataset(d, suffix = "df1")
+        expected <- get_match_6_0_3(process.dataset(d, suffix = "df1"))
+        expect_identical(rownames(expected), d$type)
+        expect_identical(rownames(got), "1")
+        ## nothing else differs
+        rownames(expected) <- NULL
+        expect_identical(got, expected)
+    }
+})
 
-test_that("the shared code still gives 6.0.3's log ABFs", {
+## ---- the dataset functions, pinned as numbers ------------------------------
+## The tests above compare process.dataset() and runsusie() with their 6.0.3
+## copies. These pin their values as plain numbers too, worked out with 6.0.3's
+## code. Both sides of every comparison use the installed susieR, so a change
+## to susieR shows only here.
+
+test_that("process.dataset() and sdY.est() still give 6.0.3's numbers", {
     at_s105 <- function(d, suffix) {
         pd <- process.dataset(d, suffix = suffix)
         pd[[paste0("lABF.", suffix)]][pd$snp == "s105"]
@@ -425,7 +537,7 @@ test_that("the shared code still gives 6.0.3's log ABFs", {
                  tolerance = 1e-10)
 })
 
-test_that("the shared code still finds D3's credible sets", {
+test_that("runsusie() still finds D3's credible sets", {
     rows <- fit3$lbf_variable[fit3$sets$cs_index, ]
     expect_equal(fit3$sets$cs_index, c(1, 2))
     expect_equal(unname(lengths(fit3$sets$cs)), c(3L, 13L))
