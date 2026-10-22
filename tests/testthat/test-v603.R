@@ -578,6 +578,19 @@ test_that("check_dataset() doesn't repeat the minimum p-value warning for a colo
     expect_identical(then$warned, "NaNs produced")
 })
 
+test_that("coloc.susie_bf() refuses a bf2 that isn't log Bayes factors, where 6.0.3 failed with R's errors", {
+    ## coloc() sorts its inputs by shape, so it would fine-map a dataset or a
+    ## fit given as bf2. 6.0.3 failed on both inside coloc.bf_bf()
+    msg <- "bf2 must be log Bayes factors: a named numeric vector or a matrix"
+    expect_error(suppressMessages(get_match_6_0_3(coloc.susie_bf(fit3, D4))))
+    expect_error(suppressMessages(get_match_6_0_3(coloc.susie_bf(fit3, fit4))))
+    expect_error(coloc.susie_bf(fit3, D4), msg, fixed = TRUE)
+    expect_error(coloc.susie_bf(fit3, fit4), msg, fixed = TRUE)
+    chr <- bf4
+    storage.mode(chr) <- "character"
+    expect_error(coloc.susie_bf(fit3, chr), msg, fixed = TRUE)
+})
+
 ## ---- the dataset functions, pinned as numbers ------------------------------
 ## The tests above compare process.dataset() and runsusie() with their 6.0.3
 ## copies. These pin their values as plain numbers too, worked out with 6.0.3's

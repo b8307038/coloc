@@ -101,7 +101,9 @@ finemap.susie=function(dataset1, susie.args=list(),  ...) {
 ##'
 ##' @title run coloc using susie to detect separate signals
 ##' @inheritParams coloc.signals
-##' @param bf2 named vector of log BF, names are snp ids and will be matched to column names of susie object's alpha
+##' @param bf2 log Bayes factors: a named vector, names are snp ids and will be
+##'     matched to column names of susie object's alpha, or a matrix with snp ids
+##'     as colnames. Anything else, such as a dataset or a SuSiE fit, is refused
 ##' @param susie.args named list of arguments to be passed to susieR::susie_rss()
 ##' @param ... other arguments passed to \link{coloc.bf_bf}, in particular prior
 ##'   values for causal association with one trait (p1, p2) or both (p12) and
@@ -110,6 +112,10 @@ finemap.susie=function(dataset1, susie.args=list(),  ...) {
 ##' @export
 ##' @author Chris Wallace
 coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=list(), ...) {
+  ## coloc() sorts its inputs by shape, so it would fine-map a dataset or a
+  ## SuSiE fit given here; bf2 has to be log Bayes factors already
+  if (!is.numeric(bf2))
+    stop("bf2 must be log Bayes factors: a named numeric vector or a matrix")
   dots <- list(...)
   prior <- .prior_from_dots(dots)
   ## AL02: 6.0.3 declared p1/p2/p12 here and forwarded none of them, so a
