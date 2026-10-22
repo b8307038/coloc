@@ -81,7 +81,9 @@ finemap.susie=function(dataset1, susie.args=list(),  ...) {
   if("susie" %in% class(dataset1))
     s1=dataset1
   else
-    s1=do.call("runsusie", c(list(d=dataset1,suffix=1),susie.args))
+    ## the dataset goes in by its name, so an error from runsusie()
+    ## doesn't carry a call holding the whole dataset
+    s1=do.call("runsusie", c(list(d=quote(dataset1),suffix=1),susie.args))
   cs1=s1$sets
   if(is.null(cs1$cs) || length(cs1$cs)==0 )
     return(data.table(nsnps=NA))

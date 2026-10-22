@@ -105,6 +105,24 @@ test_that(".adapt_susie() checks a fit's log BFs as .adapt_bf() does", {
     expect_silent(.adapt_susie(elsewhere, 2))
 })
 
+## one iteration and no repeats, so runsusie() stops with its own error; the
+## call that error carries names the dataset rather than holding it
+no_convergence <- list(repeat_until_convergence = FALSE, maxit = 1)
+
+test_that(".adapt_susie() gives runsusie() the dataset by name", {
+    call <- call_of(suppressWarnings(suppressMessages(
+        .adapt_susie(plain_test_data$D3, 1, susie.args = no_convergence))))
+    expect_identical(call[[1]], quote(runsusie))
+    expect_identical(call$d, quote(x))
+})
+
+test_that("finemap.susie() gives runsusie() the dataset by name", {
+    call <- call_of(suppressWarnings(suppressMessages(
+        finemap.susie(plain_test_data$D3, susie.args = no_convergence))))
+    expect_identical(call[[1]], quote(runsusie))
+    expect_identical(call$d, quote(dataset1))
+})
+
 test_that(".adapt_bf() takes a named vector or a matrix, every row", {
     v <- .adapt_bf(setNames(c(1, 2, 3), snps))
     expect_equal(v$bf, matrix(c(1, 2, 3), nrow = 1, dimnames = list("sig1", snps)))

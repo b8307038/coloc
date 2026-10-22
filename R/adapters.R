@@ -99,7 +99,10 @@
         ## runsusie() checks the dataset and labels its messages with suffix
         if ("suffix" %in% names(susie.args))
             stop("susie.args cannot set suffix: coloc() sets it to each trait's number")
-        fit <- do.call(runsusie, c(list(d = x, suffix = trait), susie.args))
+        ## the dataset goes in by its name, x, so an error from runsusie()
+        ## doesn't carry a call holding the whole dataset
+        fit <- do.call("runsusie",
+                       c(list(d = quote(x), suffix = trait), susie.args))
     }
     if (is.null(fit$lbf_variable))
         stop("trait ", trait, ": the susie fit has no lbf_variable")
