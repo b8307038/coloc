@@ -56,7 +56,8 @@
 ##' finemap.signals().
 ##' @title check_dataset
 ##' @param d dataset to check
-##' @param suffix string to identify which dataset (1 or 2)
+##' @param suffix a label for the dataset, such as 1 or 2: messages then begin
+##'     "dataset 1: ". With "" they have no prefix
 ##' @param req names of elements that must be present
 ##' @param warn.minp print warning if no p value < warn.minp
 ##' @return NULL if no errors found
@@ -96,15 +97,11 @@ check.dataset=function(...) {
 ## expects stay as they were.
 
 ## One rule. check is function(d, ctx): NULL when the dataset passes, else the
-## message without "dataset N: ", which .gate() adds unless prefix is FALSE.
-## about names the elements the rule reads, so check_ld() can pick out the LD
-## rules. level "warning" is the minimum p-value step alone: .gate() warns and
-## goes on.
-.rule <- function(id, check, about = character(0), level = c("error", "warning"),
-                  prefix = TRUE) {
-    list(id = id, check = check, about = about, level = match.arg(level),
-         prefix = prefix)
-}
+## message without its prefix, which .gate() adds. about names the elements
+## the rule reads, so check_ld() can pick out the LD rules. level "warning" is
+## the minimum p-value step alone: .gate() warns and goes on.
+.rule <- function(id, check, about = character(0), level = c("error", "warning"))
+    list(id = id, check = check, about = about, level = match.arg(level))
 
 ## the p-value route: no beta, or no varbeta
 .p_route <- function(ctx) !("beta" %in% ctx$nd) || !("varbeta" %in% ctx$nd)
@@ -150,7 +147,7 @@ check.dataset=function(...) {
             }
         NULL
     }),
-    .rule("N_single", about = "N", prefix = FALSE, function(d, ctx)
+    .rule("N_single", about = "N", function(d, ctx)
         if ("N" %in% ctx$nd && (!is.numeric(d[["N"]]) || length(d[["N"]]) != 1))
             "N should be a single numeric. coloc does not accomodate per-snp sample sizes."),
     .rule("type_set", function(d, ctx)
@@ -191,13 +188,13 @@ check.dataset=function(...) {
         if (d$type == "quant" && !("sdY" %in% ctx$nd))
             if (!("MAF" %in% ctx$nd && "N" %in% ctx$nd))
                 "must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
-    .rule("LD_square", about = "LD", prefix = FALSE, function(d, ctx)
+    .rule("LD_square", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && nrow(d$LD) != ncol(d$LD))
             "LD not square"),
-    .rule("LD_dimnames", about = "LD", prefix = FALSE, function(d, ctx)
+    .rule("LD_dimnames", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && !identical(colnames(d$LD), rownames(d$LD)))
             "LD rownames != colnames"),
-    .rule("LD_covers", about = "LD", prefix = FALSE, function(d, ctx)
+    .rule("LD_covers", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && length(setdiff(d$snp, colnames(d$LD))))
             "colnames in LD do not contain all SNPs")
 )
@@ -207,14 +204,23 @@ names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
 .rules_about <- function(element)
     Filter(function(rule) element %in% rule$about, .dataset_rules)
 
-## Run the rules in order and stop at the first that fails. An error carries
-## "dataset {suffix}: " unless the rule's prefix is FALSE; the warning carries
-## none. Both carry `call`, the call of the function the user called.
-## .makeMessage() joins the parts as stop() did. Returns invisible NULL.
+## "dataset {suffix}: " for a dataset checked with a label, such as 1 or 2 from
+## coloc() or a user's "eQTL"; nothing for one checked on its own (suffix "",
+## NULL, NA or more than one value), as when a dataset is made
+.prefix <- function(suffix) {
+    if (length(suffix) != 1L || is.na(suffix) || identical(as.character(suffix), ""))
+        return("")
+    paste0("dataset ", suffix, ": ")
+}
+
+## Run the rules in order and stop at the first that fails. Every message, the
+## warning's too, starts with .prefix(suffix), and carries `call`, the call of
+## the function the user called. Returns invisible NULL.
 .gate <- function(d, suffix = "", req = character(0), warn.minp = 1e-6,
                   call = NULL, rules = .dataset_rules) {
+    prefix <- .prefix(suffix)
     if (!is.list(d))
-        stop(simpleError(.makeMessage("dataset ", suffix, ": is not a list"), call))
+        stop(simpleError(paste0(prefix, "is not a list"), call))
     ctx <- list(nd = intersect(names(d), .dataset_items), # defined in R/dataset.R
                 req = req, warn.minp = warn.minp)
     for (rule in rules) {
@@ -222,12 +228,10 @@ names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
         if (is.null(problem))
             next
         if (rule$level == "warning") {
-            warning(simpleWarning(problem, call))
+            warning(simpleWarning(paste0(prefix, problem), call))
             next
         }
-        if (rule$prefix)
-            problem <- .makeMessage("dataset ", suffix, ": ", problem)
-        stop(simpleError(problem, call))
+        stop(simpleError(paste0(prefix, problem), call))
     }
     invisible(NULL)
 }

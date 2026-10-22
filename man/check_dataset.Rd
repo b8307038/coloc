@@ -12,7 +12,8 @@ check.dataset(...)
 \arguments{
 \item{d}{dataset to check}
 
-\item{suffix}{string to identify which dataset (1 or 2)}
+\item{suffix}{a label for the dataset, such as 1 or 2: messages then begin
+"dataset 1: ". With "" they have no prefix}
 
 \item{req}{names of elements that must be present}
 

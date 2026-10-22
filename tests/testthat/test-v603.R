@@ -502,6 +502,59 @@ test_that("AL21: process.dataset() no longer names a one-snp result's row after 
     }
 })
 
+test_that("check_dataset() has no prefix without a label, and \"dataset N: \" on every message with one, unlike 6.0.3", {
+    ## 6.0.3 began its messages "dataset N: ", or "dataset : " without a
+    ## label; four of them named no dataset, and nor did the minimum p-value
+    ## warning. The expected text is written out, so a mistake shared by
+    ## reprefix() and .prefix() can't pass
+    msg <- function(expr) tryCatch(expr, error = conditionMessage)
+    bad <- D2
+    bad$beta[1] <- NA
+    ## with a label, as 6.0.3 had it
+    expect_identical(msg(get_match_6_0_3(coloc.abf(D1, bad))),
+                     "dataset 2: beta contains missing values")
+    expect_identical(msg(coloc.abf(D1, bad)), "dataset 2: beta contains missing values")
+    expect_identical(msg(coloc(D1, bad)), "dataset 2: beta contains missing values")
+    expect_identical(msg(check_dataset(bad, 2)), "dataset 2: beta contains missing values")
+    bad3 <- D3
+    bad3$beta[1] <- NA
+    expect_identical(msg(get_match_6_0_3(runsusie(bad3))),
+                     "dataset 1: beta contains missing values")
+    expect_identical(msg(runsusie(bad3)), "dataset 1: beta contains missing values")
+    ## without a label (helper-v603.R has no copy of finemap.abf(), so 6.0.3's
+    ## check_dataset() stands for it)
+    expect_identical(msg(get_match_6_0_3(check_dataset(bad))),
+                     "dataset : beta contains missing values")
+    expect_identical(msg(finemap.abf(bad)), "beta contains missing values")
+    expect_identical(msg(check_dataset(bad)), "beta contains missing values")
+    ## the messages that named no dataset
+    per_snp_N <- D2
+    per_snp_N$N <- rep(D2$N, length(D2$snp))
+    n_msg <- "N should be a single numeric. coloc does not accomodate per-snp sample sizes."
+    expect_identical(msg(get_match_6_0_3(coloc.abf(D1, per_snp_N))), n_msg)
+    expect_identical(msg(coloc(D1, per_snp_N)), paste0("dataset 2: ", n_msg))
+    not_square <- D2
+    not_square$LD <- not_square$LD[, -1]
+    expect_identical(msg(get_match_6_0_3(coloc.abf(D1, not_square))), "LD not square")
+    expect_identical(msg(coloc(D1, not_square)), "dataset 2: LD not square")
+    ## the minimum p-value warning, its first line
+    weak <- D1
+    weak$beta <- weak$beta / 100
+    weak2 <- D2
+    weak2$beta <- weak2$beta / 100
+    warned <- function(expr) sub("\n.*", "", outcome(expr)$warned)
+    expect_identical(warned(get_match_6_0_3(coloc.abf(weak, weak2))),
+                     c("minimum p value is: 0.93383", "minimum p value is: 0.93863"))
+    expect_identical(warned(coloc(weak, weak2)),
+                     c("dataset 1: minimum p value is: 0.93383",
+                       "dataset 2: minimum p value is: 0.93863"))
+    expect_identical(warned(coloc.abf(weak, weak2)),
+                     c("dataset 1: minimum p value is: 0.93383",
+                       "dataset 2: minimum p value is: 0.93863"))
+    expect_identical(warned(check_dataset(weak, 2)), "dataset 2: minimum p value is: 0.93383")
+    expect_identical(warned(check_dataset(weak)), "minimum p value is: 0.93383")
+})
+
 test_that("check_dataset() doesn't repeat the minimum p-value warning for a coloc_dataset, where 6.0.3 did", {
     ## PR #2: a coloc_dataset gave the warning when it was made; a plain list
     ## still gives it each time, as test-dataset.R checks

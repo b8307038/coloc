@@ -37,3 +37,25 @@ outcome <- function(expr) {
     }), error = conditionMessage)
     list(value = value, error = error, warned = warned)
 }
+
+## 6.0.3's messages with the prefix as check_dataset() gives it now. "dataset N: "
+## stays, "dataset : " goes, and the four messages that named no dataset, and
+## the minimum p-value warning, gain "dataset N: ". suffix is recycled over msg,
+## and NA stays NA. A message it doesn't know stops it, so a mistake here, or
+## one of R's own messages reaching it, can't pass unnoticed
+reprefix <- function(msg, suffix) {
+    bare <- c("N should be a single numeric", "LD not square", "LD rownames != colnames",
+              "colnames in LD do not contain all SNPs", "minimum p value is: ")
+    suffix <- rep_len(as.character(suffix), length(msg))
+    vapply(seq_along(msg), function(i) {
+        if (is.na(msg[i]))
+            return(NA_character_)
+        prefix <- if (suffix[i] == "") "" else paste0("dataset ", suffix[i], ": ")
+        old <- paste0("dataset ", suffix[i], ": ")
+        if (startsWith(msg[i], old))
+            return(paste0(prefix, substring(msg[i], nchar(old) + 1)))
+        if (any(startsWith(msg[i], bare)))
+            return(paste0(prefix, msg[i]))
+        stop("reprefix() doesn't know this message: ", msg[i])
+    }, "")
+}

@@ -114,11 +114,15 @@ test_that("Infinite values in beta/varbeta triggers specific error", {
 ## that breaks it, checked by today's function and by 6.0.3's copy in
 ## helper-v603.R, which must give the same value, error and warnings. Other
 ## cases are valid datasets, datasets that break two rules (these fix the order
-## the rules run in), and the arguments req and warn.minp. Three things differ
-## from 6.0.3 on purpose, each tested in test-v603.R: the range of p-values,
-## above 0 and at most 1; a dataset with no type when type isn't required, as
-## on the SuSiE route; and the p-value warning, which a coloc_dataset gives
-## when it is made and not again (from PR #2).
+## the rules run in), and the arguments req and warn.minp. Each case runs with
+## the label 1, as coloc() checks a dataset, and with none, as a dataset is
+## made. Its message is 6.0.3's; today's reads as reprefix() words it: nothing
+## for "dataset : ", and "dataset 1: " on the four messages that named no
+## dataset and on the minimum p-value warning. Three more things differ from
+## 6.0.3 on purpose, each tested in test-v603.R: the range of p-values, above 0
+## and at most 1; a dataset with no type when type isn't required, as on the
+## SuSiE route; and the p-value warning, which a coloc_dataset gives when it is
+## made and not again (from PR #2).
 
 ## the datasets the cases are made from: D1 as given (beta and varbeta), and
 ## D1 as p-values, MAF and N
@@ -260,21 +264,28 @@ cases <- list(
 for (what in names(cases)) {
     test_that(paste0("check_dataset(), today's and 6.0.3's: ", what), {
         case <- cases[[what]]
-        args <- c(list(case$d, 1), case$args)
-        now <- outcome(do.call(check_dataset, args))
-        expect_identical(now,
-                         outcome(get_match_6_0_3(do.call(check_dataset, args))))
-        ## and it stops at the rule it is meant to break, or passes, with the
-        ## warning it is meant to give
+        ## the same value, error and warnings as 6.0.3's, with the prefix as
+        ## check_dataset() gives it now, with a label and without
+        for (suffix in list(1, "")) {
+            args <- c(list(case$d, suffix), case$args)
+            now <- outcome(do.call(check_dataset, args))
+            then <- outcome(get_match_6_0_3(do.call(check_dataset, args)))
+            then$error <- reprefix(then$error, suffix)
+            then$warned <- reprefix(then$warned, suffix)
+            expect_identical(now, then, label = paste0("suffix \"", suffix, "\""))
+        }
+        ## and 6.0.3 stops at the rule the case is meant to break, or passes,
+        ## with the warning it is meant to give
+        then <- outcome(get_match_6_0_3(do.call(check_dataset, c(list(case$d, 1), case$args))))
         if (is.null(case$error)) {
-            expect_identical(now$error, NA_character_)
+            expect_identical(then$error, NA_character_)
         } else {
-            expect_identical(now$error, case$error)
+            expect_identical(then$error, case$error)
         }
         if (is.null(case$warning)) {
-            expect_length(now$warned, 0)
+            expect_length(then$warned, 0)
         } else {
-            expect_match(now$warned, case$warning, fixed = TRUE)
+            expect_match(then$warned, case$warning, fixed = TRUE)
         }
     })
 }
