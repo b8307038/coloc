@@ -4,6 +4,12 @@
 ## ignores anything else.
 .dataset_items <- c("beta", "varbeta", "pvalues", "MAF", "snp", "position", "N", "type", "s", "sdY", "LD")
 
+## The elements each of coloc()'s methods needs, as check_dataset()'s req.
+## "single" is also what a dataset is checked for when it is made,
+## check_dataset()'s default.
+.dataset_uses <- list(single = c("type", "snp"),
+                      susie  = c("beta", "varbeta", "LD", "snp", "N"))
+
 ##' Make a coloc dataset
 ##'
 ##' `coloc_dataset()` builds a dataset from its parts and checks it with
@@ -26,6 +32,8 @@
 ##' do that. `as_coloc_dataset()` returns a coloc_dataset as it is:
 ##' [check_dataset()] checks one again for errors, and
 ##' `as_coloc_dataset(unclass(x))` makes it again.
+##'
+##' A `type` given as a factor, or with a name, comes back as a plain string.
 ##' 
 ##' @param snp character vector of snp ids
 ##' @param type `"quant"` for a quantitative trait, `"cc"` for
@@ -80,21 +88,32 @@ coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
 ##' @export
 as_coloc_dataset <- function(x, warn.minp = 1e-6) {
     if (inherits(x, "coloc_dataset")) return(x)
-    ## a data.frame and a susie fit are lists too, but neither is a dataset
-    if (!is.list(x) || is.data.frame(x) || inherits(x, "susie"))
-        stop("expected a coloc dataset: a list, or the result of coloc_dataset(), not a ", class(x)[1])
-    .new_coloc_dataset(unclass(x), warn.minp = warn.minp, call = sys.call())
+    .new_coloc_dataset(x, warn.minp = warn.minp, call = sys.call())
 }
 
 ## The one place a dataset gets the coloc_dataset class, so every
-## coloc_dataset has been checked. `call` is the call R shows in an error or
-## warning: coloc_dataset(...) or as_coloc_dataset(x) as the user typed it,
-## or as_coloc_dataset(d) when wakefield_bf() converts a list for them. The
-## check runs before the class is set, so the minimum p-value warning goes
-## only to a dataset that isn't a coloc_dataset yet.
-.new_coloc_dataset <- function(d, warn.minp = 1e-6, call) {
-    .gate(d, req = eval(formals(check_dataset)$req), warn.minp = warn.minp,
-          call = call)
+## coloc_dataset has been checked: when coloc_dataset() or as_coloc_dataset()
+## makes it, and each time coloc() is given it. `call` is the call R shows in
+## an error or warning: coloc_dataset(...), as_coloc_dataset(x) or coloc(...)
+## as the user typed it, or as_coloc_dataset(d) when wakefield_bf() converts a
+## list for them. coloc() also gives the trait's number, which its messages
+## begin with as "trait N: ", and its method, which says what the dataset
+## needs. A coloc_dataset keeps its class through the check, so it doesn't get
+## the minimum p-value warning again: that was given when it was made.
+.new_coloc_dataset <- function(d, warn.minp = 1e-6, call, trait = NULL,
+                               use = "single", word = "trait") {
+    ## a data.frame and a susie fit are lists too, but neither is a dataset
+    if (!is.list(d) || is.data.frame(d) || inherits(d, "susie"))
+        stop(simpleError(paste0(.prefix(trait, word),
+                                "expected a coloc dataset: a list, or the result of coloc_dataset(), not a ",
+                                class(d)[1]), call))
+    if (!inherits(d, "coloc_dataset"))
+        d <- unclass(d)
+    .gate(d, suffix = trait, req = .dataset_uses[[use]], warn.minp = warn.minp,
+          call = call, word = word)
+    ## read by its label everywhere, so a factor or a name only gets in the way
+    if (!is.null(d[["type"]]))
+        d[["type"]] <- as.character(d[["type"]])
     structure(d, class = c("coloc_dataset", "list"))
 }
 

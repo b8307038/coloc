@@ -51,17 +51,18 @@ call_of <- function(expr) tryCatch({
 
 ## 6.0.3's messages with the prefix as check_dataset() gives it now. "dataset N: "
 ## stays, "dataset : " goes, and the four messages that named no dataset, and
-## the minimum p-value warning, gain "dataset N: ". suffix is recycled over msg,
-## and NA stays NA. A message it doesn't know stops it, so a mistake here, or
+## the minimum p-value warning, gain "dataset N: ". With word "trait", as
+## coloc() gives them, "trait N: " in place of "dataset N: ". suffix is recycled
+## over msg, and NA stays NA. A message it doesn't know stops it, so a mistake here, or
 ## one of R's own messages reaching it, can't pass unnoticed
-reprefix <- function(msg, suffix) {
+reprefix <- function(msg, suffix, word = "dataset") {
     bare <- c("N should be a single numeric", "LD not square", "LD rownames != colnames",
               "colnames in LD do not contain all SNPs", "minimum p value is: ")
     suffix <- rep_len(as.character(suffix), length(msg))
     vapply(seq_along(msg), function(i) {
         if (is.na(msg[i]))
             return(NA_character_)
-        prefix <- if (suffix[i] == "") "" else paste0("dataset ", suffix[i], ": ")
+        prefix <- if (suffix[i] == "") "" else paste0(word, " ", suffix[i], ": ")
         old <- paste0("dataset ", suffix[i], ": ")
         if (startsWith(msg[i], old))
             return(paste0(prefix, substring(msg[i], nchar(old) + 1)))

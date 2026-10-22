@@ -100,7 +100,7 @@ test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_datas
         invokeRestart("muffleWarning")
     })
     expect_length(grep("minimum p value", warned, fixed = TRUE), 1)
-    ## for now an error shows the call of the check inside, as_coloc_dataset()'s
+    ## an error shows the call of the check inside, as_coloc_dataset()'s
     ## for a list and check_dataset()'s for a coloc_dataset; pinned, so that a
     ## change to it is made on purpose
     bad <- D1

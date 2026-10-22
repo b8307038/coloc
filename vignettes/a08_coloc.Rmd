@@ -80,8 +80,8 @@ dim(D1$LD)
 
 `check_dataset()` checks a dataset, and returns `NULL` when it finds nothing
 wrong. Its help page, `?check_dataset`, lists every element and which
-combinations are needed. `coloc()` runs the same check on every dataset it is
-given, and most of its messages say which dataset the problem is in.
+combinations are needed. `coloc()` runs the same check on both datasets before
+it fine-maps either, and its messages say which trait the problem is in.
 
 ```{r check}
 check_dataset(D1)

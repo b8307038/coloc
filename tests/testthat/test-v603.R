@@ -148,12 +148,12 @@ test_that("coloc() matches 6.0.3's coloc.abf(): sdY estimated", {
     expect_equal(got$results$SNP.PP.H4.abf, pp4_of(expected, got$results$snp))
 })
 
-test_that("coloc() stops on a bad dataset with 6.0.3's coloc.abf() message", {
+test_that("coloc() stops on a bad dataset with 6.0.3's coloc.abf() message, naming the trait", {
     bad <- D2
     bad$beta[1] <- NA
     expected <- tryCatch(get_match_6_0_3(coloc.abf(D1, bad)), error = conditionMessage)
     expect_equal(expected, "dataset 2: beta contains missing values")
-    expect_error(coloc(D1, bad), expected, fixed = TRUE)
+    expect_error(coloc(D1, bad), "trait 2: beta contains missing values", fixed = TRUE)
 })
 
 test_that("SuSiE fits each test dataset the same way every time", {
@@ -432,7 +432,7 @@ test_that("AL16: a p-value above 1 is refused, which 6.0.3 accepted", {
     above$pvalues[5] <- 1.5
     expect_null(get_match_6_0_3(check_dataset(above, 1)))
     expect_error(check_dataset(above, 1), msg, fixed = TRUE)
-    expect_error(coloc(above, D2), msg, fixed = TRUE)
+    expect_error(coloc(above, D2), "trait 1: pvalues must be above 0 and at most 1", fixed = TRUE)
     expect_error(finemap.abf(above), "pvalues must be above 0 and at most 1", fixed = TRUE)
     ## 0 and below were refused already; only the message moved
     zero <- to_pvalues(D1)
@@ -513,7 +513,6 @@ test_that("check_dataset() has no prefix without a label, and \"dataset N: \" on
     expect_identical(msg(get_match_6_0_3(coloc.abf(D1, bad))),
                      "dataset 2: beta contains missing values")
     expect_identical(msg(coloc.abf(D1, bad)), "dataset 2: beta contains missing values")
-    expect_identical(msg(coloc(D1, bad)), "dataset 2: beta contains missing values")
     expect_identical(msg(check_dataset(bad, 2)), "dataset 2: beta contains missing values")
     bad3 <- D3
     bad3$beta[1] <- NA
@@ -531,11 +530,11 @@ test_that("check_dataset() has no prefix without a label, and \"dataset N: \" on
     per_snp_N$N <- rep(D2$N, length(D2$snp))
     n_msg <- "N should be a single numeric. coloc does not accomodate per-snp sample sizes."
     expect_identical(msg(get_match_6_0_3(coloc.abf(D1, per_snp_N))), n_msg)
-    expect_identical(msg(coloc(D1, per_snp_N)), paste0("dataset 2: ", n_msg))
+    expect_identical(msg(coloc.abf(D1, per_snp_N)), paste0("dataset 2: ", n_msg))
     not_square <- D2
     not_square$LD <- not_square$LD[, -1]
     expect_identical(msg(get_match_6_0_3(coloc.abf(D1, not_square))), "LD not square")
-    expect_identical(msg(coloc(D1, not_square)), "dataset 2: LD not square")
+    expect_identical(msg(coloc.abf(D1, not_square)), "dataset 2: LD not square")
     ## the minimum p-value warning, its first line
     weak <- D1
     weak$beta <- weak$beta / 100
@@ -544,9 +543,6 @@ test_that("check_dataset() has no prefix without a label, and \"dataset N: \" on
     warned <- function(expr) sub("\n.*", "", outcome(expr)$warned)
     expect_identical(warned(get_match_6_0_3(coloc.abf(weak, weak2))),
                      c("minimum p value is: 0.93383", "minimum p value is: 0.93863"))
-    expect_identical(warned(coloc(weak, weak2)),
-                     c("dataset 1: minimum p value is: 0.93383",
-                       "dataset 2: minimum p value is: 0.93863"))
     expect_identical(warned(coloc.abf(weak, weak2)),
                      c("dataset 1: minimum p value is: 0.93383",
                        "dataset 2: minimum p value is: 0.93863"))

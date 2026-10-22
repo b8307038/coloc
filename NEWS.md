@@ -2,6 +2,7 @@
 * restructured package
 * new `coloc_dataset()` and `as_coloc_dataset()` constructors
 * new `wakefield_bf()`, Wakefield's approximate Bayes factor for each snp of a dataset, from beta and varbeta or from p-values; its `effect_priors` applies on both routes
+* `coloc()` checks both datasets before fine-mapping either, and its messages about a dataset begin "trait 1: " or "trait 2: "
 
 # coloc 6.0.3
 * fix issue #208, #209

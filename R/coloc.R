@@ -119,12 +119,20 @@ coloc <- function(x1, x2,
                   prior = coloc_prior(),
                   control = coloc_control(),
                   susie.args = list()) {
-
     ## `method` is a match.arg default VECTOR, so an unsupplied method arrives
-    ## here as c("single", "susie") and is indistinguishable from a deliberate
+    ## as c("single", "susie") and is indistinguishable from a deliberate
     ## per-trait request. Per-trait scope and match.arg-style defaults do not
-    ## compose, so the default is collapsed explicitly.
-    supplied <- !missing(method)
+    ## compose, so .coloc() collapses the default explicitly.
+    .coloc(x1, x2, method = method, supplied = !missing(method), prior = prior,
+           control = control, susie.args = susie.args, word = "trait",
+           call = sys.call())
+}
+
+## coloc()'s body, which coloc.susie() and coloc.susie_bf() run too. A
+## dataset's messages begin with `word` and the trait's number, and show
+## `call`: "trait" and coloc()'s call for coloc(), "dataset" and their own call
+## for the two old functions, which keep 6.0.3's word.
+.coloc <- function(x1, x2, method, supplied, prior, control, susie.args, word, call) {
     if (!supplied) method <- "single"
 
     ## a coloc_prior has been checked already, but a plain list has not: it
@@ -135,15 +143,24 @@ coloc <- function(x1, x2,
     kinds  <- c(.classify_input(x1), .classify_input(x2))
     method <- .resolve_method(method, kinds, supplied = supplied)
 
-    ## each adapter checks its own input, and labels its messages with the
-    ## trait's number
+    ## Each dataset is checked, with the trait's number and what its method
+    ## needs, before either is fine-mapped, and comes back a coloc_dataset. A
+    ## mistake in trait 2 then stops coloc() before SuSiE runs on trait 1, and
+    ## the checks inside wakefield_bf() and runsusie() find nothing more.
+    xs <- list(x1, x2)
+    for (i in 1:2)
+        if (kinds[i] == "dataset")
+            xs[[i]] <- .new_coloc_dataset(xs[[i]], call = call, trait = i,
+                                          use = method[i], word = word)
+
+    ## the adapters check what only they can: a fit's or log BFs' values
     adapt <- function(x, kind, m, trait) switch(kind,
         susie_fit = .adapt_susie(x, trait, susie.args = susie.args),
         bf        = .adapt_bf(x, trait),
         dataset   = if (identical(m, "susie")) .adapt_susie(x, trait, susie.args = susie.args)
                     else .adapt_single(x, trait))
-    a1 <- adapt(x1, kinds[1], method[1], 1L)
-    a2 <- adapt(x2, kinds[2], method[2], 2L)
+    a1 <- adapt(xs[[1]], kinds[1], method[1], 1L)
+    a2 <- adapt(xs[[2]], kinds[2], method[2], 2L)
 
     ## The region-size guard, coloc.abf()'s own, applied once the snp counts
     ## are known. The prior for any one snp times the number of snps must stay

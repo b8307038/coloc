@@ -51,10 +51,12 @@ test_that(".adapt_single() hands the engine process.dataset()'s log ABFs", {
     }
 })
 
-test_that(".adapt_single() checks the dataset first, naming the trait", {
-    bad <- plain_test_data$D1
-    bad$beta[1] <- NA
-    expect_error(.adapt_single(bad, 2), "dataset 2: beta contains missing values")
+test_that(".adapt_single() gives wakefield_bf()'s log Bayes factors for a checked dataset", {
+    ## coloc() checks the dataset before any adapter runs (test-coloc.R)
+    d <- as_coloc_dataset(plain_test_data$D1)
+    w <- wakefield_bf(d)
+    expect_identical(.adapt_single(d, 1)$bf,
+                     matrix(w$lABF, nrow = 1, dimnames = list("sig1", w$snp)))
 })
 
 test_that(".adapt_susie() hands the engine the credible-set rows", {

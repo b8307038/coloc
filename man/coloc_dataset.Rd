@@ -77,6 +77,8 @@ afterwards, coloc's functions check it again when they use it, but don't
 do that. \code{as_coloc_dataset()} returns a coloc_dataset as it is:
 \code{\link[=check_dataset]{check_dataset()}} checks one again for errors, and
 \code{as_coloc_dataset(unclass(x))} makes it again.
+
+A \code{type} given as a factor, or with a name, comes back as a plain string.
 }
 \examples{
 D <- coloc_dataset(snp = paste0("s", 1:5),

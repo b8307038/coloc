@@ -205,20 +205,21 @@ names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
     Filter(function(rule) element %in% rule$about, .dataset_rules)
 
 ## "dataset {suffix}: " for a dataset checked with a label, such as 1 or 2 from
-## coloc() or a user's "eQTL"; nothing for one checked on its own (suffix "",
-## NULL, NA or more than one value), as when a dataset is made
-.prefix <- function(suffix) {
+## coloc.abf() or a user's "eQTL"; nothing for one checked on its own (suffix
+## "", NULL, NA or more than one value), as when a dataset is made. coloc()
+## passes the word "trait", so its messages begin "trait {suffix}: "
+.prefix <- function(suffix, word = "dataset") {
     if (length(suffix) != 1L || is.na(suffix) || identical(as.character(suffix), ""))
         return("")
-    paste0("dataset ", suffix, ": ")
+    paste0(word, " ", suffix, ": ")
 }
 
 ## Run the rules in order and stop at the first that fails. Every message, the
-## warning's too, starts with .prefix(suffix), and carries `call`, the call of
-## the function the user called. Returns invisible NULL.
+## warning's too, starts with .prefix(suffix, word), and carries `call`, the
+## call of the function the user called. Returns invisible NULL.
 .gate <- function(d, suffix = "", req = character(0), warn.minp = 1e-6,
-                  call = NULL, rules = .dataset_rules) {
-    prefix <- .prefix(suffix)
+                  call = NULL, rules = .dataset_rules, word = "dataset") {
+    prefix <- .prefix(suffix, word)
     if (!is.list(d))
         stop(simpleError(paste0(prefix, "is not a list"), call))
     ctx <- list(nd = intersect(names(d), .dataset_items), # defined in R/dataset.R
