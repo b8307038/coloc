@@ -12,7 +12,7 @@ stub_fit <- function(cols, empty = FALSE)
               class = "susie")
 
 test_that(".classify_input() tells the kind of input from its class", {
-    expect_equal(.classify_input(coloc_test_data$D1), "dataset")
+    expect_equal(.classify_input(plain_test_data$D1), "dataset")
     expect_equal(.classify_input(stub_fit(snps)), "susie_fit")
     expect_equal(.classify_input(matrix(0, 2, 3, dimnames = list(NULL, snps))), "bf")
     expect_equal(.classify_input(setNames(c(0, 0, 0), snps)), "bf")
@@ -42,7 +42,7 @@ test_that(".resolve_method() resolves each trait against its own input", {
 
 test_that(".adapt_single() hands the engine process.dataset()'s log ABFs", {
     for (trait in 1:2) {
-        d <- coloc_test_data[[trait]]                 # D1, D2
+        d <- plain_test_data[[trait]]                 # D1, D2
         pd <- get_match_6_0_3(process.dataset(d, suffix = paste0("df", trait)))
         a <- .adapt_single(d, trait)
         expect_equal(a$bf, matrix(pd[[paste0("lABF.df", trait)]], nrow = 1,
@@ -52,14 +52,14 @@ test_that(".adapt_single() hands the engine process.dataset()'s log ABFs", {
 })
 
 test_that(".adapt_single() checks the dataset first, naming the trait", {
-    bad <- coloc_test_data$D1
+    bad <- plain_test_data$D1
     bad$beta[1] <- NA
     expect_error(.adapt_single(bad, 2), "dataset 2: beta contains missing values")
 })
 
 test_that(".adapt_susie() hands the engine the credible-set rows", {
     skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
-    for (d in coloc_test_data[c("D3", "D4")]) {
+    for (d in plain_test_data[c("D3", "D4")]) {
         fit <- suppressMessages(get_match_6_0_3(runsusie(d)))
         a <- suppressMessages(.adapt_susie(d))
         expect_equal(unname(a$bf), unname(fit$lbf_variable[fit$sets$cs_index, , drop = FALSE]))
@@ -88,7 +88,7 @@ test_that(".adapt_susie() rejects a broken fit, and a suffix in susie.args", {
     expect_error(.adapt_susie(no_lbf, 2), "trait 2: the susie fit has no lbf_variable")
     expect_error(.adapt_susie(no_names, 1), "trait 1: the susie fit's lbf_variable needs snp ids")
     ## coloc() sets suffix to the trait number
-    expect_error(.adapt_susie(coloc_test_data$D3, susie.args = list(suffix = 3)),
+    expect_error(.adapt_susie(plain_test_data$D3, susie.args = list(suffix = 3)),
                  "susie.args cannot set suffix")
 })
 
@@ -148,5 +148,5 @@ test_that("meta$has_null says whether the matrix has a null column", {
     }
     ## runsusie() adds a null column only when given null_weight
     skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
-    expect_false(.adapt_susie(suppressMessages(runsusie(coloc_test_data$D4)))$meta$has_null)
+    expect_false(.adapt_susie(suppressMessages(runsusie(plain_test_data$D4)))$meta$has_null)
 })

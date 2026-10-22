@@ -1,7 +1,6 @@
 library(coloc)
-data(coloc_test_data)
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
+D1 <- plain_test_data$D1
+D2 <- plain_test_data$D2
 
 ## a small dataset with one strong signal, so no p value warning
 small <- list(snp = paste0("s", 1:5), type = "quant", beta = c(0.1, 0.5, 0.2, 0, 0.05), varbeta = rep(0.01, 5), sdY = 1)

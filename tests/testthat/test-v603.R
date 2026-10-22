@@ -2,11 +2,10 @@
 ## 6.0.3's own functions: get_match_6_0_3(coloc.abf(D1, D2)) is what 6.0.3
 ## returned for coloc.abf(D1, D2).
 
-data(coloc_test_data)
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
-D3 <- coloc_test_data$D3
-D4 <- coloc_test_data$D4
+D1 <- plain_test_data$D1
+D2 <- plain_test_data$D2
+D3 <- plain_test_data$D3
+D4 <- plain_test_data$D4
 
 fit3 <- suppressMessages(runsusie(D3))
 fit4 <- suppressMessages(runsusie(D4))
@@ -164,7 +163,7 @@ test_that("SuSiE fits each test dataset the same way every time", {
     ## of them. So every test dataset's credible sets must stay smaller than that.
     threshold <- eval(formals(susieR::susie_get_cs)$n_purity)
     for (nm in c("D1", "D2", "D3", "D4")) {
-        fit <- suppressMessages(runsusie(coloc_test_data[[nm]]))
+        fit <- suppressMessages(runsusie(plain_test_data[[nm]]))
         expect_lt(max(lengths(fit$sets$cs)), threshold, label = paste(nm, "largest credible set"))
     }
 })

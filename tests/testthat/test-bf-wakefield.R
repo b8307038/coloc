@@ -1,7 +1,6 @@
 ## wakefield_bf() against 6.0.3's process.dataset(), copied into helper-v603.R
 
-data(coloc_test_data)
-D1 <- coloc_test_data$D1
+D1 <- plain_test_data$D1
 
 ## D1 on each route wakefield_bf() takes
 routes <- list(

@@ -12,10 +12,10 @@
 ## Some tests compare with 6.0.3: get_match_6_0_3(), in helper-v603.R, runs a
 ## call as 6.0.3 made it.
 
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
-D3 <- coloc_test_data$D3
-D4 <- coloc_test_data$D4
+D1 <- plain_test_data$D1
+D2 <- plain_test_data$D2
+D3 <- plain_test_data$D3
+D4 <- plain_test_data$D4
 
 ## the messages of every warning an expression gives, in order
 warnings_of <- function(expr) {
