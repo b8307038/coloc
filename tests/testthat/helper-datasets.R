@@ -1,5 +1,14 @@
 ## Shared by the test files: a dataset in other forms, and what a call gives.
 
+## code run in a session that hasn't had the plain-list note, which
+## setup-notes.R marks as given; the notes given are put back after
+forgetting_notes <- function(code) {
+    old <- .coloc_state$noted
+    on.exit(.coloc_state$noted <- old)
+    .coloc_state$noted <- character(0)
+    code
+}
+
 ## coloc_test_data's datasets as plain lists, which is what most tests are
 ## written for: a coloc_dataset skips the minimum p-value warning, and keeps
 ## its class when an element is changed

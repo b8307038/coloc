@@ -150,7 +150,9 @@ coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=lis
 ##' @examples
 ##' data(coloc_test_data)
 ##' ## one signal's log Bayes factors, as kept by coloc()
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' fm <- finemap.bf(log_bf(res, 1))
 ##' fm$summary
 ##' head(fm$results[order(fm$results$SNP.PP.abf, decreasing = TRUE), ])

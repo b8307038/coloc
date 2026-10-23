@@ -47,7 +47,8 @@ dataset has no \code{sdY}, it is estimated from \code{varbeta}, \code{MAF} and
 }
 \examples{
 data(coloc_test_data)
-head(wakefield_bf(coloc_test_data$D1))
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+head(wakefield_bf(D1))
 }
 \references{
 Wakefield J (2009). Bayes factors for genome-wide association

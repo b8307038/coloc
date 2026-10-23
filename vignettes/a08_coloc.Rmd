@@ -26,15 +26,16 @@ object whatever happened. This vignette covers:
   map onto `coloc()`
 
 The examples use `coloc_test_data`, four small simulated datasets of 500 SNPs
-each.
+each, made into coloc datasets with `as_coloc_dataset()`. `coloc()` takes a
+plain list too, and converts it, but says so once per session.
 
 ```{r data}
 library(coloc)
 data(coloc_test_data)
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
-D3 <- coloc_test_data$D3
-D4 <- coloc_test_data$D4
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+D2 <- as_coloc_dataset(coloc_test_data$D2)
+D3 <- as_coloc_dataset(coloc_test_data$D3)
+D4 <- as_coloc_dataset(coloc_test_data$D4)
 ```
 
 ## What coloc() reports

@@ -15,6 +15,33 @@
 .dataset_uses <- list(single = c("type", "snp"),
                       susie  = c("beta", "varbeta", "LD", "snp", "N"))
 
+## The notes already given this session, by key: "plain_list" for the one
+## coloc() and wakefield_bf() give when they convert a plain list
+.coloc_state <- new.env(parent = emptyenv())
+.coloc_state$noted <- character(0)
+
+## Warn once per session for key. The key is recorded first, so a note turned
+## into an error with options(warn = 2) still counts as given
+.note_once <- function(key, message) {
+    if (key %in% .coloc_state$noted)
+        return(invisible(FALSE))
+    .coloc_state$noted <- c(.coloc_state$noted, key)
+    warning(message, call. = FALSE)
+    invisible(TRUE)
+}
+
+## the plain-list note from fn, naming the traits given as plain lists, if any
+.plain_list_note <- function(fn, traits = NULL) {
+    given <- if (length(traits) > 1L)
+                 paste("plain lists for traits", paste(traits, collapse = " and "),
+                       "and converted them")
+             else paste0("a plain list", if (length(traits)) paste(" for trait", traits),
+                         " and converted it")
+    paste0(fn, "() was given ", given, " with as_coloc_dataset().\n",
+           "Make datasets with coloc_dataset() or as_coloc_dataset().\n",
+           "(shown once per session)")
+}
+
 ##' Make a coloc dataset
 ##'
 ##' `coloc_dataset()` builds a dataset from its parts and checks it with

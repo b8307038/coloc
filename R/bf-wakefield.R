@@ -43,7 +43,8 @@
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' head(wakefield_bf(coloc_test_data$D1))
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' head(wakefield_bf(D1))
 wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
     if (!is.numeric(effect_priors) ||
         !all(c("quant", "cc") %in% names(effect_priors)) ||
@@ -56,6 +57,7 @@ wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
         check_dataset(d)
     } else {
         d <- as_coloc_dataset(d)
+        .note_once("plain_list", .plain_list_note("wakefield_bf"))
     }
     nd <- names(d)
     ## by the type's label: [[ would take a factor type by its code

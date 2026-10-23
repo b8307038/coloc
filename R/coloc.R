@@ -77,8 +77,8 @@
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' D1 <- coloc_test_data$D1
-##' D2 <- coloc_test_data$D2
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
 ##'
 ##' ## two datasets, with at most one causal variant assumed in each trait
 ##' res <- coloc(D1, D2)
@@ -92,8 +92,8 @@
 ##' finemap.bf(bf1)$summary
 ##'
 ##' if (requireNamespace("susieR", quietly = TRUE)) {
-##'     D3 <- coloc_test_data$D3
-##'     D4 <- coloc_test_data$D4
+##'     D3 <- as_coloc_dataset(coloc_test_data$D3)
+##'     D4 <- as_coloc_dataset(coloc_test_data$D4)
 ##'
 ##'     ## fine-map both traits with SuSiE: one row per pair of credible sets
 ##'     res2 <- coloc(D3, D4, method = "susie")
@@ -123,10 +123,19 @@ coloc <- function(x1, x2,
     ## as c("single", "susie") and is indistinguishable from a deliberate
     ## per-trait request. Per-trait scope and match.arg-style defaults do not
     ## compose, so .coloc() collapses the default explicitly.
-    .coloc(x1, x2, method = method, supplied = !missing(method), prior = prior,
-           control = control, susie.args = susie.args, word = "trait",
-           call = sys.call())
+    res <- .coloc(x1, x2, method = method, supplied = !missing(method), prior = prior,
+                  control = control, susie.args = susie.args, word = "trait",
+                  call = sys.call())
+    ## a plain list that got this far passed its checks and was converted
+    plain <- which(vapply(list(x1, x2), .is_plain_list, NA))
+    if (length(plain))
+        .note_once("plain_list", .plain_list_note("coloc", plain))
+    res
 }
+
+## a list given as a dataset that isn't a coloc_dataset; a SuSiE fit is a list too
+.is_plain_list <- function(x)
+    is.list(x) && !inherits(x, c("coloc_dataset", "susie"))
 
 ## coloc()'s body, which coloc.susie() and coloc.susie_bf() run too. A
 ## dataset's messages begin with `word` and the trait's number, and show
@@ -211,12 +220,16 @@ coloc <- function(x1, x2,
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' pp(res)                   # row = 1, the first pair, by default
 ##'
 ##' if (requireNamespace("susieR", quietly = TRUE)) {
 ##'     ## two credible sets in D3 against one in D4: two pairs
-##'     res2 <- coloc(coloc_test_data$D3, coloc_test_data$D4, method = "susie")
+##'     D3 <- as_coloc_dataset(coloc_test_data$D3)
+##'     D4 <- as_coloc_dataset(coloc_test_data$D4)
+##'     res2 <- coloc(D3, D4, method = "susie")
 ##'     n_signals(res2)
 ##'     pp(res2, row = 2)
 ##' }
@@ -255,7 +268,9 @@ pp <- function(x, row = 1) {
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' if (is_ok(res) && pp(res)["PP.H4.abf"] > 0.8)
 ##'     message("the traits share a causal variant")
 is_ok <- function(x) {
@@ -270,7 +285,9 @@ is_ok <- function(x) {
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' n_signals(res)
 n_signals <- function(x) {
     .need_coloc_result(x)
@@ -292,7 +309,9 @@ n_signals <- function(x) {
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' bf1 <- log_bf(res, 1)
 ##' dim(bf1)                         # one signal, 500 SNPs
 ##' ## fine-map trait 1 from the same numbers coloc() used

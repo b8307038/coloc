@@ -94,8 +94,8 @@ given as log Bayes factors gives a warning.
 
 \examples{
 data(coloc_test_data)
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+D2 <- as_coloc_dataset(coloc_test_data$D2)
 
 ## two datasets, with at most one causal variant assumed in each trait
 res <- coloc(D1, D2)
@@ -109,8 +109,8 @@ bf1 <- log_bf(res, 1)   # trait 1's log Bayes factors, to fine-map
 finemap.bf(bf1)$summary
 
 if (requireNamespace("susieR", quietly = TRUE)) {
-    D3 <- coloc_test_data$D3
-    D4 <- coloc_test_data$D4
+    D3 <- as_coloc_dataset(coloc_test_data$D3)
+    D4 <- as_coloc_dataset(coloc_test_data$D4)
 
     ## fine-map both traits with SuSiE: one row per pair of credible sets
     res2 <- coloc(D3, D4, method = "susie")
