@@ -89,13 +89,17 @@ mistakes <- list(
     "a zero varbeta" = function(d) { d$varbeta[5] <- 0; d })
 
 test_that("a bad dataset stops coloc() with 6.0.3's coloc.abf() message, naming the trait, for either trait", {
+    ## the lengths message is reworded since 6.0.3
+    reworded <- c("mismatched lengths" = "snp has 500 values but beta has 499")
     for (what in names(mistakes)) for (trait in 1:2) {
         d1 <- if (trait == 1) mistakes[[what]](D1) else D1
         d2 <- if (trait == 2) mistakes[[what]](D2) else D2
         expected <- tryCatch(get_match_6_0_3(coloc.abf(d1, d2)), error = conditionMessage)
         expect_match(expected, paste("dataset", trait), fixed = TRUE,
                      label = paste(what, "in trait", trait))
-        expect_error(coloc(d1, d2), reprefix(expected, trait, word = "trait"), fixed = TRUE,
+        expected <- if (what %in% names(reworded)) paste0("trait ", trait, ": ", reworded[[what]])
+                    else reprefix(expected, trait, word = "trait")
+        expect_error(coloc(d1, d2), expected, fixed = TRUE,
                      label = paste(what, "in trait", trait))
     }
 })
@@ -108,7 +112,7 @@ test_that("on the SuSiE route a bad dataset is reported with its own trait numbe
                  "a wrong type" = "type must be quant or cc",
                  "an NA beta" = "beta contains missing values",
                  "a duplicated snp" = "duplicated snps found",
-                 "mismatched lengths" = "lengths of inputs don't match",
+                 "mismatched lengths" = "snp has 500 values but beta has 499",
                  "a zero varbeta" = "Zero values in varbeta")
     for (what in names(mistakes)) {
         expect_error(suppressMessages(coloc(mistakes[[what]](D3), fit4, method = "susie")),
@@ -143,7 +147,7 @@ test_that("a mistake in a dataset names the trait and coloc()'s call", {
     ## two of the messages that named no dataset in 6.0.3
     per_snp_N <- D2
     per_snp_N$N <- rep(D2$N, length(D2$snp))
-    expect_error(coloc(D1, per_snp_N), "trait 2: N should be a single numeric", fixed = TRUE)
+    expect_error(coloc(D1, per_snp_N), "trait 2: N must be a single number", fixed = TRUE)
     not_square <- D2
     not_square$LD <- not_square$LD[, -1]
     expect_error(coloc(D1, not_square), "trait 2: LD not square", fixed = TRUE)

@@ -184,20 +184,23 @@ check.dataset=function(...) {
         if ("MAF" %in% ctx$nd && (!is.numeric(d$MAF) || any(is.na(d$MAF)) ||
                                   any(d$MAF <= 0) || any(d$MAF >= 1)))
             "MAF should be a numeric, strictly >0 & <1"),
-    ## the per-snp elements, compared in the dataset's own order
+    ## the per-snp elements, each against snp, or without snp against the
+    ## first given, in .per_snp_items' order, so the message names the same
+    ## elements however the list was built
     .rule("lengths", function(d, ctx) {
-        l <- -1 # impossible length
-        for (v in intersect(ctx$nd, c("pvalues", "MAF", "beta", "varbeta", "snp", "position")))
-            if (l < 0) {
-                l <- length(d[[v]])
-            } else if (length(d[[v]]) != l) {
-                return("lengths of inputs don't match: ")
-            }
-        NULL
+        v <- intersect(.per_snp_items, ctx$nd) # defined in R/dataset.R
+        if (length(v) < 2L)
+            return(NULL)
+        n <- lengths(d[v])
+        ref <- if ("snp" %in% v) "snp" else v[1]
+        bad <- v[n != n[[ref]]]
+        if (length(bad))
+            paste(ref, "has", n[[ref]], if (n[[ref]] == 1L) "value" else "values",
+                  "but", bad[1], "has", n[[bad[1]]])
     }),
     .rule("N_single", about = "N", function(d, ctx)
         if ("N" %in% ctx$nd && (!is.numeric(d[["N"]]) || length(d[["N"]]) != 1))
-            "N should be a single numeric. coloc does not accomodate per-snp sample sizes."),
+            "N must be a single number; coloc does not take per-snp sample sizes"),
     .rule("type_set", function(d, ctx)
         if (!("type" %in% ctx$nd))
             "variable type not set"),
@@ -329,8 +332,10 @@ names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
 .gate <- function(d, suffix = "", req = character(0), warn.minp = 1e-6,
                   call = NULL, rules = .dataset_rules, word = "dataset") {
     prefix <- .prefix(suffix, word)
+    ## without a prefix, the one message with no subject gains one
     if (!is.list(d))
-        stop(simpleError(paste0(prefix, "is not a list"), call))
+        stop(simpleError(if (nzchar(prefix)) paste0(prefix, "is not a list")
+                         else "the dataset is not a list", call))
     ctx <- list(nd = intersect(names(d), .dataset_items), # defined in R/dataset.R
                 req = req, warn.minp = warn.minp)
     for (rule in rules) {

@@ -1,8 +1,12 @@
 ## A coloc dataset constructor
 
+## The elements with one value per snp, in the order the lengths rule compares
+## them and print() lists them
+.per_snp_items <- c("beta", "varbeta", "pvalues", "MAF", "snp", "position")
+
 ## The elements a coloc dataset may have. check_dataset() checks these and
 ## ignores anything else.
-.dataset_items <- c("beta", "varbeta", "pvalues", "MAF", "snp", "position", "N", "type", "s", "sdY", "LD")
+.dataset_items <- c(.per_snp_items, "N", "type", "s", "sdY", "LD")
 
 ## The elements each of coloc()'s methods needs, as check_dataset()'s req.
 ## "single" is also what a dataset is checked for when it is made,
@@ -125,7 +129,7 @@ print.coloc_dataset <- function(x, ...) {
     cat("coloc dataset:",
         if (isTRUE(x$type == "cc")) "case-control" else "quantitative",
         "trait,", length(x$snp), "snps\n")
-    cat("  per-snp:", paste(intersect(c("beta", "varbeta", "pvalues", "MAF", "position"), names(x)), collapse = ", "), "\n")
+    cat("  per-snp:", paste(intersect(setdiff(.per_snp_items, "snp"), names(x)), collapse = ", "), "\n")
     sc <- unlist(x[intersect(c("N", "s", "sdY"), names(x))])
     if (length(sc))
         cat("  ", paste(names(sc), signif(sc, 4), sep = " = ", collapse = ", "),

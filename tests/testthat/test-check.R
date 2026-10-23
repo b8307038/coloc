@@ -117,17 +117,19 @@ test_that("Infinite values in beta/varbeta triggers specific error", {
 ## the label 1, as coloc() checks a dataset, and with none, as a dataset is
 ## made. Its message is 6.0.3's; today's reads as reprefix() words it: nothing
 ## for "dataset : ", and "dataset 1: " on the four messages that named no
-## dataset and on the minimum p-value warning. Three more things differ from
-## 6.0.3 on purpose, each tested in test-v603.R: the range of p-values, above 0
-## and at most 1; a dataset with no type when type isn't required, as on the
-## SuSiE route; and the p-value warning, which a coloc_dataset gives when it is
-## made and not again (from PR #2).
+## dataset and on the minimum p-value warning. Two sentences are reworded,
+## for lengths that differ and for a per-snp N, and their cases give today's
+## sentence as now, without its prefix. Three more things differ from 6.0.3 on
+## purpose, each tested in test-v603.R: the range of p-values, above 0 and at
+## most 1; a dataset with no type when type isn't required, as on the SuSiE
+## route; and the p-value warning, which a coloc_dataset gives when it is made
+## and not again (from PR #2).
 
 ## the datasets the cases are made from: D1 as given (beta and varbeta), and
 ## D1 as p-values, MAF and N
 pv1 <- to_pvalues(D1)
 ## each case: the dataset, any arguments besides the dataset and its suffix,
-## and the error or warning both versions give
+## the error or warning 6.0.3 gives, and for a reworded message, now
 cases <- list(
     ## valid datasets
     "a valid dataset passes" =
@@ -175,13 +177,16 @@ cases <- list(
              error = "dataset 1: MAF should be a numeric, strictly >0 & <1"),
     "the vectors have the same length" =
         list(d = local({ d <- D1; d$beta <- d$beta[-1]; d }),
-             error = "dataset 1: lengths of inputs don't match: "),
+             error = "dataset 1: lengths of inputs don't match: ",
+             now = "snp has 500 values but beta has 499"),
     "N is a single number" =
         list(d = local({ d <- D1; d$N <- c(1000, 1000); d }),
-             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes."),
+             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes.",
+             now = "N must be a single number; coloc does not take per-snp sample sizes"),
     "N is numeric" =
         list(d = local({ d <- D1; d$N <- as.character(d$N); d }),
-             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes."),
+             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes.",
+             now = "N must be a single number; coloc does not take per-snp sample sizes"),
     "s is between 0 and 1" =
         list(d = local({ d <- D1; d$type <- "cc"; d$s <- 1.5; d }),
              error = "dataset 1: s must be between 0 and 1"),
@@ -260,6 +265,14 @@ cases <- list(
                          d$LD <- d$LD[, -1]; d }),
              error = "LD not square", warning = "minimum p value is: "))
 
+## today's message for 6.0.3's: through reprefix(), or for a reworded case its
+## own sentence with the prefix
+today <- function(case, then, suffix) {
+    if (is.null(case$now))
+        return(reprefix(then, suffix))
+    paste0(if (suffix == "") "" else paste0("dataset ", suffix, ": "), case$now)
+}
+
 for (what in names(cases)) {
     test_that(paste0("check_dataset(), today's and 6.0.3's: ", what), {
         case <- cases[[what]]
@@ -269,7 +282,7 @@ for (what in names(cases)) {
             args <- c(list(case$d, suffix), case$args)
             now <- outcome(do.call(check_dataset, args))
             then <- outcome(get_match_6_0_3(do.call(check_dataset, args)))
-            then$error <- reprefix(then$error, suffix)
+            then$error <- today(case, then$error, suffix)
             then$warned <- reprefix(then$warned, suffix)
             expect_identical(now, then, label = paste0("suffix \"", suffix, "\""))
         }
@@ -324,7 +337,7 @@ for (what in names(mistakes)) {
             args <- c(list(d, 1), case$args)
             then <- outcome(get_match_6_0_3(do.call(check_dataset, args)))$error
             if (identical(then, case$error))
-                expect_identical(outcome(do.call(check_dataset, args))$error, reprefix(then, 1))
+                expect_identical(outcome(do.call(check_dataset, args))$error, today(case, then, 1))
         }
     })
 }

@@ -52,9 +52,11 @@ call_of <- function(expr) tryCatch({
 ## 6.0.3's messages with the prefix as check_dataset() gives it now. "dataset N: "
 ## stays, "dataset : " goes, and the four messages that named no dataset, and
 ## the minimum p-value warning, gain "dataset N: ". With word "trait", as
-## coloc() gives them, "trait N: " in place of "dataset N: ". suffix is recycled
-## over msg, and NA stays NA. A message it doesn't know stops it, so a mistake here, or
-## one of R's own messages reaching it, can't pass unnoticed
+## coloc() gives them, "trait N: " in place of "dataset N: ". Without a prefix,
+## "is not a list", the one message with no subject, becomes "the dataset is
+## not a list". suffix is recycled over msg, and NA stays NA. A message it
+## doesn't know stops it, so a mistake here, or one of R's own messages
+## reaching it, can't pass unnoticed
 reprefix <- function(msg, suffix, word = "dataset") {
     bare <- c("N should be a single numeric", "LD not square", "LD rownames != colnames",
               "colnames in LD do not contain all SNPs", "minimum p value is: ")
@@ -64,8 +66,12 @@ reprefix <- function(msg, suffix, word = "dataset") {
             return(NA_character_)
         prefix <- if (suffix[i] == "") "" else paste0(word, " ", suffix[i], ": ")
         old <- paste0("dataset ", suffix[i], ": ")
-        if (startsWith(msg[i], old))
-            return(paste0(prefix, substring(msg[i], nchar(old) + 1)))
+        if (startsWith(msg[i], old)) {
+            rest <- substring(msg[i], nchar(old) + 1)
+            if (prefix == "" && rest == "is not a list")
+                rest <- "the dataset is not a list"
+            return(paste0(prefix, rest))
+        }
         if (any(startsWith(msg[i], bare)))
             return(paste0(prefix, msg[i]))
         stop("reprefix() doesn't know this message: ", msg[i])

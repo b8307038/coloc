@@ -520,12 +520,18 @@ test_that("check_dataset() has no prefix without a label, and \"dataset N: \" on
                      "dataset : beta contains missing values")
     expect_identical(msg(finemap.abf(bad)), "beta contains missing values")
     expect_identical(msg(check_dataset(bad)), "beta contains missing values")
-    ## the messages that named no dataset
+    ## without a label, the one message with no subject gains one
+    expect_identical(msg(get_match_6_0_3(check_dataset(1:3))), "dataset : is not a list")
+    expect_identical(msg(check_dataset(1:3)), "the dataset is not a list")
+    expect_identical(msg(finemap.abf(1:3)), "the dataset is not a list")
+    expect_identical(msg(check_dataset(1:3, 2)), "dataset 2: is not a list")
+    ## the messages that named no dataset (the N message is reworded too, below)
     per_snp_N <- D2
     per_snp_N$N <- rep(D2$N, length(D2$snp))
-    n_msg <- "N should be a single numeric. coloc does not accomodate per-snp sample sizes."
-    expect_identical(msg(get_match_6_0_3(coloc.abf(D1, per_snp_N))), n_msg)
-    expect_identical(msg(coloc.abf(D1, per_snp_N)), paste0("dataset 2: ", n_msg))
+    expect_identical(msg(get_match_6_0_3(coloc.abf(D1, per_snp_N))),
+                     "N should be a single numeric. coloc does not accomodate per-snp sample sizes.")
+    expect_identical(msg(coloc.abf(D1, per_snp_N)),
+                     "dataset 2: N must be a single number; coloc does not take per-snp sample sizes")
     not_square <- D2
     not_square$LD <- not_square$LD[, -1]
     expect_identical(msg(get_match_6_0_3(coloc.abf(D1, not_square))), "LD not square")
@@ -861,6 +867,50 @@ test_that(".is_correlation() compares every block of a large LD", {
     expect_true(.is_correlation(ld))
     ld[1100, 900] <- ld[1100, 900] + 0.1
     expect_false(.is_correlation(ld))
+})
+
+## ---- messages reworded since 6.0.3 ------------------------------------------
+## The same datasets are refused, at the same rule, with a sentence that says
+## more. at_each_door() and everywhere() are above.
+
+test_that("lengths that differ name the elements, where 6.0.3 said only that they don't match", {
+    short <- D1
+    short$beta <- short$beta[-1]
+    expect_identical(outcome(get_match_6_0_3(check_dataset(short, 2)))$error,
+                     "dataset 2: lengths of inputs don't match: ")
+    expect_identical(at_each_door(short, susie = TRUE),
+                     everywhere("snp has 500 values but beta has 499", susie = TRUE))
+    msg <- function(d, ...) outcome(check_dataset(d, ...))$error
+    ## the elements are compared in a fixed order, whatever the list's
+    two_short <- short
+    two_short$MAF <- two_short$MAF[-(1:2)]
+    expect_identical(msg(two_short), "snp has 500 values but beta has 499")
+    expect_identical(msg(rev(two_short)), "snp has 500 values but beta has 499")
+    ## each per-snp element is compared with snp, position too
+    short_position <- D1
+    short_position$position <- short_position$position[-1]
+    expect_identical(msg(short_position), "snp has 500 values but position has 499")
+    short_snp <- D1
+    short_snp$snp <- short_snp$snp[-1]
+    expect_identical(msg(short_snp), "snp has 499 values but beta has 500")
+    ## without snp, against the first element given
+    no_snp <- short
+    no_snp$snp <- NULL
+    expect_identical(msg(no_snp, req = "type"), "beta has 499 values but varbeta has 500")
+    one <- list(snp = "s1", beta = c(0.1, 0.2), varbeta = c(0.01, 0.01), type = "quant", sdY = 1)
+    expect_identical(msg(one), "snp has 1 value but beta has 2")
+})
+
+test_that("a per-snp N gets a reworded message, where 6.0.3's misspelt a word", {
+    for (n in list(rep(D1$N, length(D1$snp)), as.character(D1$N))) {
+        d <- D1
+        d$N <- n
+        expect_identical(outcome(get_match_6_0_3(check_dataset(d, 2)))$error,
+                         "N should be a single numeric. coloc does not accomodate per-snp sample sizes.")
+        expect_identical(at_each_door(d, susie = TRUE),
+                         everywhere("N must be a single number; coloc does not take per-snp sample sizes",
+                                    susie = TRUE))
+    }
 })
 
 ## ---- the dataset functions, pinned as numbers ------------------------------

@@ -106,10 +106,17 @@ test_that("a coloc_dataset still behaves as a list for generics with no method f
     expect_s3_class(data.table::as.data.table(D), "data.table") # plot_extended_data() does this
 })
 
+test_that("coloc_dataset() takes every element check_dataset() knows", {
+    expect_setequal(setdiff(names(formals(coloc_dataset)), "warn.minp"), .dataset_items)
+})
+
 test_that("print() summarises the dataset", {
     D <- do.call(coloc_dataset, small)
     expect_output(print(D), "quantitative trait, 5 snps")
     expect_output(print(D), "sdY = 1")
+    ## the per-snp elements, without snp
+    expect_output(print(do.call(coloc_dataset, c(small, list(position = 1:5)))),
+                  "per-snp: beta, varbeta, position", fixed = TRUE)
     cc <- small; cc$type <- "cc"; cc$s <- 0.4; cc$sdY <- NULL
     expect_output(print(as_coloc_dataset(cc)), "coloc dataset: case-control trait, 5 snps", fixed = TRUE)
     ## the type is read by its label, as check_dataset() reads it: a factor, or
