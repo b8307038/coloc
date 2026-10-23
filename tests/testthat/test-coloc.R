@@ -88,19 +88,25 @@ mistakes <- list(
     "mismatched lengths" = function(d) { d$beta <- d$beta[-1]; d },
     "a zero varbeta" = function(d) { d$varbeta[5] <- 0; d })
 
+## each dataset as a plain list, and made with as_coloc_dataset() before the
+## mistake: $<- keeps the class, so coloc() checks the changed dataset again
+kinds <- list("as a plain list" = identity,
+              "as a coloc_dataset" = as_coloc_dataset)
+
 test_that("a bad dataset stops coloc() with 6.0.3's coloc.abf() message, naming the trait, for either trait", {
     ## the lengths message is reworded since 6.0.3
     reworded <- c("mismatched lengths" = "snp has 500 values but beta has 499")
-    for (what in names(mistakes)) for (trait in 1:2) {
-        d1 <- if (trait == 1) mistakes[[what]](D1) else D1
-        d2 <- if (trait == 2) mistakes[[what]](D2) else D2
+    for (kind in names(kinds)) for (what in names(mistakes)) for (trait in 1:2) {
+        d1 <- kinds[[kind]](D1)
+        d2 <- kinds[[kind]](D2)
+        if (trait == 1) d1 <- mistakes[[what]](d1) else d2 <- mistakes[[what]](d2)
         expected <- tryCatch(get_match_6_0_3(coloc.abf(d1, d2)), error = conditionMessage)
         expect_match(expected, paste("dataset", trait), fixed = TRUE,
-                     label = paste(what, "in trait", trait))
+                     label = paste(what, "in trait", trait, kind))
         expected <- if (what %in% names(reworded)) paste0("trait ", trait, ": ", reworded[[what]])
                     else reprefix(expected, trait, word = "trait")
         expect_error(coloc(d1, d2), expected, fixed = TRUE,
-                     label = paste(what, "in trait", trait))
+                     label = paste(what, "in trait", trait, kind))
     }
 })
 
@@ -114,13 +120,15 @@ test_that("on the SuSiE route a bad dataset is reported with its own trait numbe
                  "a duplicated snp" = "duplicated snps found",
                  "mismatched lengths" = "snp has 500 values but beta has 499",
                  "a zero varbeta" = "Zero values in varbeta")
-    for (what in names(mistakes)) {
-        expect_error(suppressMessages(coloc(mistakes[[what]](D3), fit4, method = "susie")),
+    for (kind in names(kinds)) for (what in names(mistakes)) {
+        d3 <- mistakes[[what]](kinds[[kind]](D3))
+        d4 <- mistakes[[what]](kinds[[kind]](D4))
+        expect_error(suppressMessages(coloc(d3, fit4, method = "susie")),
                      paste0("trait 1: ", problem[[what]]), fixed = TRUE,
-                     label = paste(what, "in trait 1"))
-        expect_error(suppressMessages(coloc(fit3, mistakes[[what]](D4), method = "susie")),
+                     label = paste(what, "in trait 1", kind))
+        expect_error(suppressMessages(coloc(fit3, d4, method = "susie")),
                      paste0("trait 2: ", problem[[what]]), fixed = TRUE,
-                     label = paste(what, "in trait 2"))
+                     label = paste(what, "in trait 2", kind))
     }
 })
 
