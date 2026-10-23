@@ -587,6 +587,58 @@ test_that("coloc.susie_bf() refuses a bf2 that isn't log Bayes factors, where 6.
     expect_error(coloc.susie_bf(fit3, chr), msg, fixed = TRUE)
 })
 
+## check_alignment()'s share counted directly: the pairs of snps above the
+## diagonal of the snps' own LD with |LD| above thr, and of those, the share
+## whose product of z-scores has the sign of their LD
+alignment_share <- function(d, thr = 0.2) {
+    z <- d$beta / sqrt(d$varbeta)
+    ld <- d$LD[d$snp, d$snp]
+    pair <- upper.tri(ld) & abs(ld) > thr
+    mean((outer(z, z) * ld)[pair] > 0)
+}
+
+test_that("check_alignment() counts each pair of snps once and uses thr, where 6.0.3 counted every snp with itself and took 0.2", {
+    for (d in list(D1, D2, D3, D4)) {
+        now <- check_alignment(d, do_plot = FALSE)
+        expect_equal(now, alignment_share(d))
+        ## 6.0.3 also counted each snp paired with itself, which always agrees
+        expect_equal(now, get_match_6_0_3(check_alignment(d, do_plot = FALSE)), tolerance = 1e-3)
+    }
+    expect_equal(check_alignment(D1, thr = 0.5, do_plot = FALSE), alignment_share(D1, 0.5))
+    expect_identical(get_match_6_0_3(check_alignment(D1, thr = 0.5, do_plot = FALSE)),
+                     get_match_6_0_3(check_alignment(D1, do_plot = FALSE)))
+    ## the plot is drawn from the same pairs
+    grDevices::pdf(NULL)
+    on.exit(grDevices::dev.off())
+    expect_equal(check_alignment(D1), alignment_share(D1))
+})
+
+test_that("check_alignment() matches LD to the snps by name, where 6.0.3 divided by position", {
+    reversed <- D1
+    reversed$LD <- D1$LD[500:1, 500:1]
+    wider <- D1
+    wider$LD <- rbind(cbind(D1$LD, 0), 0)
+    wider$LD[501, 501] <- 1
+    dimnames(wider$LD) <- rep(list(c(D1$snp, "extra")), 2)
+    expect_equal(check_alignment(reversed, do_plot = FALSE), alignment_share(D1))
+    expect_equal(check_alignment(wider, do_plot = FALSE), alignment_share(D1))
+    expect_false(isTRUE(all.equal(get_match_6_0_3(check_alignment(reversed, do_plot = FALSE)),
+                                  alignment_share(D1))))
+    expect_error(get_match_6_0_3(check_alignment(wider, do_plot = FALSE)), "non-conformable arrays")
+})
+
+test_that("check_alignment() counts the pairs across blocks of a large LD", {
+    ## D1's snps twice over, each copy interleaved with the other, so that the
+    ## pairs within a copy fall across the 500-column blocks
+    twice <- function(v) rep(v, each = 2)
+    big <- list(beta = twice(D1$beta), varbeta = twice(D1$varbeta), type = D1$type,
+                sdY = D1$sdY, snp = as.vector(rbind(paste0(D1$snp, "a"), paste0(D1$snp, "b"))),
+                LD = kronecker(D1$LD, diag(2)))
+    dimnames(big$LD) <- list(big$snp, big$snp)
+    expect_equal(check_alignment(big, do_plot = FALSE), alignment_share(big))
+    expect_equal(check_alignment(big, do_plot = FALSE), alignment_share(D1))
+})
+
 ## ---- values coloc can't use, at each way a dataset is checked ---------------
 ## check_dataset() checks a dataset for coloc.abf(), finemap.abf(), the
 ## constructors, wakefield_bf(), runsusie() and coloc(). at_each_door() gives

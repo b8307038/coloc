@@ -158,6 +158,28 @@ check.dataset=function(...) {
     TRUE
 }
 
+## z_i * z_j / LD_ij for each pair of snps i < j with |LD_ij| above thr, and
+## with z_thr above 0, both |z| above z_thr. The ratio is positive when the
+## two z-scores agree in sign with their LD, as they should when beta and LD
+## are for the same alleles. LD is matched to snp by name, and read in blocks
+## of 500 columns, as .is_correlation() reads it
+.z_ld_ratios <- function(z, LD, snp, thr = 0.2, z_thr = 0) {
+    if (z_thr > 0) {
+        keep <- abs(z) > z_thr
+        z <- z[keep]
+        snp <- snp[keep]
+    }
+    at <- match(snp, colnames(LD))
+    out <- list()
+    for (j in split(seq_along(at), ceiling(seq_along(at) / 500))) {
+        i <- seq_len(max(j))
+        R <- LD[at[i], at[j], drop = FALSE]
+        pair <- outer(i, j, "<") & abs(R) > thr
+        out[[length(out) + 1L]] <- (outer(z[i], z[j]) / R)[pair]
+    }
+    unlist(out)
+}
+
 ## Where each element is read, which decides where a rule added since 6.0.3
 ## refuses a value coloc can't use: refusing it where nothing reads it would
 ## stop a dataset whose answer is right. Wakefield's beta route (beta and
@@ -390,10 +412,12 @@ check_ld <- function(D,LD) {
 ##'
 ##' @title check alignment
 ##' @param D a coloc dataset
-##' @param thr plot SNP pairs in absolute LD > thr
+##' @param thr count and plot the pairs of SNPs in absolute LD > thr, each
+##'     pair once
 ##' @param do_plot if TRUE (default) plot the diagnostic
 ##' @export
-##' @return proportion of pairs that are positive
+##' @return proportion of those pairs whose product of z scores, divided by
+##'     their LD, is positive
 ##' @author Chris Wallace
 ##' @examples
 ##' data(coloc_test_data)
@@ -401,9 +425,8 @@ check_ld <- function(D,LD) {
 ##' check_alignment(coloc_test_data$D3, do_plot = FALSE)
 check_alignment <- function(D,thr=0.2,do_plot=TRUE) {
   check_dataset(D)
-  bprod=outer(D$beta/sqrt(D$varbeta),D$beta/sqrt(D$varbeta),"*")
-  ## plot(bprod,D$LD[D$snp,D$snp],xlab="product of z scores",ylab="LD")
-  tmp=(bprod/D$LD)[abs(D$LD) > 0.2]
+  ## each pair of snps once, with LD matched to the snps by name
+  tmp=.z_ld_ratios(D$beta/sqrt(D$varbeta), D$LD, D$snp, thr)
   if(do_plot) {
   hist(tmp,
        xlab="ratio of product of Z scores to LD",

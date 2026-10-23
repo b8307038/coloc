@@ -8,6 +8,7 @@
 * on the SuSiE route, `LD` must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal. An asymmetric LD, which susieR made symmetric with a warning, is refused
 * `check_dataset()` names the elements whose lengths differ, as in "snp has 500 values but beta has 499", where it said "lengths of inputs don't match"; a per-snp `N` gets "N must be a single number"
 * a dataset may carry `z`, which `coloc_dataset()` takes and `runsusie()` fine-maps from in place of `beta / sqrt(varbeta)`, as it always has. On the SuSiE route a `z` with missing or infinite values, of the wrong length, or not numeric is refused, where it failed with R's errors or was fine-mapped as given
+* `check_alignment()` counts each pair of snps once, matches `LD` to the snps by name, and uses `thr`, which it ignored for 0.2. It counted each snp paired with itself, which always agrees, and divided by `LD` by position, so an `LD` in another order than the snps gave the wrong share, and one with more snps failed with R's error. With `thr` at its default, its result for the packaged datasets moves in the fourth decimal place
 
 # coloc 6.0.3
 * fix issue #208, #209
