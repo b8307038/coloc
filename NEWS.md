@@ -3,6 +3,8 @@
 * new `coloc_dataset()` and `as_coloc_dataset()` constructors
 * new `wakefield_bf()`, Wakefield's approximate Bayes factor for each snp of a dataset, from beta and varbeta or from p-values; its `effect_priors` applies on both routes
 * `coloc()` checks both datasets before fine-mapping either, and its messages about a dataset begin "trait 1: " or "trait 2: "
+* `check_dataset()` puts no prefix on its messages when called without a label, where 6.0.3 began them "dataset : ". With a label, as in `check_dataset(d, 2)`, every message begins "dataset 2: ", the minimum p-value warning and the messages about `N` and `LD` included
+* `coloc.susie_bf()` refuses a `bf2` that isn't log Bayes factors, such as a dataset or a SuSiE fit, with "bf2 must be log Bayes factors: a named numeric vector or a matrix", where 6.0.3 failed inside `coloc.bf_bf()` with R's errors
 * `check_dataset()`, and every function that checks a dataset, gives its own message where R's error showed before: for a `beta`, `varbeta` or `pvalues` that isn't numeric, a negative `varbeta`, a `type` or `s` that isn't a single value, and an `LD` without two dimensions. A `coloc_dataset` changed to hold a negative `varbeta`, which gave NA posteriors, is refused
 * a dataset is refused when its `N` isn't a finite number above 0, or, on a quantitative trait given as `beta` and `varbeta`, its `sdY` isn't a single finite number above 0. 6.0.3 accepted most of these, and an `sdY` of 0, or an `N` of 0 with `sdY` estimated from it, changed the answer with no sign
 * on the SuSiE route, `LD` must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal. An asymmetric LD, which susieR made symmetric with a warning, is refused

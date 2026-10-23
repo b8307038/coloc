@@ -24,7 +24,8 @@
 ##' dataset has no `sdY`, it is estimated from `varbeta`, `MAF` and
 ##' `N`, with a warning. Again, please give sdY if known.
 ##'
-##' @param d a dataset made with [coloc_dataset()]
+##' @param d a dataset made with [coloc_dataset()], or a list, which it
+##'     converts with [as_coloc_dataset()] and says so once per session
 ##' @param effect_priors the prior standard deviation of a causal snp's
 ##'     effect, named by the type of trait: `quant` in units of the trait's
 ##'     standard deviation, and `cc` on the log odds ratio scale. This option

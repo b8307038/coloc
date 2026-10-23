@@ -91,6 +91,9 @@ bad$beta[1] <- NA
 try(coloc(D1, bad))
 ```
 
+`qc_dataset()` lists every check at once, without stopping, and adds a few
+for data that looks wrong without being refused.
+
 ### A SuSiE fit
 
 `runsusie()` fine-maps a dataset with SuSiE. A fit can have several signals,

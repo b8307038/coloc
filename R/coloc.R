@@ -22,7 +22,10 @@
 ##'   SNPs, and `beta` with `varbeta`: p-values are not enough.
 ##'   [check_dataset()] lists every element and which combinations are
 ##'   needed, and checks a dataset for you. [coloc_test_data] holds four
-##'   examples.
+##'   examples. Make one with [coloc_dataset()], or with
+##'   [as_coloc_dataset()] from a list you already have, which checks it as
+##'   it is made. A plain list works too: `coloc()` converts it, and says so
+##'   once per session.
 ##' * **A SuSiE fit**: the result of [runsusie()] on a coloc dataset, or of
 ##'   `susieR::susie_rss()` passed through [annotate_susie()]. `coloc()` uses
 ##'   the log Bayes factors of the credible sets the fit found, one signal per

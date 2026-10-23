@@ -55,7 +55,10 @@ Fine-mapping with SuSiE also needs \code{LD}, the correlation matrix of the
 SNPs, and \code{beta} with \code{varbeta}: p-values are not enough.
 \code{\link[=check_dataset]{check_dataset()}} lists every element and which combinations are
 needed, and checks a dataset for you. \link{coloc_test_data} holds four
-examples.
+examples. Make one with \code{\link[=coloc_dataset]{coloc_dataset()}}, or with
+\code{\link[=as_coloc_dataset]{as_coloc_dataset()}} from a list you already have, which checks it as
+it is made. A plain list works too: \code{coloc()} converts it, and says so
+once per session.
 \item \strong{A SuSiE fit}: the result of \code{\link[=runsusie]{runsusie()}} on a coloc dataset, or of
 \code{susieR::susie_rss()} passed through \code{\link[=annotate_susie]{annotate_susie()}}. \code{coloc()} uses
 the log Bayes factors of the credible sets the fit found, one signal per
