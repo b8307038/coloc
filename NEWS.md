@@ -9,6 +9,7 @@
 * `check_dataset()` names the elements whose lengths differ, as in "snp has 500 values but beta has 499", where it said "lengths of inputs don't match"; a per-snp `N` gets "N must be a single number"
 * a dataset may carry `z`, which `coloc_dataset()` takes and `runsusie()` fine-maps from in place of `beta / sqrt(varbeta)`, as it always has. On the SuSiE route a `z` with missing or infinite values, of the wrong length, or not numeric is refused, where it failed with R's errors or was fine-mapped as given
 * `check_alignment()` counts each pair of snps once, matches `LD` to the snps by name, and uses `thr`, which it ignored for 0.2. It counted each snp paired with itself, which always agrees, and divided by `LD` by position, so an `LD` in another order than the snps gave the wrong share, and one with more snps failed with R's error. With `thr` at its default, its result for the packaged datasets moves in the fourth decimal place
+* new `qc_dataset()` lists every check of a dataset without stopping: the problems `check_dataset()` stops at, and data that looks wrong without being refused, such as an `sdY` far from what `varbeta`, `MAF` and `N` suggest, a `z` that differs from `beta / sqrt(varbeta)`, or z-scores whose signs disagree with `LD`. Printed, it shows a count and only the rows to look at
 
 # coloc 6.0.3
 * fix issue #208, #209

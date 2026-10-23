@@ -118,13 +118,23 @@ check.dataset=function(...) {
 
 ## One rule. check is function(d, ctx): NULL when the dataset passes, else the
 ## message without its prefix, which .gate() adds. about names the elements
-## the rule reads, so check_ld() can pick out the LD rules. level "warning" is
-## the minimum p-value step alone: .gate() warns and goes on.
-.rule <- function(id, check, about = character(0), level = c("error", "warning"))
-    list(id = id, check = check, about = about, level = match.arg(level))
+## the rule reads, so check_ld() can pick out the LD rules and qc_dataset()
+## can say a rule's elements aren't given. level "warning" is the minimum
+## p-value step alone: .gate() warns and goes on. level "report" is for the
+## rules only qc_dataset() runs. detail, when given, is function(d, ctx): what
+## qc_dataset() shows for the rule when it passes
+.rule <- function(id, check, about = character(0),
+                  level = c("error", "warning", "report"), detail = NULL)
+    list(id = id, check = check, about = about, level = match.arg(level),
+         detail = detail)
 
 ## the p-value route: no beta, or no varbeta
 .p_route <- function(ctx) !("beta" %in% ctx$nd) || !("varbeta" %in% ctx$nd)
+
+## the smallest p-value: the p-values on that route, else worked out from beta
+## and varbeta
+.min_p <- function(d, ctx)
+    min(if (.p_route(ctx)) d$pvalues else pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2)
 
 ## The message for per-snp elements v whose lengths differ, NULL if none: each
 ## against snp, or without snp against the first, in .per_snp_items' order, so
@@ -283,11 +293,11 @@ check.dataset=function(...) {
     ## all the same, as before the rules were a list; the rules above leave
     ## nothing in that which can fail
     .rule("min_p", level = "warning", function(d, ctx) {
-        p <- if (.p_route(ctx)) d$pvalues else pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2
-        if (!inherits(d, "coloc_dataset") && min(p) > ctx$warn.minp)
-            paste0("minimum p value is: ", format.pval(min(p)),
+        p <- .min_p(d, ctx)
+        if (!inherits(d, "coloc_dataset") && p > ctx$warn.minp)
+            paste0("minimum p value is: ", format.pval(p),
                    "\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette.")
-    }),
+    }, detail = function(d, ctx) paste("minimum p value is", format.pval(.min_p(d, ctx)))),
     .rule("sdY", function(d, ctx)
         if (d$type == "quant" && !("sdY" %in% ctx$nd))
             if (!("MAF" %in% ctx$nd && "N" %in% ctx$nd))
@@ -307,11 +317,12 @@ check.dataset=function(...) {
     .rule("LD_covers", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && length(setdiff(d$snp, colnames(d$LD))))
             "colnames in LD do not contain all SNPs"),
-    ## where LD is required, as for SuSiE. After 6.0.3's rules, as its
-    ## check_ld() refused an LD that wasn't a matrix after check_dataset();
-    ## check_ld() keeps that test itself, as it runs these rules with no req
+    ## where LD is required, as for SuSiE, and in a report. After 6.0.3's
+    ## rules, as its check_ld() refused an LD that wasn't a matrix after
+    ## check_dataset(); check_ld() keeps that test itself, as it runs these
+    ## rules with no req
     .rule("LD_numeric", about = "LD", function(d, ctx)
-        if ("LD" %in% ctx$nd && "LD" %in% ctx$req &&
+        if ("LD" %in% ctx$nd && ("LD" %in% ctx$req || isTRUE(ctx$report)) &&
             !(is.matrix(d$LD) && is.numeric(d$LD)))
             "LD must be a numeric matrix"),
     ## wherever N is given. After 6.0.3's rules, which took any N beside beta,
@@ -328,10 +339,11 @@ check.dataset=function(...) {
             (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
             "sdY must be a single finite number above 0"),
     ## where z is read: SuSiE fine-maps from it in place of beta /
-    ## sqrt(varbeta). After 6.0.3's rules, which didn't know z, so no_na and
-    ## lengths leave it here. By now lengths has passed, so only z can differ
+    ## sqrt(varbeta). And in a report. After 6.0.3's rules, which didn't know
+    ## z, so no_na and lengths leave it here. By now lengths has passed, so
+    ## only z can differ
     .rule("z_valid", about = "z", function(d, ctx) {
-        if (!("z" %in% ctx$nd && "LD" %in% ctx$req))
+        if (!("z" %in% ctx$nd && ("LD" %in% ctx$req || isTRUE(ctx$report))))
             return(NULL)
         if (any(is.na(d$z)))
             return("z contains missing values")
@@ -343,13 +355,14 @@ check.dataset=function(...) {
         if (any(is.infinite(d$z)))
             "Infinite values in z"
     }),
-    ## where LD is required, as SuSiE requires it: coloc.abf() never reads LD,
-    ## and the test takes about 2 s at 10,000 snps. Last, after LD_numeric,
-    ## which it needs. Only the dataset's snps, the part runsusie() uses,
-    ## copied out only when LD covers more; with as many, LD_covers and
-    ## LD_dimnames make them the same snps, and their order doesn't matter
+    ## where LD is required, as SuSiE requires it, and in a report: coloc.abf()
+    ## never reads LD, and the test takes about 2 s at 10,000 snps. Last,
+    ## after LD_numeric, which it needs. Only the dataset's snps, the part
+    ## runsusie() uses, copied out only when LD covers more; with as many,
+    ## LD_covers and LD_dimnames make them the same snps, and their order
+    ## doesn't matter
     .rule("LD_correlation", about = "LD", function(d, ctx) {
-        if (!("LD" %in% ctx$nd && "LD" %in% ctx$req))
+        if (!("LD" %in% ctx$nd && ("LD" %in% ctx$req || isTRUE(ctx$report))))
             return(NULL)
         LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
         if (!.is_correlation(LD))
@@ -406,6 +419,200 @@ check_ld <- function(D,LD) {
     ##   stop("LD includes SNPs in perfect LD")
     ## the rest are check_dataset()'s LD rules
     .gate(list(snp = D$snp, LD = LD), call = sys.call(), rules = .rules_about("LD"))
+}
+
+## ---- qc_dataset(): every rule, without stopping ------------------------------
+
+## The rules only qc_dataset() runs: data coloc takes, but which looks wrong.
+## Their ctx adds classed, whether the dataset as given was a coloc_dataset,
+## and qc_dataset()'s thresholds
+.report_rules <- list(
+    .rule("coloc_dataset", level = "report", function(d, ctx)
+        if (!ctx$classed)
+            "a plain list: make it with coloc_dataset() or as_coloc_dataset()"),
+    ## where sdY is read: a quantitative trait on the beta route. A varbeta
+    ## holding standard errors gives an estimate far from the sdY given
+    .rule("sdY_plausible", about = c("sdY", "varbeta", "MAF", "N"), level = "report",
+          function(d, ctx) {
+              if (d$type != "quant" || .p_route(ctx))
+                  return(NULL)
+              fit <- .sdY_fit(d$varbeta, d$MAF, d$N)
+              if (fit <= 0)
+                  return("sdY can't be estimated from varbeta, MAF and N")
+              if (max(d$sdY / sqrt(fit), sqrt(fit) / d$sdY) > ctx$sdY_ratio)
+                  sprintf("sdY is %.3g, but varbeta, MAF and N suggest %.3g: does varbeta hold variances?",
+                          d$sdY, sqrt(fit))
+          },
+          detail = function(d, ctx) {
+              if (d$type != "quant" || .p_route(ctx))
+                  return(NULL)
+              fit <- .sdY_fit(d$varbeta, d$MAF, d$N)
+              if (is.finite(fit) && fit > 0)
+                  sprintf("sdY %.3g, estimated %.3g", d$sdY, sqrt(fit))
+          }),
+    .rule("z_matches", about = c("z", "beta", "varbeta"), level = "report",
+          function(d, ctx) {
+              gap <- abs(d$z - d$beta / sqrt(d$varbeta))
+              n <- sum(gap > ctx$z_tol)
+              if (n)
+                  sprintf("z differs from beta / sqrt(varbeta) at %d snp%s, by up to %.3g",
+                          n, if (n == 1L) "" else "s", max(gap))
+          }),
+    ## only pairs where both snps have a signal: a z-score near 0 has a sign
+    ## that says little, and where most snps have none, aligned data scores
+    ## not far above half
+    .rule("z_ld_signs", about = c("LD", "beta", "varbeta"), level = "report",
+          function(d, ctx) {
+              r <- .z_ld_ratios(.report_z(d, ctx), d$LD, d$snp, ctx$ld_thr, ctx$z_thr)
+              if (length(r) < ctx$min_pairs)
+                  return(.not_checked(sprintf(
+                      "too few pairs to judge: %d with |LD| > %g and both |z| > %g",
+                      length(r), ctx$ld_thr, ctx$z_thr)))
+              if (mean(r > 0) < ctx$ld_agree)
+                  sprintf("%.0f%% of %d pairs agree in sign (|LD| > %g, both |z| > %g): are beta and LD for the same alleles?",
+                          100 * mean(r > 0), length(r), ctx$ld_thr, ctx$z_thr)
+          },
+          detail = function(d, ctx) {
+              r <- .z_ld_ratios(.report_z(d, ctx), d$LD, d$snp, ctx$ld_thr, ctx$z_thr)
+              sprintf("%.0f%% of %d pairs agree", 100 * mean(r > 0), length(r))
+          })
+)
+names(.report_rules) <- vapply(.report_rules, `[[`, "", "id")
+
+## the z-scores SuSiE reads: z when given, else beta / sqrt(varbeta)
+.report_z <- function(d, ctx)
+    if ("z" %in% ctx$nd) d$z else d$beta / sqrt(d$varbeta)
+
+## a reason a report row couldn't be worked out, which a rule's check can
+## return in place of a message
+.not_checked <- function(why)
+    structure(why, class = "not_checked")
+
+## One rule's row, as c(status, detail), never an error or a warning. A rule
+## is "not given" when the dataset has none of its elements, or for a rule
+## only the report runs, not all of them. A rule R fails on, as one after a
+## rule that failed can, is "not checked"
+.report_row <- function(rule, d, ctx) {
+    if (length(rule$about)) {
+        given <- rule$about %in% ctx$nd
+        if (if (rule$level == "report") !all(given) else !any(given))
+            return(c("not given", ""))
+    }
+    quietly <- function(expr) tryCatch(
+        withCallingHandlers(expr, warning = function(w) invokeRestart("muffleWarning")),
+        error = function(e) .not_checked(paste("could not be checked:", conditionMessage(e))))
+    problem <- quietly(rule$check(d, ctx))
+    if (inherits(problem, "not_checked"))
+        return(c("not checked", unclass(problem)))
+    if (is.null(problem)) {
+        detail <- if (!is.null(rule$detail)) quietly(rule$detail(d, ctx))
+        return(c("ok", if (is.character(detail) && !inherits(detail, "not_checked")) detail else ""))
+    }
+    ## the first line only, of the minimum p-value's three
+    c(if (rule$level == "error") "FAIL" else "warn", sub("\n.*", "", problem))
+}
+
+## every rule's row, in list order
+.report <- function(d, rules, ctx) {
+    rows <- vapply(rules, .report_row, character(2), d = d, ctx = ctx)
+    .coloc_qc(names(rules), unname(rows[1, ]), unname(rows[2, ]))
+}
+
+.coloc_qc <- function(check, status, detail)
+    structure(data.frame(check = check, status = status, detail = detail),
+              class = c("coloc_qc", "data.frame"))
+
+##' Every check of a dataset, without stopping
+##'
+##' `qc_dataset()` runs the rules [check_dataset()] runs, in the same order,
+##' and lists every one, where `check_dataset()` stops at the first that
+##' fails. It then adds four checks of data coloc takes but which looks wrong.
+##' It takes any list, a plain one or a `coloc_dataset`, and never stops or
+##' warns.
+##'
+##' Each row is one rule, named by its id, with one of five statuses:
+##' * "ok": the rule found nothing.
+##' * "FAIL": `check_dataset()` would stop here, and the detail is its message.
+##' * "warn": the minimum p-value, or one of the four checks below.
+##' * "not given": the dataset hasn't the elements the rule is about.
+##' * "not checked": the rule couldn't be worked out, usually because of a
+##'   mistake a row above reports, or there were too few pairs for
+##'   `z_ld_signs`.
+##'
+##' The checks only `qc_dataset()` makes:
+##' * `coloc_dataset`: the dataset is a plain list, not made with
+##'   [coloc_dataset()] or [as_coloc_dataset()].
+##' * `sdY_plausible`: for a quantitative trait given as `beta` and `varbeta`,
+##'   `sdY` and its estimate from `varbeta`, `MAF` and `N` are more than
+##'   `sdY_ratio` apart, as when `varbeta` holds standard errors.
+##' * `z_matches`: `z` differs from `beta / sqrt(varbeta)` by more than
+##'   `z_tol`.
+##' * `z_ld_signs`: among the pairs of snps in absolute LD above `ld_thr`
+##'   whose z-scores are both above `z_thr` in size, fewer than `ld_agree`
+##'   agree in sign with their LD, as when `beta` and `LD` are for different
+##'   alleles. It reads `z` when given, as SuSiE does. With fewer than
+##'   `min_pairs` such pairs it is not checked. [check_alignment()] counts
+##'   every pair.
+##'
+##' The checks on `LD` and `z` that SuSiE needs run whatever `engine` is.
+##' @param d a dataset: a list, or a `coloc_dataset`
+##' @param engine the fine-mapper the dataset is for, "wakefield" or "susie",
+##'   which decides the elements required, as `coloc()`'s `method` "single"
+##'   or "susie" does
+##' @param warn.minp the minimum p-value above which its row warns
+##' @param sdY_ratio how far apart `sdY` and its estimate may be, as a ratio
+##' @param ld_thr only pairs of snps in absolute LD above this count for
+##'   `z_ld_signs`
+##' @param z_thr and only pairs whose z-scores are both above this in size
+##' @param ld_agree the share of those pairs that must agree in sign
+##' @param min_pairs the fewest pairs `z_ld_signs` judges
+##' @param z_tol how far `z` may be from `beta / sqrt(varbeta)`
+##' @return a data frame of class `"coloc_qc"`, with columns `check`, `status`
+##'   and `detail` and one row per rule. Printed, it shows a count and only
+##'   the rows that are "FAIL", "warn" or "not checked"; `print(x, all =
+##'   TRUE)` shows every row.
+##' @export
+##' @examples
+##' data(coloc_test_data)
+##' qc_dataset(coloc_test_data$D1)
+##' D <- as_coloc_dataset(coloc_test_data$D1)
+##' D$varbeta <- sqrt(D$varbeta)     # standard errors where variances belong
+##' qc_dataset(D)
+qc_dataset <- function(d, engine = c("wakefield", "susie"), warn.minp = 1e-6,
+                       sdY_ratio = 2, ld_thr = 0.2, z_thr = 3, ld_agree = 0.9,
+                       min_pairs = 10, z_tol = 1e-3) {
+    engine <- match.arg(engine)
+    if (!is.list(d))
+        return(.coloc_qc("list", "FAIL", "the dataset is not a list"))
+    ## "wakefield" is coloc()'s method "single"
+    ctx <- list(nd = intersect(names(d), .dataset_items),
+                req = .dataset_uses[[if (engine == "wakefield") "single" else engine]],
+                warn.minp = warn.minp, report = TRUE,
+                classed = inherits(d, "coloc_dataset"), sdY_ratio = sdY_ratio,
+                ld_thr = ld_thr, z_thr = z_thr, ld_agree = ld_agree,
+                min_pairs = min_pairs, z_tol = z_tol)
+    ## unclassed, so a coloc_dataset gets its minimum p-value row, which the
+    ## gate skips for one
+    .report(unclass(d), c(.dataset_rules, .report_rules), ctx)
+}
+
+##' @rdname qc_dataset
+##' @param x a `coloc_qc`
+##' @param all if TRUE, every row, not only those to look at
+##' @param ... ignored
+##' @export
+print.coloc_qc <- function(x, all = FALSE, ...) {
+    look <- x$status %in% c("FAIL", "warn", "not checked")
+    ok <- sum(x$status == "ok")
+    cat(ok, if (ok == 1L) " check ok, " else " checks ok, ",
+        sum(x$status == "not given"), " not given; ",
+        if (any(look)) paste0(sum(look), " to look at:") else "nothing to look at",
+        "\n", sep = "")
+    show <- all | look
+    if (any(show))
+        print(data.frame(check = x$check, status = x$status, detail = x$detail)[show, ],
+              row.names = FALSE, right = FALSE)
+    invisible(x)
 }
 
 ##' check alignment between beta and LD

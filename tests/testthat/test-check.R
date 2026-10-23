@@ -302,6 +302,18 @@ for (what in names(cases)) {
     })
 }
 
+## qc_dataset() runs the same rules without stopping, so its first FAIL row is
+## the message check_dataset() stops with, without a prefix, and a dataset
+## check_dataset() passes has none. Both are called with their defaults, so a
+## case's own arguments aren't used
+for (what in names(cases)) {
+    test_that(paste0("qc_dataset() fails first where check_dataset() stops: ", what), {
+        d <- cases[[what]]$d
+        qc <- qc_dataset(d)
+        expect_identical(qc$detail[qc$status == "FAIL"][1], outcome(check_dataset(d))$error)
+    })
+}
+
 ## ---- a mistake 6.0.3 didn't check doesn't take over its messages -------------
 ## The rules added since 6.0.3 are placed so that a dataset 6.0.3 refused with
 ## its own message keeps it: a rule for input 6.0.3 failed on with R's error

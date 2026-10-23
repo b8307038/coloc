@@ -145,13 +145,19 @@ combine_abf_weighted <- function(l1, l2, p1, p2, p12,
 ##' @author Chris Wallace
 sdY.est <- function(vbeta, maf, n) {
     warning("estimating sdY from maf and varbeta, please directly supply sdY if known")
-    oneover <- 1/vbeta
-    nvx <- 2 * n * maf * (1-maf)
-    m <- lm(nvx ~ oneover - 1)
-    cf <- coef(m)[['oneover']]
+    cf <- .sdY_fit(vbeta, maf, n)
     if(cf < 0)
         stop("estimated sdY is negative - this can happen with small datasets, or those with errors.  A reasonable estimate of sdY is required to continue.")
     return(sqrt(cf))
+}
+
+## sdY.est()'s fit, the estimate of var(Y), without its warning or its stop,
+## so it can be 0 or below. qc_dataset() compares a given sdY with it
+.sdY_fit <- function(vbeta, maf, n) {
+    oneover <- 1/vbeta
+    nvx <- 2 * n * maf * (1-maf)
+    m <- lm(nvx ~ oneover - 1)
+    coef(m)[['oneover']]
 }
 
 ##' Internal function, process each dataset list for coloc.abf.
