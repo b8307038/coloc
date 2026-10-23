@@ -21,7 +21,10 @@ test_that(".classify_input() tells the kind of input from its class", {
     ## kind only: an unnamed vector is still log BFs, for .adapt_bf() to reject
     expect_equal(.classify_input(1:3), "bf")
     expect_equal(.classify_input(setNames(letters[1:3], snps)), "bf")
-    expect_error(.classify_input(list(a = 1)), "not a susie fit")
+    ## anything else is a dataset, for the door to say what is wrong with it
+    expect_equal(.classify_input(list(a = 1)), "dataset")
+    expect_equal(.classify_input(NULL), "dataset")
+    expect_equal(.classify_input(sum), "dataset")
 })
 
 test_that(".resolve_method() resolves each trait against its own input", {

@@ -237,6 +237,21 @@ test_that("a data frame given as a dataset is refused, naming the trait", {
                  fixed = TRUE)
 })
 
+test_that("what is neither a fit nor log BFs is checked as a dataset, naming the trait", {
+    no_snp <- D1
+    no_snp$snp <- NULL
+    expect_error(coloc(no_snp, D2), "trait 1: missing required element(s) snp", fixed = TRUE)
+    expect_error(coloc(D1, no_snp), "trait 2: missing required element(s) snp", fixed = TRUE)
+    ## NULL is refused the same way whatever the version of R, where
+    ## is.atomic(NULL) changed
+    expect_error(coloc(NULL, D2),
+                 "trait 1: expected a coloc dataset: a list, or the result of coloc_dataset(), not a NULL",
+                 fixed = TRUE)
+    expect_error(coloc(D1, sum),
+                 "trait 2: expected a coloc dataset: a list, or the result of coloc_dataset(), not a function",
+                 fixed = TRUE)
+})
+
 test_that("a dataset made with coloc_dataset() is checked for check_dataset()'s default req", {
     expect_identical(.dataset_uses$single, eval(formals(check_dataset)$req))
 })

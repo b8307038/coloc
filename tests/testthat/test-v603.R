@@ -319,6 +319,14 @@ test_that("coloc.susie_bf() returns what 6.0.3's did", {
     expect_equal(coloc.susie_bf(fit3, bf4), get_match_6_0_3(coloc.susie_bf(fit3, bf4)))
 })
 
+test_that("coloc.susie() refuses a dataset without snp with 6.0.3's message", {
+    no_snp <- D3
+    no_snp$snp <- NULL
+    msg <- "dataset 1: missing required element(s) snp"
+    expect_identical(outcome(suppressMessages(get_match_6_0_3(coloc.susie(no_snp, D4))))$error, msg)
+    expect_identical(outcome(coloc.susie(no_snp, D4))$error, msg)
+})
+
 ## ---- the deliberate differences, one test each -------------------------------
 ## Each test shows 6.0.3's answer and the new one. The earlier tests carry the
 ## id of the difference in the design notes' allowlist; the later ones say what

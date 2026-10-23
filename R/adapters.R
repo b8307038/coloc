@@ -21,17 +21,20 @@
 ## log BFs' by their adapter, the layer that knows what a log BF has to look
 ## like, and each can say so in a message that names the actual problem. Asking here instead means an
 ## input that is obviously a vector gets rejected as "not any of these".
+## So anything that is neither a fit nor log BFs is taken as a dataset, and
+## the door says what is wrong with it, with the trait's number: a list
+## without snp, NULL, or something that isn't a list at all.
 ##
 ## Order is load-bearing. A susie fit is also a list, and lbf_variable is also
 ## a matrix, so a later test would claim an input an earlier one should have
 ## caught. The package writes this check as "susie" %in% class(x)
 ## (R/susie.R:75); inherits() is the same test.
 .classify_input <- function(x) {
+    if (is.null(x))                    return("dataset")  # is.atomic(NULL) is TRUE before R 4.4
     if (inherits(x, "susie"))          return("susie_fit")
     if (is.matrix(x))                  return("bf")
     if (is.atomic(x))                  return("bf")   ## type checked by .adapt_bf()
-    if (is.list(x) && !is.null(x$snp)) return("dataset")
-    stop("input is not a susie fit, a log-BF vector or matrix, or a coloc dataset")
+    "dataset"
 }
 
 ## ---- stage 2: which method, per trait -------------------------------------
