@@ -16,7 +16,7 @@ check.dataset(...)
 "dataset 1: ". With "" they have no prefix}
 
 \item{req}{names of elements that must be present. When it includes "LD",
-as \code{runsusie}'s does, \code{LD} must also be a numeric matrix}
+as \code{runsusie}'s does, \code{LD} must also be a correlation matrix}
 
 \item{warn.minp}{print warning if no p value < warn.minp}
 
@@ -80,7 +80,8 @@ are given; \code{pvalues} that aren't numeric, when \code{beta} and
 finite number above 0, on a quantitative trait given as \code{beta} and
 \code{varbeta}, unless \code{req} includes "LD", as SuSiE doesn't read
 \code{sdY}. When \code{req} includes "LD", as for SuSiE, \code{LD} must be
-a numeric matrix.
+a correlation matrix for the dataset's snps: numeric, with values from -1
+to 1, symmetric, and 1 on the diagonal.
 
 Optional vectors are
 

@@ -5,6 +5,7 @@
 * `coloc()` checks both datasets before fine-mapping either, and its messages about a dataset begin "trait 1: " or "trait 2: "
 * `check_dataset()`, and every function that checks a dataset, gives its own message where R's error showed before: for a `beta`, `varbeta` or `pvalues` that isn't numeric, a negative `varbeta`, a `type` or `s` that isn't a single value, and an `LD` without two dimensions. A `coloc_dataset` changed to hold a negative `varbeta`, which gave NA posteriors, is refused
 * a dataset is refused when its `N` isn't a finite number above 0, or, on a quantitative trait given as `beta` and `varbeta`, its `sdY` isn't a single finite number above 0. 6.0.3 accepted most of these, and an `sdY` of 0, or an `N` of 0 with `sdY` estimated from it, changed the answer with no sign
+* on the SuSiE route, `LD` must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal. An asymmetric LD, which susieR made symmetric with a warning, is refused
 
 # coloc 6.0.3
 * fix issue #208, #209

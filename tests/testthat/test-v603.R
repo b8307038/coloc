@@ -808,6 +808,61 @@ test_that("sdY must be a single finite number above 0 where it is read, where 6.
     expect_null(check_dataset(susie3, 1, req = .dataset_uses$susie))
 })
 
+test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numeric matrix", {
+    msg <- "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"
+    susie_req <- c("beta", "varbeta", "LD", "snp", "N")   # runsusie()'s, in 6.0.3 too
+    above_one <- D3
+    above_one$LD[1, 2] <- above_one$LD[2, 1] <- 1.5
+    covariance <- D3
+    covariance$LD <- D3$LD * 0.5
+    asymmetric <- D3
+    asymmetric$LD[1, 2] <- asymmetric$LD[1, 2] + 0.1
+    for (d in list(above_one, covariance, asymmetric)) {
+        ## 6.0.3's runsusie() checked the dataset and its LD, and fine-mapped it
+        expect_null(get_match_6_0_3(check_dataset(d, 1, req = susie_req)))
+        expect_null(get_match_6_0_3(check_ld(d, d$LD)))
+        expect_identical(error_before_susie(runsusie(d)), paste0("dataset 1: ", msg))
+        expect_identical(error_before_susie(coloc(D4, d, method = "susie")), paste0("trait 2: ", msg))
+        ## where LD isn't required it isn't tested, and the answer is 6.0.3's
+        expect_null(check_dataset(d, 2))
+        expect_equal(abf_summary(D4, d), get_match_6_0_3(coloc.abf(D4, d))$summary)
+    }
+    ## to within 1e-6, on the diagonal and off it
+    susie_check <- function(d) outcome(check_dataset(d, 1, req = .dataset_uses$susie))$error
+    for (off in c(5e-7, 2e-6)) {
+        diagonal <- D3
+        diag(diagonal$LD) <- 1 + off
+        pair <- D3
+        pair$LD[1, 2] <- pair$LD[1, 2] + off
+        expected <- if (off < 1e-6) NA_character_ else paste0("dataset 1: ", msg)
+        expect_identical(susie_check(diagonal), expected)
+        expect_identical(susie_check(pair), expected)
+    }
+    ## only the dataset's snps, the part runsusie() uses: an LD covering more
+    ## snps passes with a fault among the others, and not with one among them
+    fewer <- D3
+    for (v in c("beta", "varbeta", "snp", "position", "MAF"))
+        fewer[[v]] <- fewer[[v]][-(1:10)]
+    outside <- fewer
+    outside$LD[1, 2] <- outside$LD[2, 1] <- 1.5
+    inside <- fewer
+    inside$LD[11, 12] <- inside$LD[12, 11] <- 1.5
+    expect_identical(susie_check(outside), NA_character_)
+    expect_identical(susie_check(inside), paste0("dataset 1: ", msg))
+    ## a non-square LD keeps 6.0.3's message for SuSiE too
+    not_square <- D3
+    not_square$LD <- D3$LD[, -1]
+    expect_identical(susie_check(not_square), "dataset 1: LD not square")
+})
+
+test_that(".is_correlation() compares every block of a large LD", {
+    set.seed(1)
+    ld <- cor(matrix(rnorm(300 * 1200), 300))
+    expect_true(.is_correlation(ld))
+    ld[1100, 900] <- ld[1100, 900] + 0.1
+    expect_false(.is_correlation(ld))
+})
+
 ## ---- the dataset functions, pinned as numbers ------------------------------
 ## The tests above compare process.dataset() and runsusie() with their 6.0.3
 ## copies. These pin their values as plain numbers too, worked out with 6.0.3's

@@ -51,7 +51,8 @@
 ##' finite number above 0, on a quantitative trait given as \code{beta} and
 ##' \code{varbeta}, unless \code{req} includes "LD", as SuSiE doesn't read
 ##' \code{sdY}. When \code{req} includes "LD", as for SuSiE, \code{LD} must be
-##' a numeric matrix.
+##' a correlation matrix for the dataset's snps: numeric, with values from -1
+##' to 1, symmetric, and 1 on the diagonal.
 ##'
 ##' Optional vectors are
 ##'
@@ -71,7 +72,7 @@
 ##' @param suffix a label for the dataset, such as 1 or 2: messages then begin
 ##'     "dataset 1: ". With "" they have no prefix
 ##' @param req names of elements that must be present. When it includes "LD",
-##'     as \code{runsusie}'s does, \code{LD} must also be a numeric matrix
+##'     as \code{runsusie}'s does, \code{LD} must also be a correlation matrix
 ##' @param warn.minp print warning if no p value < warn.minp
 ##' @return NULL if no errors found
 ##' @export
@@ -121,6 +122,24 @@ check.dataset=function(...) {
 
 ## the p-value route: no beta, or no varbeta
 .p_route <- function(ctx) !("beta" %in% ctx$nd) || !("varbeta" %in% ctx$nd)
+
+## LD as a correlation matrix: values in [-1, 1], 1 on the diagonal, and equal
+## to its transpose, each to within tol. LDs worked out by different software,
+## or in 32-bit arithmetic, differ from exact by about 1e-7; 1e-6 is ten times
+## that, while a covariance matrix or a value of 1.5 is far outside it. The
+## transpose is compared in blocks of 500 columns, so a large LD isn't copied
+## whole.
+.is_correlation <- function(LD, tol = 1e-6) {
+    r <- range(LD)
+    if (r[1] < -1 - tol || r[2] > 1 + tol)
+        return(FALSE)
+    if (any(abs(diag(LD) - 1) > tol))
+        return(FALSE)
+    for (j in split(seq_len(ncol(LD)), ceiling(seq_len(ncol(LD)) / 500)))
+        if (max(abs(LD[, j, drop = FALSE] - t(LD[j, , drop = FALSE]))) > tol)
+            return(FALSE)
+    TRUE
+}
 
 ## Where each element is read, which decides where a rule added since 6.0.3
 ## refuses a value coloc can't use: refusing it where nothing reads it would
@@ -274,7 +293,19 @@ check.dataset=function(...) {
         if ("sdY" %in% ctx$nd && !.p_route(ctx) && d$type == "quant" &&
             !("LD" %in% ctx$req) &&
             (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
-            "sdY must be a single finite number above 0")
+            "sdY must be a single finite number above 0"),
+    ## where LD is required, as SuSiE requires it: coloc.abf() never reads LD,
+    ## and the test takes about 2 s at 10,000 snps. Last, after LD_numeric,
+    ## which it needs. Only the dataset's snps, the part runsusie() uses,
+    ## copied out only when LD covers more; with as many, LD_covers and
+    ## LD_dimnames make them the same snps, and their order doesn't matter
+    .rule("LD_correlation", about = "LD", function(d, ctx) {
+        if (!("LD" %in% ctx$nd && "LD" %in% ctx$req))
+            return(NULL)
+        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
+        if (!.is_correlation(LD))
+            "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"
+    })
 )
 names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
 
