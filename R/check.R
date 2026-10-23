@@ -41,6 +41,14 @@
 ##' \item{summary data to estimate \code{sdY}}{\code{beta}, \code{varbeta}, \code{N}, \code{MAF}}
 ##' }
 ##'
+##' Beyond what must be present, \code{check_dataset} refuses values coloc
+##' can't use. Wherever they are given: a \code{type} or \code{s} that isn't a
+##' single value, and an \code{LD} without two dimensions. Where they are
+##' read: a \code{beta} or \code{varbeta} that isn't numeric, or a negative
+##' \code{varbeta}, when both are given; \code{pvalues} that aren't numeric,
+##' when \code{beta} and \code{varbeta} aren't both given. When \code{req}
+##' includes "LD", as for SuSiE, \code{LD} must be a numeric matrix.
+##'
 ##' Optional vectors are
 ##'
 ##' \describe{
@@ -58,7 +66,8 @@
 ##' @param d dataset to check
 ##' @param suffix a label for the dataset, such as 1 or 2: messages then begin
 ##'     "dataset 1: ". With "" they have no prefix
-##' @param req names of elements that must be present
+##' @param req names of elements that must be present. When it includes "LD",
+##'     as \code{runsusie}'s does, \code{LD} must also be a numeric matrix
 ##' @param warn.minp print warning if no p value < warn.minp
 ##' @return NULL if no errors found
 ##' @export
@@ -92,9 +101,12 @@ check.dataset=function(...) {
 ## ---- check_dataset()'s rules ------------------------------------------------
 ## One entry of .dataset_rules per rule, in the order check_dataset() checks
 ## them: the order decides which message a dataset with two mistakes gets, and
-## test-check.R pins it against 6.0.3's. Each condition is the one
-## check_dataset() had, word for word, so R's own errors on input no rule
-## expects stay as they were.
+## test-check.R pins it against 6.0.3's. 6.0.3's conditions are kept, some
+## with a test in front for input they failed on with R's error, so a dataset
+## 6.0.3 refused gets its message. A rule added since goes where 6.0.3 failed
+## with R's error on what it refuses, or after 6.0.3's rules if 6.0.3 took it,
+## so it doesn't take over one of 6.0.3's messages; test-check.R adds each new
+## mistake to its cases to check that.
 
 ## One rule. check is function(d, ctx): NULL when the dataset passes, else the
 ## message without its prefix, which .gate() adds. about names the elements
@@ -105,6 +117,14 @@ check.dataset=function(...) {
 
 ## the p-value route: no beta, or no varbeta
 .p_route <- function(ctx) !("beta" %in% ctx$nd) || !("varbeta" %in% ctx$nd)
+
+## Where each element is read, which decides where a rule added since 6.0.3
+## refuses a value coloc can't use: refusing it where nothing reads it would
+## stop a dataset whose answer is right. Wakefield's beta route (beta and
+## varbeta both given) reads beta, varbeta, and for a quantitative trait sdY,
+## or MAF and N to estimate it. Its p-value route reads pvalues, MAF, N, and s
+## for a case-control trait. SuSiE, the use whose req names LD, reads beta,
+## varbeta, LD and N.
 
 ## ctx is list(nd, req, warn.minp), nd being the elements of d coloc knows
 .dataset_rules <- list(
@@ -121,11 +141,15 @@ check.dataset=function(...) {
         NULL
     }),
     ## guarded, so a dataset with no type reaches "variable type not set"
-    ## below rather than failing here on a zero-length condition: runsusie()
-    ## leaves type out of req
+    ## below, as runsusie() leaves type out of req. A type of any length but
+    ## one failed here with R's error, and gets its own sentence
     .rule("type_valid", about = "type", function(d, ctx)
-        if ("type" %in% ctx$nd && !(d$type %in% c("quant", "cc")))
-            "type must be quant or cc"),
+        if ("type" %in% ctx$nd) {
+            if (length(d$type) != 1L)
+                "type must be a single value, quant or cc"
+            else if (!(d$type %in% c("quant", "cc")))
+                "type must be quant or cc"
+        }),
     .rule("snp_unique", about = "snp", function(d, ctx)
         if ("snp" %in% ctx$nd && any(duplicated(d$snp)))
             "duplicated snps found"),
@@ -153,15 +177,22 @@ check.dataset=function(...) {
     .rule("type_set", function(d, ctx)
         if (!("type" %in% ctx$nd))
             "variable type not set"),
+    ## an s of any length but one failed here with R's error, as type did
     .rule("s_range", about = "s", function(d, ctx)
-        if (("s" %in% ctx$nd) && (!is.numeric(d$s) || d$s <= 0 || d$s >= 1))
-            "s must be between 0 and 1"),
+        if ("s" %in% ctx$nd) {
+            if (length(d$s) != 1L)
+                "s must be a single number between 0 and 1"
+            else if (!is.numeric(d$s) || d$s <= 0 || d$s >= 1)
+                "s must be between 0 and 1"
+        }),
     ## the p-value route: beta and varbeta are needed to estimate var(Y) without them
     .rule("route", function(d, ctx)
         if (.p_route(ctx) && (!("pvalues" %in% ctx$nd) || !("MAF" %in% ctx$nd)))
             "require p values and MAF if beta, varbeta are unavailable"),
+    ## character p-values are left to the numeric rule below: here they would
+    ## be compared as strings
     .rule("p_range", about = "pvalues", function(d, ctx)
-        if (.p_route(ctx) && any(d$pvalues <= 0 | d$pvalues > 1))
+        if (.p_route(ctx) && is.numeric(d$pvalues) && any(d$pvalues <= 0 | d$pvalues > 1))
             "pvalues must be above 0 and at most 1"),
     .rule("s_needed", function(d, ctx)
         if (.p_route(ctx) && d$type == "cc" && !("s" %in% ctx$nd))
@@ -169,15 +200,31 @@ check.dataset=function(...) {
     .rule("N_p_route", function(d, ctx)
         if (.p_route(ctx) && (!("N" %in% ctx$nd) || is.null(d$N) || any(d$N <= 0)))
             "sample size N <=0 or not set"),
+    ## the values the route computes with, here where 6.0.3 worked out the
+    ## p-values from beta and varbeta and failed on a character one with R's
+    ## error. On the p-value route, route has made sure the p-values are there
+    .rule("numeric", about = c("beta", "varbeta", "pvalues"), function(d, ctx) {
+        for (v in if (.p_route(ctx)) "pvalues" else c("beta", "varbeta"))
+            if (!is.numeric(d[[v]]))
+                return(paste(v, "must be numeric"))
+        NULL
+    }),
     .rule("finite", function(d, ctx)
         if (any(is.infinite(d$beta) | is.infinite(d$varbeta)))
             "Infinite values in beta and/or varbeta"),
     .rule("zero_varbeta", function(d, ctx)
         if (any(d$varbeta == 0))
             "Zero values in varbeta"),
+    ## after zero_varbeta, so a zero keeps its message. 6.0.3 failed on a
+    ## negative one at the minimum p-value step, comparing a NaN, and a
+    ## coloc_dataset, which skips that comparison, got NA posteriors
+    .rule("varbeta_positive", about = "varbeta", function(d, ctx)
+        if (!.p_route(ctx) && any(d$varbeta < 0))
+            "varbeta must be positive"),
     ## A coloc_dataset gave this warning when it was made, so it is not
-    ## repeated each time the dataset is used. The p-values are worked
-    ## out all the same, as before the rules were a list
+    ## repeated each time the dataset is used. The p-values are worked out
+    ## all the same, as before the rules were a list; the rules above leave
+    ## nothing in that which can fail
     .rule("min_p", level = "warning", function(d, ctx) {
         p <- if (.p_route(ctx)) d$pvalues else pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2
         if (!inherits(d, "coloc_dataset") && min(p) > ctx$warn.minp)
@@ -188,6 +235,12 @@ check.dataset=function(...) {
         if (d$type == "quant" && !("sdY" %in% ctx$nd))
             if (!("MAF" %in% ctx$nd && "N" %in% ctx$nd))
                 "must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
+    ## the rules below need two dimensions. A vector failed in LD_square with
+    ## R's error; a data frame has two, and passes where LD isn't required,
+    ## as in 6.0.3
+    .rule("LD_dims", about = "LD", function(d, ctx)
+        if ("LD" %in% ctx$nd && length(dim(d$LD)) != 2L)
+            "LD must be a matrix"),
     .rule("LD_square", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && nrow(d$LD) != ncol(d$LD))
             "LD not square"),
@@ -196,7 +249,14 @@ check.dataset=function(...) {
             "LD rownames != colnames"),
     .rule("LD_covers", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && length(setdiff(d$snp, colnames(d$LD))))
-            "colnames in LD do not contain all SNPs")
+            "colnames in LD do not contain all SNPs"),
+    ## where LD is required, as for SuSiE. After 6.0.3's rules, as its
+    ## check_ld() refused an LD that wasn't a matrix after check_dataset();
+    ## check_ld() keeps that test itself, as it runs these rules with no req
+    .rule("LD_numeric", about = "LD", function(d, ctx)
+        if ("LD" %in% ctx$nd && "LD" %in% ctx$req &&
+            !(is.matrix(d$LD) && is.numeric(d$LD)))
+            "LD must be a numeric matrix")
 )
 names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
 

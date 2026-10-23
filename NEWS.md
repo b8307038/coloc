@@ -3,6 +3,7 @@
 * new `coloc_dataset()` and `as_coloc_dataset()` constructors
 * new `wakefield_bf()`, Wakefield's approximate Bayes factor for each snp of a dataset, from beta and varbeta or from p-values; its `effect_priors` applies on both routes
 * `coloc()` checks both datasets before fine-mapping either, and its messages about a dataset begin "trait 1: " or "trait 2: "
+* `check_dataset()`, and every function that checks a dataset, gives its own message where R's error showed before: for a `beta`, `varbeta` or `pvalues` that isn't numeric, a negative `varbeta`, a `type` or `s` that isn't a single value, and an `LD` without two dimensions. A `coloc_dataset` changed to hold a negative `varbeta`, which gave NA posteriors, is refused
 
 # coloc 6.0.3
 * fix issue #208, #209

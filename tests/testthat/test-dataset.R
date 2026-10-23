@@ -69,6 +69,16 @@ test_that("a mistake when a dataset is made shows the constructor's call, and no
     expect_warning(as_coloc_dataset(weak), "^minimum p value is: ")
 })
 
+test_that("coloc_dataset() refuses a negative varbeta with its own call", {
+    expect_identical(call_of(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
+                                           varbeta = -D1$varbeta, sdY = 1)),
+                     quote(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
+                                         varbeta = -D1$varbeta, sdY = 1)))
+    expect_error(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
+                               varbeta = -D1$varbeta, sdY = 1),
+                 "^varbeta must be positive$")
+})
+
 test_that("as_coloc_dataset() returns a coloc_dataset as it is, even one changed since it was made", {
     broken <- as_coloc_dataset(small)
     broken$beta[2] <- NA                # still a coloc_dataset: $<- keeps the class

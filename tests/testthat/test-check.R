@@ -289,6 +289,43 @@ for (what in names(cases)) {
     })
 }
 
+## ---- a mistake 6.0.3 didn't check doesn't take over its messages -------------
+## The rules added since 6.0.3 are placed so that a dataset 6.0.3 refused with
+## its own message keeps it: a rule for input 6.0.3 failed on with R's error
+## goes where that error was, and a rule for input 6.0.3 took goes after
+## 6.0.3's rules. Each mistake below is added to each case's dataset that holds
+## the element, and wherever 6.0.3 still stops at the case's own message,
+## check_dataset() must too.
+mistakes <- list(
+    "a character beta" = function(d)
+        if (!is.null(d$beta)) { d$beta <- as.character(d$beta); d },
+    "a character varbeta" = function(d)
+        if (!is.null(d$varbeta)) { d$varbeta <- as.character(d$varbeta); d },
+    "character p-values" = function(d)
+        if (!is.null(d$pvalues)) { d$pvalues <- as.character(d$pvalues); d },
+    "a negative varbeta" = function(d)
+        if (!is.null(d$varbeta)) { d$varbeta[2] <- -abs(d$varbeta[2]); d },
+    "two types" = function(d) { d$type <- rep(d$type, 2); d },
+    "two values of s" = function(d) { d$s <- c(0.3, 0.3); d },
+    "a vector LD" = function(d)
+        if (!is.null(d$LD)) { d$LD <- as.vector(d$LD); d })
+
+for (what in names(mistakes)) {
+    test_that(paste0("a dataset 6.0.3 refused keeps its message with ", what, " added"), {
+        for (case in cases) {
+            if (is.null(case$error) || !is.list(case$d))
+                next
+            d <- mistakes[[what]](case$d)
+            if (is.null(d))
+                next
+            args <- c(list(d, 1), case$args)
+            then <- outcome(get_match_6_0_3(do.call(check_dataset, args)))$error
+            if (identical(then, case$error))
+                expect_identical(outcome(do.call(check_dataset, args))$error, reprefix(then, 1))
+        }
+    })
+}
+
 ## ---- what else check_dataset() and check_ld() must keep -----------------------
 ## The rules run in .gate() (R/check.R), but an error or warning shows the call
 ## the user made, as 6.0.3's did (call_of() is in helper-datasets.R)

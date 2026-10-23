@@ -19,6 +19,7 @@ test_that("the minimum p-value step is the one warning", {
     expect_identical(names(levels)[levels == "warning"], "min_p")
 })
 
-test_that("check_ld() runs the three LD rules, in order", {
-    expect_identical(names(.rules_about("LD")), c("LD_square", "LD_dimnames", "LD_covers"))
+test_that("check_ld() runs the LD rules, in order", {
+    expect_identical(names(.rules_about("LD")),
+                     c("LD_dims", "LD_square", "LD_dimnames", "LD_covers", "LD_numeric"))
 })

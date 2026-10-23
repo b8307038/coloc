@@ -320,8 +320,9 @@ test_that("coloc.susie_bf() returns what 6.0.3's did", {
 })
 
 ## ---- the deliberate differences, one test each -------------------------------
-## Each test shows 6.0.3's answer and the new one. The ids are those of the
-## allowlist in the design notes.
+## Each test shows 6.0.3's answer and the new one. The earlier tests carry the
+## id of the difference in the design notes' allowlist; the later ones say what
+## changed instead.
 
 test_that("AL01: coloc() defaults p12 to 5e-6, where coloc.abf() used 1e-5", {
     expected <- get_match_6_0_3(coloc.abf(D1, D2))
@@ -457,12 +458,6 @@ test_that("AL17: check_dataset() reports a dataset with no type, where 6.0.3 gav
     ## with type required, as coloc.abf() asks, the two agree
     expect_error(get_match_6_0_3(check_dataset(d, 1)), "missing required element")
     expect_error(check_dataset(d, 1), "missing required element")
-    ## the guard also changes R's own error for a malformed type, which neither
-    ## version checks: c("quant", "cc") gives "'length = 2' in coercion to
-    ## 'logical(1)'", where 6.0.3 gave "the condition has length > 1", and
-    ## character(0) gives "missing value where TRUE/FALSE needed", where 6.0.3
-    ## gave "argument is of length zero". These are R's messages, not coloc's,
-    ## so they aren't pinned; the rule list should give one of its own
 })
 
 test_that("AL18: a SuSiE fit with a duplicated snp id is refused, where 6.0.3 used the first", {
@@ -562,14 +557,13 @@ test_that("check_dataset() doesn't repeat the minimum p-value warning for a colo
     expect_match(then$warned, "minimum p value is: ", fixed = TRUE)
     ## the warning is the only difference
     expect_identical(now[c("value", "error")], then[c("value", "error")])
-    ## only the comparison is skipped: the p-values are still worked out, so a
-    ## coloc_dataset changed to hold a negative varbeta passes with R's warning
-    ## from sqrt(), where 6.0.3 went on to compare a NaN and stopped
+    ## a coloc_dataset changed to hold a negative varbeta is refused before the
+    ## p-values are worked out, where 6.0.3 went on to compare a NaN and stopped
     made$varbeta[1] <- -made$varbeta[1]
     now <- outcome(check_dataset(made, 1))
     then <- outcome(get_match_6_0_3(check_dataset(made, 1)))
-    expect_identical(now$error, NA_character_)
-    expect_identical(now$warned, "NaNs produced")
+    expect_identical(now$error, "dataset 1: varbeta must be positive")
+    expect_length(now$warned, 0)
     expect_identical(then$error, "missing value where TRUE/FALSE needed")
     expect_identical(then$warned, "NaNs produced")
 })
@@ -585,6 +579,165 @@ test_that("coloc.susie_bf() refuses a bf2 that isn't log Bayes factors, where 6.
     chr <- bf4
     storage.mode(chr) <- "character"
     expect_error(coloc.susie_bf(fit3, chr), msg, fixed = TRUE)
+})
+
+## ---- values coloc can't use, at each way a dataset is checked ---------------
+## check_dataset() checks a dataset for coloc.abf(), finemap.abf(), the
+## constructors, wakefield_bf(), runsusie() and coloc(). at_each_door() gives
+## the error each of them stops with, NA where it goes on, and everywhere() the
+## errors they should give: one sentence, with each one's prefix. runsusie() is
+## asked only about a dataset it could fine-map. On 6.0.3's side an R error is
+## tested with no text, as R's wording changes between its versions.
+
+at_each_door <- function(d, other = D1, susie = FALSE) {
+    msg <- function(expr) tryCatch({
+        utils::capture.output(suppressWarnings(suppressMessages(expr)))
+        NA_character_
+    }, error = conditionMessage)
+    doors <- c(check_dataset = msg(check_dataset(d, 2)),
+               coloc.abf = msg(coloc.abf(other, d)),
+               finemap.abf = msg(finemap.abf(d)),
+               as_coloc_dataset = msg(as_coloc_dataset(d)),
+               coloc = msg(coloc(other, d)),
+               wakefield_bf = msg(wakefield_bf(d)))
+    if (susie)
+        doors <- c(doors, runsusie = msg(runsusie(d)))
+    doors
+}
+
+everywhere <- function(sentence, susie = FALSE) {
+    prefix <- c(check_dataset = "dataset 2: ", coloc.abf = "dataset 2: ", finemap.abf = "",
+                as_coloc_dataset = "", coloc = "trait 2: ", wakefield_bf = "")
+    if (susie)
+        prefix <- c(prefix, runsusie = "dataset 1: ")
+    prefix[] <- if (is.na(sentence)) NA_character_ else paste0(prefix, sentence)
+    prefix
+}
+
+## coloc.abf()'s summary, without its printing
+abf_summary <- function(d1, d2) {
+    utils::capture.output(res <- coloc.abf(d1, d2))
+    res$summary
+}
+
+test_that("beta, varbeta and p-values must be numeric where they are read, where 6.0.3 failed with R's errors", {
+    chr_beta <- D1
+    chr_beta$beta <- as.character(chr_beta$beta)
+    chr_varbeta <- D1
+    chr_varbeta$varbeta <- as.character(chr_varbeta$varbeta)
+    chr_p <- to_pvalues(D1)
+    chr_p$pvalues <- as.character(chr_p$pvalues)
+    expect_error(get_match_6_0_3(check_dataset(chr_beta, 2)))
+    expect_error(get_match_6_0_3(check_dataset(chr_varbeta, 2)))
+    expect_identical(at_each_door(chr_beta, susie = TRUE),
+                     everywhere("beta must be numeric", susie = TRUE))
+    expect_identical(at_each_door(chr_varbeta, susie = TRUE),
+                     everywhere("varbeta must be numeric", susie = TRUE))
+    ## 6.0.3's check let character p-values through, and coloc.abf() failed after
+    expect_null(get_match_6_0_3(check_dataset(chr_p, 2)))
+    expect_error(get_match_6_0_3(coloc.abf(D1, chr_p)))
+    expect_identical(at_each_door(chr_p), everywhere("pvalues must be numeric"))
+    ## 6.0.3 computed with a logical beta
+    lgl_beta <- D1
+    lgl_beta$beta <- lgl_beta$beta > 0
+    expect_null(get_match_6_0_3(check_dataset(lgl_beta, 2)))
+    expect_identical(at_each_door(lgl_beta), everywhere("beta must be numeric"))
+    ## where nothing reads them they pass, with 6.0.3's answer
+    p_beside_beta <- D1
+    p_beside_beta$pvalues <- chr_p$pvalues
+    beta_beside_p <- to_pvalues(D1)
+    beta_beside_p$beta <- chr_beta$beta
+    varbeta_beside_p <- to_pvalues(D1)
+    varbeta_beside_p$varbeta <- chr_varbeta$varbeta
+    for (d in list(p_beside_beta, beta_beside_p, varbeta_beside_p)) {
+        expect_identical(at_each_door(d), everywhere(NA))
+        expect_equal(abf_summary(D1, d), get_match_6_0_3(coloc.abf(D1, d))$summary)
+    }
+    ## with a zero varbeta as well: before, check_dataset() reached the zero first
+    zero_too <- chr_beta
+    zero_too$varbeta[1] <- 0
+    expect_error(get_match_6_0_3(check_dataset(zero_too, 2)))
+    expect_identical(at_each_door(zero_too), everywhere("beta must be numeric"))
+})
+
+test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
+    neg <- D1
+    neg$varbeta[5] <- -neg$varbeta[5]
+    expect_error(suppressWarnings(get_match_6_0_3(check_dataset(neg, 2))))
+    expect_identical(at_each_door(neg, susie = TRUE),
+                     everywhere("varbeta must be positive", susie = TRUE))
+    ## with a zero as well, 6.0.3's message for the zero
+    zero_too <- neg
+    zero_too$varbeta[1] <- 0
+    expect_identical(outcome(get_match_6_0_3(check_dataset(zero_too, 2)))$error,
+                     "dataset 2: Zero values in varbeta")
+    expect_identical(at_each_door(zero_too), everywhere("Zero values in varbeta"))
+    ## beside p-values varbeta isn't read, and passes as in 6.0.3
+    beside_p <- to_pvalues(D1)
+    beside_p$varbeta <- -D1$varbeta
+    expect_null(get_match_6_0_3(check_dataset(beside_p, 2)))
+    expect_identical(at_each_door(beside_p), everywhere(NA))
+    ## a coloc_dataset changed to hold one gave NA posteriors, as its minimum
+    ## p-value comparison is skipped
+    made <- as_coloc_dataset(D1)
+    made$varbeta[5] <- -made$varbeta[5]
+    expect_error(coloc(made, D2), "^trait 1: varbeta must be positive$")
+    expect_error(coloc.abf(made, D2), "^dataset 1: varbeta must be positive$")
+    expect_error(wakefield_bf(made), "^varbeta must be positive$")
+})
+
+test_that("type and s must be single values, where 6.0.3 failed with R's errors", {
+    for (type in list(c("quant", "cc"), rep("quant", length(D1$snp)), character(0))) {
+        d <- D1
+        d$type <- type
+        expect_error(get_match_6_0_3(check_dataset(d, 2)))
+        expect_identical(at_each_door(d), everywhere("type must be a single value, quant or cc"))
+    }
+    two_s <- as_cc(D1)
+    two_s$s <- c(0.5, 0.5)
+    expect_error(get_match_6_0_3(check_dataset(two_s, 2)))
+    expect_identical(at_each_door(two_s), everywhere("s must be a single number between 0 and 1"))
+})
+
+test_that("LD must be a matrix, and for SuSiE a numeric one, where 6.0.3 failed with R's errors", {
+    vector_ld <- D1
+    vector_ld$LD <- as.vector(D1$LD)
+    expect_error(get_match_6_0_3(check_dataset(vector_ld, 2)))
+    expect_identical(at_each_door(vector_ld, susie = TRUE),
+                     everywhere("LD must be a matrix", susie = TRUE))
+    ## 6.0.3 took an LD with a third dimension
+    three_d <- D1
+    three_d$LD <- array(D1$LD, dim = c(dim(D1$LD), 1), dimnames = c(dimnames(D1$LD), list(NULL)))
+    expect_null(get_match_6_0_3(check_dataset(three_d, 2)))
+    expect_identical(at_each_door(three_d, susie = TRUE),
+                     everywhere("LD must be a matrix", susie = TRUE))
+    ## a data frame LD has two dimensions: where LD isn't required it passes,
+    ## with 6.0.3's answer
+    df_ld <- D1
+    df_ld$LD <- as.data.frame(D1$LD)
+    expect_identical(at_each_door(df_ld), everywhere(NA))
+    expect_equal(abf_summary(D1, df_ld), get_match_6_0_3(coloc.abf(D1, df_ld))$summary)
+    ## SuSiE needs a numeric matrix. 6.0.3's check_ld() refused a data frame
+    ## after check_dataset(), and a character matrix failed in R; now the check
+    ## refuses both, before either trait is fine-mapped
+    df_ld3 <- D3
+    df_ld3$LD <- as.data.frame(D3$LD)
+    chr_ld3 <- D3
+    storage.mode(chr_ld3$LD) <- "character"
+    expect_error(get_match_6_0_3(runsusie(df_ld3)), "LD must be of class matrix", fixed = TRUE)
+    expect_error(suppressMessages(get_match_6_0_3(runsusie(chr_ld3))))
+    for (d in list(df_ld3, chr_ld3)) {
+        expect_error(runsusie(d), "^dataset 1: LD must be a numeric matrix$")
+        said <- character(0)
+        err <- withCallingHandlers(
+            tryCatch(coloc(D4, d, method = "susie"), error = conditionMessage),
+            message = function(m) {
+                said <<- c(said, conditionMessage(m))
+                invokeRestart("muffleMessage")
+            })
+        expect_identical(err, "trait 2: LD must be a numeric matrix")
+        expect_length(said, 0)
+    }
 })
 
 ## ---- the dataset functions, pinned as numbers ------------------------------
