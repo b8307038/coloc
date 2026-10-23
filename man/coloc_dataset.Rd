@@ -17,6 +17,7 @@ coloc_dataset(
   s = NULL,
   sdY = NULL,
   LD = NULL,
+  z = NULL,
   warn.minp = 1e-06
 )
 
@@ -47,6 +48,9 @@ trait}
 
 \item{LD}{matrix of LD between snps, with snp ids as row and
 column names}
+
+\item{z}{per-snp z-scores, optional: \code{\link[=runsusie]{runsusie()}} fine-maps from them in
+place of \code{beta / sqrt(varbeta)}}
 
 \item{warn.minp}{warn if no p value is smaller than this}
 

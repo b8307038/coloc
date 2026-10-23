@@ -16,7 +16,8 @@ check.dataset(...)
 "dataset 1: ". With "" they have no prefix}
 
 \item{req}{names of elements that must be present. When it includes "LD",
-as \code{runsusie}'s does, \code{LD} must also be a correlation matrix}
+as \code{runsusie}'s does, \code{LD} must also be a correlation matrix,
+and a \code{z} must have a finite number for each snp}
 
 \item{warn.minp}{print warning if no p value < warn.minp}
 
@@ -81,12 +82,14 @@ finite number above 0, on a quantitative trait given as \code{beta} and
 \code{varbeta}, unless \code{req} includes "LD", as SuSiE doesn't read
 \code{sdY}. When \code{req} includes "LD", as for SuSiE, \code{LD} must be
 a correlation matrix for the dataset's snps: numeric, with values from -1
-to 1, symmetric, and 1 on the diagonal.
+to 1, symmetric, and 1 on the diagonal. A \code{z}, if given, must then
+have a finite number for each snp.
 
 Optional vectors are
 
 \describe{
 \item{position}{a vector of snp positions, required for \code{plot_dataset}}
+\item{z}{z-scores, which \code{runsusie} fine-maps from in place of \code{beta / sqrt(varbeta)}}
 }
 
 \code{check_dataset} calls stop() unless a series of expectations on dataset

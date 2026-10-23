@@ -308,7 +308,8 @@ for (what in names(cases)) {
 ## goes where that error was, and a rule for input 6.0.3 took goes after
 ## 6.0.3's rules. Each mistake below is added to each case's dataset that holds
 ## the element, and wherever 6.0.3 still stops at the case's own message,
-## check_dataset() must too.
+## check_dataset() must too. Each case is checked as coloc.abf() checks it, and
+## as SuSiE does, with LD required, unless the case sets req itself.
 mistakes <- list(
     "a character beta" = function(d)
         if (!is.null(d$beta)) { d$beta <- as.character(d$beta); d },
@@ -324,17 +325,27 @@ mistakes <- list(
         if (!is.null(d$LD)) { d$LD <- as.vector(d$LD); d },
     "an N of 0" = function(d) { d$N <- 0; d },
     "an infinite N" = function(d) { d$N <- Inf; d },
-    "an sdY of 0" = function(d) { d$sdY <- 0; d })
+    "an sdY of 0" = function(d) { d$sdY <- 0; d },
+    "a z with a missing value" = function(d)
+        if (!is.null(d$snp)) { d$z <- replace(rep(1, length(d$snp)), 1, NA); d },
+    "a short z" = function(d)
+        if (!is.null(d$snp)) { d$z <- rep(1, length(d$snp) - 1); d },
+    "a character z" = function(d)
+        if (!is.null(d$snp)) { d$z <- rep("1", length(d$snp)); d },
+    "an infinite z" = function(d)
+        if (!is.null(d$snp)) { d$z <- replace(rep(1, length(d$snp)), 1, Inf); d })
 
 for (what in names(mistakes)) {
     test_that(paste0("a dataset 6.0.3 refused keeps its message with ", what, " added"), {
-        for (case in cases) {
+        for (use in c("single", "susie")) for (case in cases) {
             if (is.null(case$error) || !is.list(case$d))
                 next
             d <- mistakes[[what]](case$d)
             if (is.null(d))
                 next
             args <- c(list(d, 1), case$args)
+            if (is.null(args$req))
+                args$req <- .dataset_uses[[use]]
             then <- outcome(get_match_6_0_3(do.call(check_dataset, args)))$error
             if (identical(then, case$error))
                 expect_identical(outcome(do.call(check_dataset, args))$error, today(case, then, 1))

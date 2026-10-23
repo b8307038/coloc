@@ -2,7 +2,7 @@
 
 ## The elements with one value per snp, in the order the lengths rule compares
 ## them and print() lists them
-.per_snp_items <- c("beta", "varbeta", "pvalues", "MAF", "snp", "position")
+.per_snp_items <- c("beta", "varbeta", "pvalues", "MAF", "snp", "position", "z")
 
 ## The elements a coloc dataset may have. check_dataset() checks these and
 ## ignores anything else.
@@ -11,7 +11,7 @@
 ## The elements each of coloc()'s methods needs, as check_dataset()'s req.
 ## "single" is also what a dataset is checked for when it is made,
 ## check_dataset()'s default. A req naming LD, as "susie"'s does, also brings
-## the checks on LD that SuSiE needs.
+## the checks on LD and z that SuSiE needs.
 .dataset_uses <- list(single = c("type", "snp"),
                       susie  = c("beta", "varbeta", "LD", "snp", "N"))
 
@@ -55,6 +55,8 @@
 ##'     trait
 ##' @param LD matrix of LD between snps, with snp ids as row and
 ##'     column names
+##' @param z per-snp z-scores, optional: [runsusie()] fine-maps from them in
+##'     place of `beta / sqrt(varbeta)`
 ##' @param warn.minp warn if no p value is smaller than this
 ##' @return a list of class `"coloc_dataset"`
 ##' @seealso [check_dataset()] for what each element must look like
@@ -78,12 +80,12 @@
 coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
                           pvalues = NULL, MAF = NULL,
                           position = NULL, N = NULL, s = NULL, sdY = NULL,
-                          LD = NULL, warn.minp = 1e-6) {
+                          LD = NULL, z = NULL, warn.minp = 1e-6) {
     ## every argument defaults to NULL so that a missing snp or type gets
     ## check_dataset()'s message, not R's "argument is missing"
     d <- list(beta = beta, varbeta = varbeta, pvalues = pvalues, MAF = MAF,
               snp = snp, position = position,
-              N = N, type = type, s = s, sdY = sdY, LD = LD)
+              N = N, type = type, s = s, sdY = sdY, LD = LD, z = z)
     d <- d[!sapply(d, is.null)]
     .new_coloc_dataset(d, warn.minp = warn.minp, call = sys.call())
 }

@@ -110,6 +110,16 @@ test_that("coloc_dataset() takes every element check_dataset() knows", {
     expect_setequal(setdiff(names(formals(coloc_dataset)), "warn.minp"), .dataset_items)
 })
 
+test_that("a dataset may carry z, which print() lists among the per-snp elements", {
+    z <- small$beta / sqrt(small$varbeta)
+    D <- do.call(coloc_dataset, c(small, list(z = z)))
+    expect_identical(D$z, z)
+    expect_output(print(D), "per-snp: beta, varbeta, z", fixed = TRUE)
+    ## as_coloc_dataset() counts z as an element, not among the other ones
+    out <- capture.output(print(as_coloc_dataset(c(small, list(z = z, chr = 1)))))
+    expect_true("  other elements: chr " %in% out)
+})
+
 test_that("print() summarises the dataset", {
     D <- do.call(coloc_dataset, small)
     expect_output(print(D), "quantitative trait, 5 snps")

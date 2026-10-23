@@ -52,12 +52,14 @@
 ##' \code{varbeta}, unless \code{req} includes "LD", as SuSiE doesn't read
 ##' \code{sdY}. When \code{req} includes "LD", as for SuSiE, \code{LD} must be
 ##' a correlation matrix for the dataset's snps: numeric, with values from -1
-##' to 1, symmetric, and 1 on the diagonal.
+##' to 1, symmetric, and 1 on the diagonal. A \code{z}, if given, must then
+##' have a finite number for each snp.
 ##'
 ##' Optional vectors are
 ##'
 ##' \describe{
 ##'   \item{position}{a vector of snp positions, required for \code{plot_dataset}}
+##'   \item{z}{z-scores, which \code{runsusie} fine-maps from in place of \code{beta / sqrt(varbeta)}}
 ##' }
 ##'
 ##' \code{check_dataset} calls stop() unless a series of expectations on dataset
@@ -72,7 +74,8 @@
 ##' @param suffix a label for the dataset, such as 1 or 2: messages then begin
 ##'     "dataset 1: ". With "" they have no prefix
 ##' @param req names of elements that must be present. When it includes "LD",
-##'     as \code{runsusie}'s does, \code{LD} must also be a correlation matrix
+##'     as \code{runsusie}'s does, \code{LD} must also be a correlation matrix,
+##'     and a \code{z} must have a finite number for each snp
 ##' @param warn.minp print warning if no p value < warn.minp
 ##' @return NULL if no errors found
 ##' @export
@@ -123,6 +126,20 @@ check.dataset=function(...) {
 ## the p-value route: no beta, or no varbeta
 .p_route <- function(ctx) !("beta" %in% ctx$nd) || !("varbeta" %in% ctx$nd)
 
+## The message for per-snp elements v whose lengths differ, NULL if none: each
+## against snp, or without snp against the first, in .per_snp_items' order, so
+## the message names the same elements however the list was built
+.lengths_differ <- function(d, v) {
+    if (length(v) < 2L)
+        return(NULL)
+    n <- lengths(d[v])
+    ref <- if ("snp" %in% v) "snp" else v[1]
+    bad <- v[n != n[[ref]]]
+    if (length(bad))
+        paste(ref, "has", n[[ref]], if (n[[ref]] == 1L) "value" else "values",
+              "but", bad[1], "has", n[[bad[1]]])
+}
+
 ## LD as a correlation matrix: values in [-1, 1], 1 on the diagonal, and equal
 ## to its transpose, each to within tol. LDs worked out by different software,
 ## or in 32-bit arithmetic, differ from exact by about 1e-7; 1e-6 is ten times
@@ -147,8 +164,8 @@ check.dataset=function(...) {
 ## varbeta both given) reads beta, varbeta, and for a quantitative trait sdY,
 ## or MAF and N to estimate it. Its p-value route reads pvalues, MAF, N, and s
 ## for a case-control trait. SuSiE, the use whose req names LD, reads beta,
-## varbeta, LD and N, and not sdY. N is refused wherever it is given, as no
-## sample size is 0 or below.
+## varbeta, LD and N, and z when given, and not sdY. N is refused wherever it
+## is given, as no sample size is 0 or below.
 
 ## ctx is list(nd, req, warn.minp), nd being the elements of d coloc knows
 .dataset_rules <- list(
@@ -157,9 +174,10 @@ check.dataset=function(...) {
             paste0("missing required element(s) ",
                    paste(setdiff(ctx$req, ctx$nd), collapse = ", "))),
     ## no missing values - make people clean their own data rather than make
-    ## assumptions here for datasets I don't know
+    ## assumptions here for datasets I don't know. z, which 6.0.3 didn't know,
+    ## is checked by z_valid below, after 6.0.3's rules
     .rule("no_na", function(d, ctx) {
-        for (v in ctx$nd)
+        for (v in setdiff(ctx$nd, "z"))
             if (any(is.na(d[[v]])))
                 return(paste0(v, " contains missing values"))
         NULL
@@ -184,20 +202,10 @@ check.dataset=function(...) {
         if ("MAF" %in% ctx$nd && (!is.numeric(d$MAF) || any(is.na(d$MAF)) ||
                                   any(d$MAF <= 0) || any(d$MAF >= 1)))
             "MAF should be a numeric, strictly >0 & <1"),
-    ## the per-snp elements, each against snp, or without snp against the
-    ## first given, in .per_snp_items' order, so the message names the same
-    ## elements however the list was built
-    .rule("lengths", function(d, ctx) {
-        v <- intersect(.per_snp_items, ctx$nd) # defined in R/dataset.R
-        if (length(v) < 2L)
-            return(NULL)
-        n <- lengths(d[v])
-        ref <- if ("snp" %in% v) "snp" else v[1]
-        bad <- v[n != n[[ref]]]
-        if (length(bad))
-            paste(ref, "has", n[[ref]], if (n[[ref]] == 1L) "value" else "values",
-                  "but", bad[1], "has", n[[bad[1]]])
-    }),
+    ## the per-snp elements (.per_snp_items, in R/dataset.R) but z, which
+    ## z_valid checks
+    .rule("lengths", function(d, ctx)
+        .lengths_differ(d, intersect(setdiff(.per_snp_items, "z"), ctx$nd))),
     .rule("N_single", about = "N", function(d, ctx)
         if ("N" %in% ctx$nd && (!is.numeric(d[["N"]]) || length(d[["N"]]) != 1))
             "N must be a single number; coloc does not take per-snp sample sizes"),
@@ -297,6 +305,22 @@ check.dataset=function(...) {
             !("LD" %in% ctx$req) &&
             (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
             "sdY must be a single finite number above 0"),
+    ## where z is read: SuSiE fine-maps from it in place of beta /
+    ## sqrt(varbeta). After 6.0.3's rules, which didn't know z, so no_na and
+    ## lengths leave it here. By now lengths has passed, so only z can differ
+    .rule("z_valid", about = "z", function(d, ctx) {
+        if (!("z" %in% ctx$nd && "LD" %in% ctx$req))
+            return(NULL)
+        if (any(is.na(d$z)))
+            return("z contains missing values")
+        problem <- .lengths_differ(d, intersect(.per_snp_items, ctx$nd))
+        if (!is.null(problem))
+            return(problem)
+        if (!is.numeric(d$z))
+            return("z must be numeric")
+        if (any(is.infinite(d$z)))
+            "Infinite values in z"
+    }),
     ## where LD is required, as SuSiE requires it: coloc.abf() never reads LD,
     ## and the test takes about 2 s at 10,000 snps. Last, after LD_numeric,
     ## which it needs. Only the dataset's snps, the part runsusie() uses,

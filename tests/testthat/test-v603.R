@@ -869,6 +869,40 @@ test_that(".is_correlation() compares every block of a large LD", {
     expect_false(.is_correlation(ld))
 })
 
+test_that("for SuSiE z must have a finite number for each snp, where 6.0.3 failed with R's errors or fit it as given", {
+    z3 <- D3$beta / sqrt(D3$varbeta)
+    ## each z, whether 6.0.3's runsusie() failed on it with R's or susieR's
+    ## error or fine-mapped it as given, and the message it gets now
+    broken <- list(list(z = replace(z3, 5, NA), failed = FALSE, msg = "z contains missing values"),
+                   list(z = z3[-1], failed = TRUE, msg = "snp has 500 values but z has 499"),
+                   list(z = c(z3, 1), failed = TRUE, msg = "snp has 500 values but z has 501"),
+                   list(z = as.character(z3), failed = TRUE, msg = "z must be numeric"),
+                   list(z = z3 > 0, failed = FALSE, msg = "z must be numeric"),
+                   list(z = replace(z3, 5, Inf), failed = FALSE, msg = "Infinite values in z"))
+    for (b in broken) {
+        d <- D3
+        d$z <- b$z
+        then <- outcome(suppressMessages(get_match_6_0_3(runsusie(d))))$error
+        expect_identical(!is.na(then), b$failed, label = b$msg)
+        expect_error(runsusie(d), paste0("^dataset 1: ", b$msg, "$"))
+        expect_identical(error_before_susie(coloc(D4, d, method = "susie")),
+                         paste0("trait 2: ", b$msg))
+        ## where nothing reads z it passes, with 6.0.3's answer
+        d1 <- D1
+        d1$z <- b$z
+        expect_identical(at_each_door(d1), everywhere(NA))
+    }
+    expect_equal(abf_summary(D1, d1), get_match_6_0_3(coloc.abf(D1, d1))$summary)
+})
+
+test_that("runsusie() fine-maps from the dataset's z, as 6.0.3 did", {
+    half <- D3
+    half$z <- D3$beta / sqrt(D3$varbeta) / 2
+    fit_half <- suppressMessages(runsusie(half))
+    expect_false(isTRUE(all.equal(fit_half$pip, fit3$pip)))
+    expect_identical(fit_half$pip, suppressMessages(get_match_6_0_3(runsusie(half)))$pip)
+})
+
 ## ---- messages reworded since 6.0.3 ------------------------------------------
 ## The same datasets are refused, at the same rule, with a sentence that says
 ## more. at_each_door() and everywhere() are above.
