@@ -615,6 +615,73 @@ print.coloc_qc <- function(x, all = FALSE, ...) {
     invisible(x)
 }
 
+## ---- qc_pair(): two datasets against each other ------------------------------
+
+## element v of dataset d for the snps in shared, in that order
+.at <- function(d, v, shared)
+    d[[v]][match(shared, d[["snp"]])]
+
+## The rules qc_pair() runs, on x = list(d1, d2, shared), shared being the snps
+## in both. Their elements are those both datasets have
+.pair_rules <- list(
+    .rule("snps_shared", about = "snp", function(x, ctx)
+        if (!length(x$shared))
+            "no snp is in both datasets",
+        detail = function(x, ctx)
+            sprintf("%d of %d and %d", length(x$shared), length(x$d1[["snp"]]),
+                    length(x$d2[["snp"]]))),
+    .rule("positions_agree", about = c("snp", "position"), level = "report",
+          function(x, ctx) {
+              n <- sum(.at(x$d1, "position", x$shared) != .at(x$d2, "position", x$shared))
+              if (n)
+                  sprintf("%d shared snp%s in position: another genome build?",
+                          n, if (n == 1L) " differs" else "s differ")
+          }),
+    ## MAF is the minor allele's frequency, so alleles flipped between the
+    ## studies leave it as it is
+    .rule("maf_agree", about = c("snp", "MAF"), level = "report",
+          function(x, ctx) {
+              n <- sum(abs(.at(x$d1, "MAF", x$shared) - .at(x$d2, "MAF", x$shared)) > ctx$maf_diff)
+              if (n)
+                  sprintf("%d shared snp%s in MAF by more than %g: different populations, or frequencies of different alleles?",
+                          n, if (n == 1L) " differs" else "s differ", ctx$maf_diff)
+          })
+)
+names(.pair_rules) <- vapply(.pair_rules, `[[`, "", "id")
+
+##' Two datasets checked against each other
+##'
+##' `qc_pair()` checks what only shows when two datasets meet, before
+##' [coloc()] compares them. [qc_dataset()] checks each dataset on its own.
+##' Values are matched by snp id, so the datasets' orders don't matter.
+##'
+##' * `snps_shared`: "FAIL" when no snp is in both datasets, as `coloc()`
+##'   works on the snps they share. Its detail gives the counts.
+##' * `positions_agree`: how many shared snps have different positions, which
+##'   usually means the two use different genome builds.
+##' * `maf_agree`: how many shared snps have MAFs more than `maf_diff` apart.
+##'   MAF is the minor allele's frequency, so flipped alleles don't change
+##'   it; a difference means different populations, or that one dataset gives
+##'   the frequency of a named allele as `MAF`.
+##'
+##' A check is "not given" unless both datasets have its elements. LD isn't
+##' compared, as each study has its own.
+##' @param d1,d2 datasets: lists, or `coloc_dataset`s
+##' @param maf_diff how far apart two MAFs for the same snp may be
+##' @return a `coloc_qc`, as [qc_dataset()] returns, printed the same way
+##' @export
+##' @examples
+##' data(coloc_test_data)
+##' qc_pair(coloc_test_data$D1, coloc_test_data$D2)
+qc_pair <- function(d1, d2, maf_diff = 0.1) {
+    if (!is.list(d1) || !is.list(d2))
+        return(.coloc_qc("lists", "FAIL", "each dataset must be a list"))
+    both <- intersect(names(d1), names(d2))
+    ctx <- list(nd = intersect(both, .dataset_items), maf_diff = maf_diff)
+    .report(list(d1 = d1, d2 = d2, shared = intersect(d1[["snp"]], d2[["snp"]])),
+            .pair_rules, ctx)
+}
+
 ##' check alignment between beta and LD
 ##'
 ##' @title check alignment

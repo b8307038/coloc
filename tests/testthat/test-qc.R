@@ -1,8 +1,10 @@
 ## qc_dataset(): every rule check_dataset() runs, then four of its own, listed
 ## without stopping. That its first failure is check_dataset()'s message is
-## tested in test-check.R, over that file's cases.
+## tested in test-check.R, over that file's cases. Then qc_pair(), two
+## datasets against each other.
 
 D1 <- plain_test_data$D1
+D2 <- plain_test_data$D2
 D3 <- plain_test_data$D3
 
 ## a report's statuses and details, named by rule id
@@ -130,4 +132,60 @@ test_that("a coloc_qc prints a count, then only the rows to look at", {
     expect_length(capture.output(print(qc, all = TRUE)), 2 + nrow(qc))
     expect_identical(capture.output(print(qc_dataset(as_coloc_dataset(D1)))),
                      "29 checks ok, 4 not given; nothing to look at")
+})
+
+## ---- qc_pair() -----------------------------------------------------------------
+
+## D2 with its positions moved, as on another genome build, and 20 MAFs given
+## for the other allele
+moved <- D2
+moved$position <- moved$position + 1000L
+moved$MAF[1:20] <- 1 - moved$MAF[1:20]
+
+test_that("qc_pair() finds nothing to look at in two packaged datasets, in either order", {
+    qc <- qc_pair(D1, D2)
+    expect_s3_class(qc, "coloc_qc")
+    expect_identical(qc$check, names(.pair_rules))
+    expect_identical(to_look_at(qc), character(0))
+    expect_identical(detail_of(qc)[["snps_shared"]], "500 of 500 and 500")
+    ## matched by snp id
+    reversed <- D2
+    for (v in c("beta", "varbeta", "MAF", "snp", "position"))
+        reversed[[v]] <- rev(reversed[[v]])
+    expect_identical(to_look_at(qc_pair(D1, reversed)), character(0))
+})
+
+test_that("qc_pair() warns about positions and MAFs that differ for the same snp", {
+    qc <- qc_pair(D1, moved)
+    expect_identical(to_look_at(qc), c("positions_agree", "maf_agree"))
+    expect_identical(detail_of(qc)[["positions_agree"]],
+                     "500 shared snps differ in position: another genome build?")
+    expect_match(detail_of(qc)[["maf_agree"]], "20 shared snps differ in MAF by more than 0.1", fixed = TRUE)
+    expect_identical(status_of(qc_pair(D1, moved, maf_diff = 0.99))[["maf_agree"]], "ok")
+    one <- D2
+    one$position[1] <- one$position[1] + 1L
+    expect_identical(detail_of(qc_pair(D1, one))[["positions_agree"]],
+                     "1 shared snp differs in position: another genome build?")
+})
+
+test_that("qc_pair() fails when no snp is shared, and leaves out what either dataset lacks", {
+    apart <- D2
+    apart$snp <- paste0(apart$snp, "x")
+    expect_identical(status_of(qc_pair(D1, apart))[["snps_shared"]], "FAIL")
+    part <- D2
+    for (v in c("beta", "varbeta", "MAF", "snp", "position"))
+        part[[v]] <- part[[v]][1:100]
+    expect_identical(detail_of(qc_pair(D1, part))[["snps_shared"]], "100 of 500 and 100")
+    expect_identical(status_of(qc_pair(D1, no_position(D2)))[["positions_agree"]], "not given")
+    expect_identical(status_of(qc_pair(no_position(D2), D1))[["positions_agree"]], "not given")
+})
+
+test_that("qc_pair() takes only lists", {
+    qc <- qc_pair(D1, 1:3)
+    expect_identical(c(qc$check, qc$status, qc$detail), c("lists", "FAIL", "each dataset must be a list"))
+})
+
+test_that("a coloc_qc with one check ok says so in the singular", {
+    expect_identical(capture.output(print(qc_pair(D1, moved)))[1],
+                     "1 check ok, 0 not given; 2 to look at:")
 })

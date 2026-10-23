@@ -29,6 +29,14 @@ test_that("the rules only qc_dataset() runs have ids of their own, and their ele
     }
 })
 
+test_that("qc_pair()'s rules have unique ids, and their elements are a dataset's", {
+    ids <- vapply(.pair_rules, `[[`, "", "id", USE.NAMES = FALSE)
+    expect_identical(names(.pair_rules), ids)
+    expect_false(anyDuplicated(ids) > 0)
+    for (rule in .pair_rules)
+        expect_true(all(rule$about %in% .dataset_items), label = rule$id)
+})
+
 test_that("check_ld() runs the LD rules, in order", {
     expect_identical(names(.rules_about("LD")),
                      c("LD_dims", "LD_square", "LD_dimnames", "LD_covers", "LD_numeric",
