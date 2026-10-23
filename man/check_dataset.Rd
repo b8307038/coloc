@@ -72,11 +72,15 @@ If \code{sdY} is unknown, it will be approximated, and this will require
 
 Beyond what must be present, \code{check_dataset} refuses values coloc
 can't use. Wherever they are given: a \code{type} or \code{s} that isn't a
-single value, and an \code{LD} without two dimensions. Where they are
-read: a \code{beta} or \code{varbeta} that isn't numeric, or a negative
-\code{varbeta}, when both are given; \code{pvalues} that aren't numeric,
-when \code{beta} and \code{varbeta} aren't both given. When \code{req}
-includes "LD", as for SuSiE, \code{LD} must be a numeric matrix.
+single value, an \code{N} that isn't a finite number above 0, and an
+\code{LD} without two dimensions. Where they are read: a \code{beta} or
+\code{varbeta} that isn't numeric, or a negative \code{varbeta}, when both
+are given; \code{pvalues} that aren't numeric, when \code{beta} and
+\code{varbeta} aren't both given; and an \code{sdY} that isn't a single
+finite number above 0, on a quantitative trait given as \code{beta} and
+\code{varbeta}, unless \code{req} includes "LD", as SuSiE doesn't read
+\code{sdY}. When \code{req} includes "LD", as for SuSiE, \code{LD} must be
+a numeric matrix.
 
 Optional vectors are
 

@@ -43,11 +43,15 @@
 ##'
 ##' Beyond what must be present, \code{check_dataset} refuses values coloc
 ##' can't use. Wherever they are given: a \code{type} or \code{s} that isn't a
-##' single value, and an \code{LD} without two dimensions. Where they are
-##' read: a \code{beta} or \code{varbeta} that isn't numeric, or a negative
-##' \code{varbeta}, when both are given; \code{pvalues} that aren't numeric,
-##' when \code{beta} and \code{varbeta} aren't both given. When \code{req}
-##' includes "LD", as for SuSiE, \code{LD} must be a numeric matrix.
+##' single value, an \code{N} that isn't a finite number above 0, and an
+##' \code{LD} without two dimensions. Where they are read: a \code{beta} or
+##' \code{varbeta} that isn't numeric, or a negative \code{varbeta}, when both
+##' are given; \code{pvalues} that aren't numeric, when \code{beta} and
+##' \code{varbeta} aren't both given; and an \code{sdY} that isn't a single
+##' finite number above 0, on a quantitative trait given as \code{beta} and
+##' \code{varbeta}, unless \code{req} includes "LD", as SuSiE doesn't read
+##' \code{sdY}. When \code{req} includes "LD", as for SuSiE, \code{LD} must be
+##' a numeric matrix.
 ##'
 ##' Optional vectors are
 ##'
@@ -124,7 +128,8 @@ check.dataset=function(...) {
 ## varbeta both given) reads beta, varbeta, and for a quantitative trait sdY,
 ## or MAF and N to estimate it. Its p-value route reads pvalues, MAF, N, and s
 ## for a case-control trait. SuSiE, the use whose req names LD, reads beta,
-## varbeta, LD and N.
+## varbeta, LD and N, and not sdY. N is refused wherever it is given, as no
+## sample size is 0 or below.
 
 ## ctx is list(nd, req, warn.minp), nd being the elements of d coloc knows
 .dataset_rules <- list(
@@ -256,7 +261,20 @@ check.dataset=function(...) {
     .rule("LD_numeric", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && "LD" %in% ctx$req &&
             !(is.matrix(d$LD) && is.numeric(d$LD)))
-            "LD must be a numeric matrix")
+            "LD must be a numeric matrix"),
+    ## wherever N is given. After 6.0.3's rules, which took any N beside beta,
+    ## so a dataset 6.0.3 refused keeps its message, and a dataset given as
+    ## p-values "sample size N <=0 or not set"
+    .rule("N_positive", about = "N", function(d, ctx)
+        if ("N" %in% ctx$nd && (!is.finite(d$N) || d$N <= 0))
+            "N must be a finite number above 0"),
+    ## where sdY is read: a quantitative trait on the beta route, and not for
+    ## SuSiE. After 6.0.3's rules, which took any sdY
+    .rule("sdY_valid", about = "sdY", function(d, ctx)
+        if ("sdY" %in% ctx$nd && !.p_route(ctx) && d$type == "quant" &&
+            !("LD" %in% ctx$req) &&
+            (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
+            "sdY must be a single finite number above 0")
 )
 names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
 

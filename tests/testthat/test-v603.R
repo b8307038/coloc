@@ -620,6 +620,22 @@ abf_summary <- function(d1, d2) {
     res$summary
 }
 
+## the error a call stops with, NA if none, or "SuSiE ran first" if SuSiE
+## said anything before it, as it does when it starts fine-mapping
+error_before_susie <- function(expr) {
+    said <- FALSE
+    err <- withCallingHandlers(
+        tryCatch({
+            expr
+            NA_character_
+        }, error = conditionMessage),
+        message = function(m) {
+            said <<- TRUE
+            invokeRestart("muffleMessage")
+        })
+    if (said) "SuSiE ran first" else err
+}
+
 test_that("beta, varbeta and p-values must be numeric where they are read, where 6.0.3 failed with R's errors", {
     chr_beta <- D1
     chr_beta$beta <- as.character(chr_beta$beta)
@@ -728,16 +744,68 @@ test_that("LD must be a matrix, and for SuSiE a numeric one, where 6.0.3 failed 
     expect_error(suppressMessages(get_match_6_0_3(runsusie(chr_ld3))))
     for (d in list(df_ld3, chr_ld3)) {
         expect_error(runsusie(d), "^dataset 1: LD must be a numeric matrix$")
-        said <- character(0)
-        err <- withCallingHandlers(
-            tryCatch(coloc(D4, d, method = "susie"), error = conditionMessage),
-            message = function(m) {
-                said <<- c(said, conditionMessage(m))
-                invokeRestart("muffleMessage")
-            })
-        expect_identical(err, "trait 2: LD must be a numeric matrix")
-        expect_length(said, 0)
+        expect_identical(error_before_susie(coloc(D4, d, method = "susie")),
+                         "trait 2: LD must be a numeric matrix")
     }
+})
+
+test_that("N must be a finite number above 0 wherever it is given, where 6.0.3 took any", {
+    ## beside beta and sdY nothing reads it, and 6.0.3 gave its answer
+    for (n in c(0, -5, Inf)) {
+        d <- D1
+        d$N <- n
+        expect_null(get_match_6_0_3(check_dataset(d, 2)))
+        expect_identical(at_each_door(d, susie = TRUE),
+                         everywhere("N must be a finite number above 0", susie = TRUE))
+    }
+    ## without sdY, which is estimated from N, 6.0.3 went on all the same
+    no_sdY <- D1
+    no_sdY$sdY <- NULL
+    no_sdY$N <- 0
+    expect_no_error(suppressWarnings(get_match_6_0_3(coloc.abf(D1, no_sdY))))
+    expect_identical(at_each_door(no_sdY), everywhere("N must be a finite number above 0"))
+    ## given as p-values, 0 keeps 6.0.3's message, and Inf, which 6.0.3 took,
+    ## is refused
+    p_zero <- to_pvalues(D1)
+    p_zero$N <- 0
+    expect_identical(outcome(get_match_6_0_3(check_dataset(p_zero, 2)))$error,
+                     "dataset 2: sample size N <=0 or not set")
+    expect_identical(at_each_door(p_zero), everywhere("sample size N <=0 or not set"))
+    p_inf <- to_pvalues(D1)
+    p_inf$N <- Inf
+    expect_null(get_match_6_0_3(check_dataset(p_inf, 2)))
+    expect_identical(at_each_door(p_inf), everywhere("N must be a finite number above 0"))
+    ## for SuSiE, refused before either trait is fine-mapped; 6.0.3 left it to
+    ## susieR, after the other trait was
+    zero4 <- D4
+    zero4$N <- 0
+    expect_error(suppressMessages(get_match_6_0_3(runsusie(zero4))))
+    expect_identical(error_before_susie(coloc(D3, zero4, method = "susie")),
+                     "trait 2: N must be a finite number above 0")
+})
+
+test_that("sdY must be a single finite number above 0 where it is read, where 6.0.3 took any", {
+    ## a quantitative trait given as beta and varbeta
+    for (sdY in list(0, -1, c(1, 1), Inf, "1")) {
+        d <- D1
+        d$sdY <- sdY
+        expect_null(get_match_6_0_3(check_dataset(d, 2)))
+        expect_identical(at_each_door(d), everywhere("sdY must be a single finite number above 0"))
+    }
+    ## where nothing reads it, it passes with 6.0.3's answer: on a case-control
+    ## trait, and with p-values
+    cc <- as_cc(D1)
+    cc$sdY <- 0
+    p <- to_pvalues(D1)
+    p$sdY <- 0
+    for (d in list(cc, p)) {
+        expect_identical(at_each_door(d), everywhere(NA))
+        expect_equal(abf_summary(D1, d), get_match_6_0_3(coloc.abf(D1, d))$summary)
+    }
+    ## and for SuSiE, which never reads it
+    susie3 <- D3
+    susie3$sdY <- 0
+    expect_null(check_dataset(susie3, 1, req = .dataset_uses$susie))
 })
 
 ## ---- the dataset functions, pinned as numbers ------------------------------

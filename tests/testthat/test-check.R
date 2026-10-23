@@ -308,7 +308,10 @@ mistakes <- list(
     "two types" = function(d) { d$type <- rep(d$type, 2); d },
     "two values of s" = function(d) { d$s <- c(0.3, 0.3); d },
     "a vector LD" = function(d)
-        if (!is.null(d$LD)) { d$LD <- as.vector(d$LD); d })
+        if (!is.null(d$LD)) { d$LD <- as.vector(d$LD); d },
+    "an N of 0" = function(d) { d$N <- 0; d },
+    "an infinite N" = function(d) { d$N <- Inf; d },
+    "an sdY of 0" = function(d) { d$sdY <- 0; d })
 
 for (what in names(mistakes)) {
     test_that(paste0("a dataset 6.0.3 refused keeps its message with ", what, " added"), {
