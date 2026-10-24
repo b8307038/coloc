@@ -149,11 +149,12 @@ check.dataset=function(...) {
 }
 
 ## LD as a correlation matrix: values in [-1, 1], 1 on the diagonal, and equal
-## to its transpose, each to within tol. LDs worked out by different software,
-## or in 32-bit arithmetic, differ from exact by about 1e-7; 1e-6 is ten times
-## that, while a covariance matrix or a value of 1.5 is far outside it. The
-## transpose is compared in blocks of 500 columns, so a large LD isn't copied
-## whole.
+## to its transpose, each to within tol. Any LD worked out in 64-bit arithmetic
+## passes with room to spare, and so does one stored as 32-bit floats. Only one
+## worked out in 32-bit arithmetic by rescaling each snp to sd 1 first can miss
+## by more, about 2e-5 at 1,000 people, and is refused. A covariance matrix or a
+## value of 1.5 is far outside it. The transpose is compared in blocks of 500
+## columns, so a large LD isn't copied whole.
 .is_correlation <- function(LD, tol = 1e-6) {
     r <- range(LD)
     if (r[1] < -1 - tol || r[2] > 1 + tol)
