@@ -139,3 +139,12 @@ test_that("print() summarises the dataset", {
     ref <- small; ref$LD_ref <- diag(3)
     expect_false(any(grepl("LD:", capture.output(print(as_coloc_dataset(ref))), fixed = TRUE)))
 })
+
+test_that("a coloc_dataset checked again has no p-values worked out", {
+    ## so one with no snps gets no warning from min(), which isn't run
+    empty <- small
+    for (v in c("snp", "beta", "varbeta"))
+        empty[[v]] <- empty[[v]][0]
+    made <- suppressWarnings(do.call(coloc_dataset, empty))
+    expect_no_warning(check_dataset(made))
+})

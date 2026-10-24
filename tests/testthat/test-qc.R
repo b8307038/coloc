@@ -43,6 +43,31 @@ test_that("standard errors given as varbeta show in the minimum p-value and sdY 
         expect_match(detail_of(qc)[["sdY_plausible"]], "does varbeta hold variances?", fixed = TRUE)
     }
     expect_null(check_dataset(made))
+    ## where they pass, the rows say what they found
+    qc <- qc_dataset(D1)
+    expect_identical(detail_of(qc)[c("min_p", "sdY_plausible")],
+                     c(min_p = "minimum p value is < 2.22e-16", sdY_plausible = "sdY 1.1, estimated 1.29"))
+})
+
+test_that("an sdY that isn't a single number leaves its plausibility not checked", {
+    for (sdY in list(c(1.1, 1.1), numeric(0), rep(1.1, 500), "1.1")) {
+        d <- D1
+        d$sdY <- sdY
+        got <- outcome(qc_dataset(d))
+        expect_identical(got$error, NA_character_)
+        expect_length(got$warned, 0)
+        expect_identical(status_of(got$value)[c("sdY_valid", "sdY_plausible")],
+                         c(sdY_valid = "FAIL", sdY_plausible = "not checked"))
+        expect_identical(detail_of(got$value)[["sdY_plausible"]], "sdY isn't a single number")
+    }
+})
+
+test_that("a check that gives anything but one sentence is not checked", {
+    for (said in list(c("one", "two"), character(0), NA_character_, 1)) {
+        rule <- .rule("odd", level = "report", function(d, ctx) said)
+        expect_identical(.report_row(rule, list(), list(nd = character(0))),
+                         c("not checked", "could not be checked: no single message"))
+    }
 })
 
 test_that("z-scores whose signs disagree with LD are caught, and a dataset with no signal isn't judged", {
@@ -62,15 +87,36 @@ test_that("z-scores whose signs disagree with LD are caught, and a dataset with 
     expect_identical(status_of(qc_dataset(weak, z_thr = 0))[["z_ld_signs"]], "ok")
 })
 
-test_that("a z that differs from beta / sqrt(varbeta) is caught", {
+test_that("a z that differs from beta / sqrt(varbeta) is caught, but not rounding", {
     made <- as_coloc_dataset(D3)
     made$z <- made$beta / sqrt(made$varbeta)
     expect_identical(status_of(qc_dataset(made))[["z_matches"]], "ok")
-    made$z[7] <- made$z[7] + 0.5
+    ## beta and varbeta rounded to 3 significant figures, as summary
+    ## statistics often are, against 2
+    rounded <- made
+    rounded$beta <- signif(made$beta, 3)
+    rounded$varbeta <- signif(made$varbeta, 3)
+    expect_identical(status_of(qc_dataset(rounded))[["z_matches"]], "ok")
+    rounded$beta <- signif(made$beta, 2)
+    rounded$varbeta <- signif(made$varbeta, 2)
+    expect_identical(status_of(qc_dataset(rounded))[["z_matches"]], "warn")
+    ## a z for the other allele at one snp
+    made$z[7] <- -made$z[7]
     qc <- qc_dataset(made)
     expect_identical(to_look_at(qc), "z_matches")
-    expect_identical(detail_of(qc)[["z_matches"]],
-                     "z differs from beta / sqrt(varbeta) at 1 snp, by up to 0.5")
+    expect_match(detail_of(qc)[["z_matches"]],
+                 "z differs from beta / sqrt(varbeta) by more than 1% at 1 snp, by up to", fixed = TRUE)
+})
+
+test_that("z_valid compares z alone with snp, as lengths compares the rest", {
+    d <- D3
+    d$z <- d$beta / sqrt(d$varbeta)
+    d$beta <- d$beta[-1]
+    qc <- qc_dataset(d, engine = "susie")
+    expect_identical(qc$check[qc$status == "FAIL"], "lengths")
+    d$z <- d$z[-1]
+    expect_identical(detail_of(qc_dataset(d, engine = "susie"))[["z_valid"]],
+                     "snp has 500 values but z has 499")
 })
 
 test_that("qc_dataset() never stops or warns, and gives each of several mistakes a FAIL row", {
@@ -171,7 +217,9 @@ test_that("qc_pair() warns about positions and MAFs that differ for the same snp
 test_that("qc_pair() fails when no snp is shared, and leaves out what either dataset lacks", {
     apart <- D2
     apart$snp <- paste0(apart$snp, "x")
-    expect_identical(status_of(qc_pair(D1, apart))[["snps_shared"]], "FAIL")
+    qc <- qc_pair(D1, apart)
+    expect_identical(status_of(qc), c(snps_shared = "FAIL", positions_agree = "not checked",
+                                      maf_agree = "not checked"))
     part <- D2
     for (v in c("beta", "varbeta", "MAF", "snp", "position"))
         part[[v]] <- part[[v]][1:100]

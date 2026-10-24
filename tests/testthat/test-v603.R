@@ -668,6 +668,9 @@ at_each_door <- function(d, other = D1, susie = FALSE) {
                wakefield_bf = msg(wakefield_bf(d)))
     if (susie)
         doors <- c(doors, runsusie = msg(runsusie(d)))
+    ## the reports take whatever a door refuses, never stopping or warning
+    testthat::expect_no_condition(qc_dataset(d, engine = if (susie) "susie" else "wakefield"))
+    testthat::expect_no_condition(qc_pair(other, d))
     doors
 }
 

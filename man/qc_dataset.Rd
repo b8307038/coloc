@@ -14,7 +14,7 @@ qc_dataset(
   z_thr = 3,
   ld_agree = 0.9,
   min_pairs = 10,
-  z_tol = 0.001
+  z_tol = 0.01
 )
 
 \method{print}{coloc_qc}(x, all = FALSE, ...)
@@ -39,7 +39,8 @@ or "susie" does}
 
 \item{min_pairs}{the fewest pairs \code{z_ld_signs} judges}
 
-\item{z_tol}{how far \code{z} may be from \code{beta / sqrt(varbeta)}}
+\item{z_tol}{how far \code{z} may be from \code{beta / sqrt(varbeta)}, as a share of
+\verb{|z|}}
 
 \item{x}{a \code{coloc_qc}}
 
@@ -79,7 +80,8 @@ The checks only \code{qc_dataset()} makes:
 \code{sdY} and its estimate from \code{varbeta}, \code{MAF} and \code{N} are more than
 \code{sdY_ratio} apart, as when \code{varbeta} holds standard errors.
 \item \code{z_matches}: \code{z} differs from \code{beta / sqrt(varbeta)} by more than
-\code{z_tol}.
+\code{z_tol} times \verb{|z|}, or \code{z_tol} where \verb{|z|} is below 1. Rounding \code{beta}
+and \code{varbeta} to 3 significant figures stays within the default.
 \item \code{z_ld_signs}: among the pairs of snps in absolute LD above \code{ld_thr}
 whose z-scores are both above \code{z_thr} in size, fewer than \code{ld_agree}
 agree in sign with their LD, as when \code{beta} and \code{LD} are for different
