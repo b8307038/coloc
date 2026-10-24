@@ -163,14 +163,24 @@ test_that("the engine decides which checks run, and what is required", {
     expect_identical(status_of(qc_dataset(zero, engine = "susie"))[["sdY_valid"]], "ok")
 })
 
+test_that("a part of a coloc_qc is a plain data frame", {
+    qc <- qc_dataset(D1)
+    expect_s3_class(qc, "coloc_qc")
+    fails <- qc[qc$status == "FAIL", ]
+    expect_identical(class(fails), "data.frame")
+    expect_identical(class(qc[1:3, c("check", "status")]), "data.frame")
+    expect_identical(qc[2, "check"], "no_na")
+})
+
 test_that("something other than a list gets one row", {
     qc <- qc_dataset(1:3)
     expect_s3_class(qc, "coloc_qc")
     expect_identical(c(qc$check, qc$status, qc$detail), c("list", "FAIL", "the dataset is not a list"))
 })
 
-test_that("a coloc_qc prints a count, then only the rows to look at", {
-    old <- options(width = 200)
+test_that("a coloc_qc prints a count, then only the rows to look at, one line each", {
+    ## R's default width, at which a data frame's print splits a long column
+    old <- options(width = 80)
     on.exit(options(old))
     se <- D1
     se$varbeta <- sqrt(D1$varbeta)
@@ -178,6 +188,7 @@ test_that("a coloc_qc prints a count, then only the rows to look at", {
     out <- capture.output(expect_invisible(print(qc)))
     expect_identical(out[1], "25 checks ok, 4 not given; 4 to look at:")
     expect_length(out, 6)       # the count, the column names and four rows
+    expect_identical(out[3], " min_p         warn        minimum p value is: 0.028794")
     expect_length(capture.output(print(qc, all = TRUE)), 2 + nrow(qc))
     expect_identical(capture.output(print(qc_dataset(as_coloc_dataset(D1)))),
                      "29 checks ok, 4 not given; nothing to look at")

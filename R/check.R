@@ -578,8 +578,9 @@ names(.report_rules) <- vapply(.report_rules, `[[`, "", "id")
 ##'   `|z|`
 ##' @return a data frame of class `"coloc_qc"`, with columns `check`, `status`
 ##'   and `detail` and one row per rule. Printed, it shows a count and only
-##'   the rows that are "FAIL", "warn" or "not checked"; `print(x, all =
-##'   TRUE)` shows every row.
+##'   the rows that are "FAIL", "warn" or "not checked", one line each;
+##'   `print(x, all = TRUE)` shows every row. A part of it, such as
+##'   `x[x$status == "FAIL", ]`, is a plain data frame.
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
@@ -618,10 +619,25 @@ print.coloc_qc <- function(x, all = FALSE, ...) {
         if (any(look)) paste0(sum(look), " to look at:") else "nothing to look at",
         "\n", sep = "")
     show <- all | look
+    ## one line per row, as print.data.frame() would put a long detail in a
+    ## block of its own under the check and status
     if (any(show))
-        print(data.frame(check = x$check, status = x$status, detail = x$detail)[show, ],
-              row.names = FALSE, right = FALSE)
+        cat(paste0(" ", format(c("check", x$check[show])), " ",
+                   format(c("status", x$status[show])), " ", c("detail", x$detail[show])),
+            sep = "\n")
     invisible(x)
+}
+
+##' @rdname qc_dataset
+##' @param i,j rows and columns, as for a data frame
+##' @export
+`[.coloc_qc` <- function(x, i, j, ...) {
+    ## a part of a report is a plain data frame, as the count print.coloc_qc()
+    ## gives would describe the part as if it were the whole
+    out <- NextMethod()
+    if (is.data.frame(out))
+        class(out) <- "data.frame"
+    out
 }
 
 ## ---- qc_pair(): two datasets against each other ------------------------------

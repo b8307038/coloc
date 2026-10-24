@@ -3,6 +3,7 @@
 \name{qc_dataset}
 \alias{qc_dataset}
 \alias{print.coloc_qc}
+\alias{[.coloc_qc}
 \title{Every check of a dataset, without stopping}
 \usage{
 qc_dataset(
@@ -18,6 +19,8 @@ qc_dataset(
 )
 
 \method{print}{coloc_qc}(x, all = FALSE, ...)
+
+\method{[}{coloc_qc}(x, i, j, ...)
 }
 \arguments{
 \item{d}{a dataset: a list, or a \code{coloc_dataset}}
@@ -47,11 +50,15 @@ or "susie" does}
 \item{all}{if TRUE, every row, not only those to look at}
 
 \item{...}{ignored}
+
+\item{i, j}{rows and columns, as for a data frame}
 }
 \value{
 a data frame of class \code{"coloc_qc"}, with columns \code{check}, \code{status}
 and \code{detail} and one row per rule. Printed, it shows a count and only
-the rows that are "FAIL", "warn" or "not checked"; \code{print(x, all = TRUE)} shows every row.
+the rows that are "FAIL", "warn" or "not checked", one line each;
+\code{print(x, all = TRUE)} shows every row. A part of it, such as
+\code{x[x$status == "FAIL", ]}, is a plain data frame.
 }
 \description{
 \code{qc_dataset()} runs the rules \code{\link[=check_dataset]{check_dataset()}} runs, in the same order,
