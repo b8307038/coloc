@@ -142,11 +142,14 @@ test_that("qc_dataset() never stops or warns, and gives each of several mistakes
     expect_identical(status_of(qc)[["min_p"]], "not checked")
 })
 
-test_that("the checks SuSiE needs run whatever the engine, and the engine decides what is required", {
+test_that("the engine decides which checks run, and what is required", {
+    ## SuSiE's checks on LD and z, only for SuSiE, as check_dataset() runs them
     asymmetric <- as_coloc_dataset(D3)
     asymmetric$LD[1, 2] <- asymmetric$LD[1, 2] + 0.1
-    expect_identical(status_of(qc_dataset(asymmetric))[["LD_correlation"]], "FAIL")
+    expect_identical(status_of(qc_dataset(asymmetric))[["LD_correlation"]], "ok")
     expect_null(check_dataset(asymmetric))
+    expect_identical(status_of(qc_dataset(asymmetric, engine = "susie"))[["LD_correlation"]], "FAIL")
+    expect_error(check_dataset(asymmetric, req = .dataset_uses$susie), "LD must be a correlation matrix")
     no_N <- as_coloc_dataset(D3)
     no_N$N <- NULL
     expect_identical(status_of(qc_dataset(no_N))[["required"]], "ok")

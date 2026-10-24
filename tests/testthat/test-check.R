@@ -303,15 +303,27 @@ for (what in names(cases)) {
 }
 
 ## qc_dataset() runs the same rules without stopping, so its first FAIL row is
-## the message check_dataset() stops with, without a prefix, and a dataset
-## check_dataset() passes has none. Both are called with their defaults, so a
-## case's own arguments aren't used
-for (what in names(cases)) {
-    test_that(paste0("qc_dataset() fails first where check_dataset() stops: ", what), {
-        d <- cases[[what]]$d
-        qc <- qc_dataset(d)
-        expect_identical(qc$detail[qc$status == "FAIL"][1], outcome(check_dataset(d))$error)
-    })
+## the message check_dataset() stops with for the same engine's req, without a
+## prefix, and a dataset check_dataset() passes has none. A case's own
+## arguments aren't used. Besides the cases, three datasets only SuSiE refuses
+only_susie <- list(
+    "a z with a missing value" =
+        local({ d <- D1; d$z <- d$beta / sqrt(d$varbeta); d$z[3] <- NA; d }),
+    "an LD a little short of a correlation matrix" =
+        local({ d <- D1; d$LD <- D1$LD * 0.998; d }),
+    "an LD given as a data frame" =
+        local({ d <- D1; d$LD <- as.data.frame(D1$LD); d }))
+for (engine in c("wakefield", "susie")) {
+    req <- .dataset_uses[[if (engine == "wakefield") "single" else "susie"]]
+    for (what in c(names(cases), names(only_susie))) {
+        d <- if (what %in% names(cases)) cases[[what]]$d else only_susie[[what]]
+        test_that(paste0("qc_dataset(engine = \"", engine, "\") fails first where check_dataset() stops: ",
+                         what), {
+            qc <- qc_dataset(d, engine = engine)
+            expect_identical(qc$detail[qc$status == "FAIL"][1],
+                             outcome(check_dataset(d, req = req))$error)
+        })
+    }
 }
 
 ## ---- a mistake 6.0.3 didn't check doesn't take over its messages -------------

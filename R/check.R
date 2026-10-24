@@ -130,6 +130,10 @@ check.dataset=function(...) {
 ## the p-value route: no beta, or no varbeta
 .p_route <- function(ctx) !("beta" %in% ctx$nd) || !("varbeta" %in% ctx$nd)
 
+## the SuSiE route: a req naming LD, as .dataset_uses$susie does. SuSiE reads
+## LD, N and z, and not sdY
+.susie_route <- function(ctx) "LD" %in% ctx$req
+
 ## The message for per-snp elements v whose lengths differ, NULL if none: each
 ## against snp, or without snp against the first, in .per_snp_items' order, so
 ## the message names the same elements however the list was built
@@ -313,12 +317,11 @@ check.dataset=function(...) {
     .rule("LD_covers", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && length(setdiff(d$snp, colnames(d$LD))))
             "colnames in LD do not contain all SNPs"),
-    ## where LD is required, as for SuSiE, and in a report. After 6.0.3's
-    ## rules, as its check_ld() refused an LD that wasn't a matrix after
-    ## check_dataset(); check_ld() keeps that test itself, as it runs these
-    ## rules with no req
+    ## on the SuSiE route, which reads LD. After 6.0.3's rules, as its
+    ## check_ld() refused an LD that wasn't a matrix after check_dataset();
+    ## check_ld() keeps that test itself, as it runs these rules with no req
     .rule("LD_numeric", about = "LD", function(d, ctx)
-        if ("LD" %in% ctx$nd && ("LD" %in% ctx$req || isTRUE(ctx$report)) &&
+        if ("LD" %in% ctx$nd && .susie_route(ctx) &&
             !(is.matrix(d$LD) && is.numeric(d$LD)))
             "LD must be a numeric matrix"),
     ## wherever N is given. After 6.0.3's rules, which took any N beside beta,
@@ -331,15 +334,14 @@ check.dataset=function(...) {
     ## SuSiE. After 6.0.3's rules, which took any sdY
     .rule("sdY_valid", about = "sdY", function(d, ctx)
         if ("sdY" %in% ctx$nd && !.p_route(ctx) && d$type == "quant" &&
-            !("LD" %in% ctx$req) &&
+            !.susie_route(ctx) &&
             (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
             "sdY must be a single finite number above 0"),
     ## where z is read: SuSiE fine-maps from it in place of beta /
-    ## sqrt(varbeta). And in a report. After 6.0.3's rules, which didn't know
-    ## z, so no_na and lengths leave it here. By now lengths has passed, so
-    ## only z can differ
+    ## sqrt(varbeta). After 6.0.3's rules, which didn't know z, so no_na and
+    ## lengths leave it here
     .rule("z_valid", about = "z", function(d, ctx) {
-        if (!("z" %in% ctx$nd && ("LD" %in% ctx$req || isTRUE(ctx$report))))
+        if (!("z" %in% ctx$nd && .susie_route(ctx)))
             return(NULL)
         if (any(is.na(d$z)))
             return("z contains missing values")
@@ -354,14 +356,13 @@ check.dataset=function(...) {
         if (any(is.infinite(d$z)))
             "Infinite values in z"
     }),
-    ## where LD is required, as SuSiE requires it, and in a report: coloc.abf()
-    ## never reads LD, and the test takes about 2 s at 10,000 snps. Last,
-    ## after LD_numeric, which it needs. Only the dataset's snps, the part
-    ## runsusie() uses, copied out only when LD covers more; with as many,
-    ## LD_covers and LD_dimnames make them the same snps, and their order
-    ## doesn't matter
+    ## on the SuSiE route, which reads LD: coloc.abf() never reads it, and the
+    ## test takes about 2 s at 10,000 snps. Last, after LD_numeric, which it
+    ## needs. Only the dataset's snps, the part runsusie() uses, copied out
+    ## only when LD covers more; with as many, LD_covers and LD_dimnames make
+    ## them the same snps, and their order doesn't matter
     .rule("LD_correlation", about = "LD", function(d, ctx) {
-        if (!("LD" %in% ctx$nd && ("LD" %in% ctx$req || isTRUE(ctx$report))))
+        if (!("LD" %in% ctx$nd && .susie_route(ctx)))
             return(NULL)
         LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
         if (!.is_correlation(LD))
@@ -536,7 +537,8 @@ names(.report_rules) <- vapply(.report_rules, `[[`, "", "id")
 ##'
 ##' Each row is one rule, named by its id, with one of five statuses:
 ##' * "ok": the rule found nothing.
-##' * "FAIL": `check_dataset()` would stop here, and the detail is its message.
+##' * "FAIL": checking the dataset for `engine`, as `coloc()` does, would stop
+##'   here, and the detail is its message.
 ##' * "warn": the minimum p-value, or one of the four checks below.
 ##' * "not given": the dataset hasn't the elements the rule is about.
 ##' * "not checked": the rule couldn't be worked out, usually because of a
@@ -559,7 +561,8 @@ names(.report_rules) <- vapply(.report_rules, `[[`, "", "id")
 ##'   `min_pairs` such pairs it is not checked. [check_alignment()] counts
 ##'   every pair.
 ##'
-##' The checks on `LD` and `z` that SuSiE needs run whatever `engine` is.
+##' The checks on `LD` and `z` that SuSiE needs run with `engine = "susie"`,
+##' as only SuSiE reads them. With "wakefield" they read "ok".
 ##' @param d a dataset: a list, or a `coloc_dataset`
 ##' @param engine the fine-mapper the dataset is for, "wakefield" or "susie",
 ##'   which decides the elements required, as `coloc()`'s `method` "single"
@@ -593,7 +596,7 @@ qc_dataset <- function(d, engine = c("wakefield", "susie"), warn.minp = 1e-6,
     ## "wakefield" is coloc()'s method "single"
     ctx <- list(nd = intersect(names(d), .dataset_items),
                 req = .dataset_uses[[if (engine == "wakefield") "single" else engine]],
-                warn.minp = warn.minp, report = TRUE,
+                warn.minp = warn.minp,
                 classed = inherits(d, "coloc_dataset"), sdY_ratio = sdY_ratio,
                 ld_thr = ld_thr, z_thr = z_thr, ld_agree = ld_agree,
                 min_pairs = min_pairs, z_tol = z_tol)

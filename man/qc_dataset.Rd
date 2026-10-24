@@ -64,7 +64,8 @@ warns.
 Each row is one rule, named by its id, with one of five statuses:
 \itemize{
 \item "ok": the rule found nothing.
-\item "FAIL": \code{check_dataset()} would stop here, and the detail is its message.
+\item "FAIL": checking the dataset for \code{engine}, as \code{coloc()} does, would stop
+here, and the detail is its message.
 \item "warn": the minimum p-value, or one of the four checks below.
 \item "not given": the dataset hasn't the elements the rule is about.
 \item "not checked": the rule couldn't be worked out, usually because of a
@@ -90,7 +91,8 @@ alleles. It reads \code{z} when given, as SuSiE does. With fewer than
 every pair.
 }
 
-The checks on \code{LD} and \code{z} that SuSiE needs run whatever \code{engine} is.
+The checks on \code{LD} and \code{z} that SuSiE needs run with \code{engine = "susie"},
+as only SuSiE reads them. With "wakefield" they read "ok".
 }
 \examples{
 data(coloc_test_data)
