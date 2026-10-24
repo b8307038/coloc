@@ -197,7 +197,8 @@ check.dataset=function(...) {
 ## varbeta, LD and N, and z when given, and not sdY. N is refused wherever it
 ## is given, as no sample size is 0 or below.
 
-## ctx is list(nd, req, warn.minp), nd being the elements of d coloc knows
+## ctx is list(nd, req, warn.minp), nd being the elements of d coloc knows;
+## qc_dataset() adds classed and its thresholds, which .report_rules read
 .dataset_rules <- list(
     .rule("required", function(d, ctx)
         if (length(setdiff(ctx$req, ctx$nd)))

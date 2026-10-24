@@ -105,7 +105,7 @@ test_that("log_bf() returns each trait's log BFs as the adapter handed them over
     bf4 <- fit4$lbf_variable[fit4$sets$cs_index, , drop = FALSE]
     runs <- list(
         single = list(res = coloc(D1, D2),
-                      a1 = .adapt_single(D1, 1), a2 = .adapt_single(D2, 2)),
+                      a1 = .adapt_single(D1), a2 = .adapt_single(D2)),
         susie = list(res = suppressMessages(coloc(D3, D4, method = "susie")),
                      a1 = suppressMessages(.adapt_susie(D3, 1)),
                      a2 = suppressMessages(.adapt_susie(D4, 2))),

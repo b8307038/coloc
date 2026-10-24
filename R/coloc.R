@@ -170,7 +170,7 @@ coloc <- function(x1, x2,
         susie_fit = .adapt_susie(x, trait, susie.args = susie.args),
         bf        = .adapt_bf(x, trait),
         dataset   = if (identical(m, "susie")) .adapt_susie(x, trait, susie.args = susie.args)
-                    else .adapt_single(x, trait))
+                    else .adapt_single(x))
     a1 <- adapt(xs[[1]], kinds[1], method[1], 1L)
     a2 <- adapt(xs[[2]], kinds[2], method[2], 2L)
 

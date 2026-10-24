@@ -47,7 +47,7 @@ test_that(".adapt_single() hands the engine process.dataset()'s log ABFs", {
     for (trait in 1:2) {
         d <- plain_test_data[[trait]]                 # D1, D2
         pd <- get_match_6_0_3(process.dataset(d, suffix = paste0("df", trait)))
-        a <- .adapt_single(d, trait)
+        a <- .adapt_single(d)
         expect_equal(a$bf, matrix(pd[[paste0("lABF.df", trait)]], nrow = 1,
                                   dimnames = list("sig1", pd$snp)))
         expect_equal(a$meta, list(method = "single", idx = 1L, has_null = FALSE))
@@ -58,7 +58,7 @@ test_that(".adapt_single() gives wakefield_bf()'s log Bayes factors for a checke
     ## coloc() checks the dataset before any adapter runs (test-coloc.R)
     d <- as_coloc_dataset(plain_test_data$D1)
     w <- wakefield_bf(d)
-    expect_identical(.adapt_single(d, 1)$bf,
+    expect_identical(.adapt_single(d)$bf,
                      matrix(w$lABF, nrow = 1, dimnames = list("sig1", w$snp)))
 })
 

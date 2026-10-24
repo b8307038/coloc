@@ -317,4 +317,9 @@ coloc 6.0.3 took: a vector `p1` or `p2` (give `weights1` and `weights2`
 instead), log Bayes factors with missing values, and p-values above 1. It
 applies `coloc.abf()`'s cap on the priors in a large region to log Bayes
 factors and SuSiE fits as well, and it uses the priors given where 6.0.3's
-`coloc.susie_bf()` ignored them.
+`coloc.susie_bf()` ignored them. Its checks of a dataset also refuse values
+coloc can't use, before either trait is fine-mapped: an `N` that isn't a
+finite number above 0, or for SuSiE above 1; an `sdY` that isn't a single
+number above 0 where it is read; and for SuSiE, an `LD` that isn't a
+correlation matrix or a `z` with missing or infinite values. The NEWS file
+lists each change.

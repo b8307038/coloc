@@ -19,11 +19,10 @@
 ## Stage 1 answers what KIND of thing this is, and nothing else. Whether the
 ## contents are usable is checked later: a dataset's by .new_coloc_dataset(),
 ## log BFs' by their adapter, the layer that knows what a log BF has to look
-## like, and each can say so in a message that names the actual problem. Asking here instead means an
-## input that is obviously a vector gets rejected as "not any of these".
-## So anything that is neither a fit nor log BFs is taken as a dataset, and
-## the door says what is wrong with it, with the trait's number: a list
-## without snp, NULL, or something that isn't a list at all.
+## like, and each can say so in a message that names the actual problem. So
+## anything that is neither a fit nor log BFs is taken as a dataset, and the
+## door says what is wrong with it, with the trait's number: a list without
+## snp, NULL, or something that isn't a list at all.
 ##
 ## Order is load-bearing. A susie fit is also a list, and lbf_variable is also
 ## a matrix, so a later test would claim an input an earlier one should have
@@ -77,7 +76,7 @@
 ## One row: the single causal variant assumed for the whole trait. No null
 ## column, because coloc.abf() appends none; only finemap.abf() does
 ## (R/claudia.R:329-333).
-.adapt_single <- function(x, trait = 1L, ...) {
+.adapt_single <- function(x) {
     w <- wakefield_bf(x)
     bf <- matrix(w$lABF, nrow = 1L, dimnames = list("sig1", w$snp))
     ## FALSE by construction, not by inspection: wakefield_bf() never appends

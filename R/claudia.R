@@ -184,8 +184,8 @@ process.dataset <- function(d, suffix, ...) {
     if(!beta_route && !("pvalues" %in% nd && "MAF" %in% nd && "N" %in% nd))
         stop("Must give, as a minimum, one of:\n(beta, varbeta, type, sdY)\n(beta, varbeta, type, MAF)\n(pvalues, MAF, N, type)")
     ## wakefield_bf()'s arithmetic, kept here so that process.dataset(), and
-    ## through it coloc.abf(), finemap.abf() and coloc(), keep 6.0.3's answers
-    ## for any dataset, as wakefield_bf() checks its input. It goes when
+    ## through it coloc.abf() and finemap.abf(), keep 6.0.3's answers for any
+    ## dataset, as wakefield_bf(), which coloc() uses, checks its input. It goes when
     ## process.dataset() does. The priors are 6.0.3's, which process.dataset()
     ## never let a caller change; a type other than quant gets cc's, as in 6.0.3
     sd_prior <- c(quant = 0.15, cc = 0.2)[[if (d$type == "quant") "quant" else "cc"]]
