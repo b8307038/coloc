@@ -304,9 +304,9 @@ check.dataset=function(...) {
                 "must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
     ## the rules below need two dimensions. A vector failed in LD_square with
     ## R's error; a data frame has two, and passes where LD isn't required,
-    ## as in 6.0.3
+    ## as in 6.0.3. More than two is LD_array's, below
     .rule("LD_dims", about = "LD", function(d, ctx)
-        if ("LD" %in% ctx$nd && length(dim(d$LD)) != 2L)
+        if ("LD" %in% ctx$nd && length(dim(d$LD)) < 2L)
             "LD must be a matrix"),
     .rule("LD_square", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && nrow(d$LD) != ncol(d$LD))
@@ -317,6 +317,12 @@ check.dataset=function(...) {
     .rule("LD_covers", about = "LD", function(d, ctx)
         if ("LD" %in% ctx$nd && length(setdiff(d$snp, colnames(d$LD))))
             "colnames in LD do not contain all SNPs"),
+    ## an LD of three or more dimensions, wherever given. After 6.0.3's LD
+    ## rules, which read its first two and took it, so a dataset 6.0.3
+    ## refused keeps its message
+    .rule("LD_array", about = "LD", function(d, ctx)
+        if ("LD" %in% ctx$nd && length(dim(d$LD)) > 2L)
+            "LD must be a matrix"),
     ## on the SuSiE route, which reads LD. After 6.0.3's rules, as its
     ## check_ld() refused an LD that wasn't a matrix after check_dataset();
     ## check_ld() keeps that test itself, as it runs these rules with no req
@@ -324,12 +330,19 @@ check.dataset=function(...) {
         if ("LD" %in% ctx$nd && .susie_route(ctx) &&
             !(is.matrix(d$LD) && is.numeric(d$LD)))
             "LD must be a numeric matrix"),
-    ## wherever N is given. After 6.0.3's rules, which took any N beside beta,
-    ## so a dataset 6.0.3 refused keeps its message, and a dataset given as
-    ## p-values "sample size N <=0 or not set"
-    .rule("N_positive", about = "N", function(d, ctx)
-        if ("N" %in% ctx$nd && (!is.finite(d$N) || d$N <= 0))
-            "N must be a finite number above 0"),
+    ## wherever N is given, and above 1 on the SuSiE route, as susieR needs,
+    ## so the dataset is refused before either trait is fine-mapped. After
+    ## 6.0.3's rules, which took any N beside beta, so a dataset 6.0.3 refused
+    ## keeps its message, and a dataset given as p-values "sample size N <=0
+    ## or not set"
+    .rule("N_positive", about = "N", function(d, ctx) {
+        if (!("N" %in% ctx$nd))
+            return(NULL)
+        if (!is.finite(d$N) || d$N <= 0)
+            "N must be a finite number above 0"
+        else if (.susie_route(ctx) && d$N <= 1)
+            "N must be above 1 for SuSiE"
+    }),
     ## where sdY is read: a quantitative trait on the beta route, and not for
     ## SuSiE. After 6.0.3's rules, which took any sdY
     .rule("sdY_valid", about = "sdY", function(d, ctx)

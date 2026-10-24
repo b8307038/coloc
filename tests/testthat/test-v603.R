@@ -796,6 +796,11 @@ test_that("LD must be a matrix, and for SuSiE a numeric one, where 6.0.3 failed 
     expect_null(get_match_6_0_3(check_dataset(three_d, 2)))
     expect_identical(at_each_door(three_d, susie = TRUE),
                      everywhere("LD must be a matrix", susie = TRUE))
+    ## refused after 6.0.3's LD rules, so one 6.0.3 refused keeps its message
+    not_square <- D1
+    not_square$LD <- array(D1$LD[, -1], c(500, 499, 1), dimnames = list(D1$snp, D1$snp[-1], NULL))
+    expect_identical(outcome(get_match_6_0_3(check_dataset(not_square, 2)))$error, "LD not square")
+    expect_identical(outcome(check_dataset(not_square, 2))$error, "dataset 2: LD not square")
     ## a data frame LD has two dimensions: where LD isn't required it passes,
     ## with 6.0.3's answer
     df_ld <- D1
@@ -851,6 +856,18 @@ test_that("N must be a finite number above 0 wherever it is given, where 6.0.3 t
     expect_error(suppressMessages(get_match_6_0_3(runsusie(zero4))))
     expect_identical(error_before_susie(coloc(D3, zero4, method = "susie")),
                      "trait 2: N must be a finite number above 0")
+    ## and above 1, as susieR needs, which 6.0.3 also left to susieR. On the
+    ## Wakefield route an N of 1 gives 6.0.3's answer
+    for (n in c(1, 0.5)) {
+        small4 <- D4
+        small4$N <- n
+        expect_error(suppressMessages(get_match_6_0_3(runsusie(small4))), "n must be greater than 1")
+        expect_identical(error_before_susie(coloc(D3, small4, method = "susie")),
+                         "trait 2: N must be above 1 for SuSiE")
+    }
+    one <- D1
+    one$N <- 1
+    expect_identical(at_each_door(one), everywhere(NA))
 })
 
 test_that("sdY must be a single finite number above 0 where it is read, where 6.0.3 took any", {

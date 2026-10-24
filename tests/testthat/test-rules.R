@@ -39,6 +39,6 @@ test_that("qc_pair()'s rules have unique ids, and their elements are a dataset's
 
 test_that("check_ld() runs the LD rules, in order", {
     expect_identical(names(.rules_about("LD")),
-                     c("LD_dims", "LD_square", "LD_dimnames", "LD_covers", "LD_numeric",
+                     c("LD_dims", "LD_square", "LD_dimnames", "LD_covers", "LD_array", "LD_numeric",
                        "LD_correlation"))
 })

@@ -186,12 +186,12 @@ test_that("a coloc_qc prints a count, then only the rows to look at, one line ea
     se$varbeta <- sqrt(D1$varbeta)
     qc <- qc_dataset(se)
     out <- capture.output(expect_invisible(print(qc)))
-    expect_identical(out[1], "25 checks ok, 4 not given; 4 to look at:")
+    expect_identical(out[1], "26 checks ok, 4 not given; 4 to look at:")
     expect_length(out, 6)       # the count, the column names and four rows
     expect_identical(out[3], " min_p         warn        minimum p value is: 0.028794")
     expect_length(capture.output(print(qc, all = TRUE)), 2 + nrow(qc))
     expect_identical(capture.output(print(qc_dataset(as_coloc_dataset(D1)))),
-                     "29 checks ok, 4 not given; nothing to look at")
+                     "30 checks ok, 4 not given; nothing to look at")
 })
 
 ## ---- qc_pair() -----------------------------------------------------------------

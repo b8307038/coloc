@@ -347,7 +347,13 @@ mistakes <- list(
     "two values of s" = function(d) { d$s <- c(0.3, 0.3); d },
     "a vector LD" = function(d)
         if (!is.null(d$LD)) { d$LD <- as.vector(d$LD); d },
+    "a 3-D LD" = function(d)
+        if (is.matrix(d$LD)) {
+            d$LD <- array(d$LD, c(dim(d$LD), 1), dimnames = c(dimnames(d$LD), list(NULL)))
+            d
+        },
     "an N of 0" = function(d) { d$N <- 0; d },
+    "an N of 1" = function(d) { d$N <- 1; d },
     "an infinite N" = function(d) { d$N <- Inf; d },
     "an sdY of 0" = function(d) { d$sdY <- 0; d },
     "a z with a missing value" = function(d)
