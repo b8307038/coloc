@@ -26,15 +26,16 @@ object whatever happened. This vignette covers:
   map onto `coloc()`
 
 The examples use `coloc_test_data`, four small simulated datasets of 500 SNPs
-each.
+each, made into coloc datasets with `as_coloc_dataset()`. `coloc()` takes a
+plain list too, and converts it, but says so once per session.
 
 ```{r data}
 library(coloc)
 data(coloc_test_data)
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
-D3 <- coloc_test_data$D3
-D4 <- coloc_test_data$D4
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+D2 <- as_coloc_dataset(coloc_test_data$D2)
+D3 <- as_coloc_dataset(coloc_test_data$D3)
+D4 <- as_coloc_dataset(coloc_test_data$D4)
 ```
 
 ## What coloc() reports
@@ -80,8 +81,8 @@ dim(D1$LD)
 
 `check_dataset()` checks a dataset, and returns `NULL` when it finds nothing
 wrong. Its help page, `?check_dataset`, lists every element and which
-combinations are needed. `coloc()` runs the same check on every dataset it is
-given, and most of its messages say which dataset the problem is in.
+combinations are needed. `coloc()` runs the same check on both datasets before
+it fine-maps either, and its messages say which trait the problem is in.
 
 ```{r check}
 check_dataset(D1)
@@ -89,6 +90,9 @@ bad <- D2
 bad$beta[1] <- NA
 try(coloc(D1, bad))
 ```
+
+`qc_dataset()` lists every check at once, without stopping, and adds a few
+for data that looks wrong without being refused.
 
 ### A SuSiE fit
 
@@ -313,4 +317,9 @@ coloc 6.0.3 took: a vector `p1` or `p2` (give `weights1` and `weights2`
 instead), log Bayes factors with missing values, and p-values above 1. It
 applies `coloc.abf()`'s cap on the priors in a large region to log Bayes
 factors and SuSiE fits as well, and it uses the priors given where 6.0.3's
-`coloc.susie_bf()` ignored them.
+`coloc.susie_bf()` ignored them. Its checks of a dataset also refuse values
+coloc can't use, before either trait is fine-mapped: an `N` that isn't a
+finite number above 0, or for SuSiE above 1; an `sdY` that isn't a single
+number above 0 where it is read; and for SuSiE, an `LD` that isn't a
+correlation matrix or a `z` with missing or infinite values. The NEWS file
+lists each change.

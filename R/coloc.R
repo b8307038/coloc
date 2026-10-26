@@ -22,7 +22,10 @@
 ##'   SNPs, and `beta` with `varbeta`: p-values are not enough.
 ##'   [check_dataset()] lists every element and which combinations are
 ##'   needed, and checks a dataset for you. [coloc_test_data] holds four
-##'   examples.
+##'   examples. Make one with [coloc_dataset()], or with
+##'   [as_coloc_dataset()] from a list you already have, which checks it as
+##'   it is made. A plain list works too: `coloc()` converts it, and says so
+##'   once per session.
 ##' * **A SuSiE fit**: the result of [runsusie()] on a coloc dataset, or of
 ##'   `susieR::susie_rss()` passed through [annotate_susie()]. `coloc()` uses
 ##'   the log Bayes factors of the credible sets the fit found, one signal per
@@ -77,8 +80,8 @@
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' D1 <- coloc_test_data$D1
-##' D2 <- coloc_test_data$D2
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
 ##'
 ##' ## two datasets, with at most one causal variant assumed in each trait
 ##' res <- coloc(D1, D2)
@@ -92,8 +95,8 @@
 ##' finemap.bf(bf1)$summary
 ##'
 ##' if (requireNamespace("susieR", quietly = TRUE)) {
-##'     D3 <- coloc_test_data$D3
-##'     D4 <- coloc_test_data$D4
+##'     D3 <- as_coloc_dataset(coloc_test_data$D3)
+##'     D4 <- as_coloc_dataset(coloc_test_data$D4)
 ##'
 ##'     ## fine-map both traits with SuSiE: one row per pair of credible sets
 ##'     res2 <- coloc(D3, D4, method = "susie")
@@ -119,12 +122,29 @@ coloc <- function(x1, x2,
                   prior = coloc_prior(),
                   control = coloc_control(),
                   susie.args = list()) {
-
     ## `method` is a match.arg default VECTOR, so an unsupplied method arrives
-    ## here as c("single", "susie") and is indistinguishable from a deliberate
+    ## as c("single", "susie") and is indistinguishable from a deliberate
     ## per-trait request. Per-trait scope and match.arg-style defaults do not
-    ## compose, so the default is collapsed explicitly.
-    supplied <- !missing(method)
+    ## compose, so .coloc() collapses the default explicitly.
+    res <- .coloc(x1, x2, method = method, supplied = !missing(method), prior = prior,
+                  control = control, susie.args = susie.args, word = "trait",
+                  call = sys.call())
+    ## a plain list that got this far passed its checks and was converted
+    plain <- which(vapply(list(x1, x2), .is_plain_list, NA))
+    if (length(plain))
+        .note_once("plain_list", .plain_list_note("coloc", plain))
+    res
+}
+
+## a list given as a dataset that isn't a coloc_dataset; a SuSiE fit is a list too
+.is_plain_list <- function(x)
+    is.list(x) && !inherits(x, c("coloc_dataset", "susie"))
+
+## coloc()'s body, which coloc.susie() and coloc.susie_bf() run too. A
+## dataset's messages begin with `word` and the trait's number, and show
+## `call`: "trait" and coloc()'s call for coloc(), "dataset" and their own call
+## for the two old functions, which keep 6.0.3's word.
+.coloc <- function(x1, x2, method, supplied, prior, control, susie.args, word, call) {
     if (!supplied) method <- "single"
 
     ## a coloc_prior has been checked already, but a plain list has not: it
@@ -135,15 +155,24 @@ coloc <- function(x1, x2,
     kinds  <- c(.classify_input(x1), .classify_input(x2))
     method <- .resolve_method(method, kinds, supplied = supplied)
 
-    ## each adapter checks its own input, and labels its messages with the
-    ## trait's number
+    ## Each dataset is checked, with the trait's number and what its method
+    ## needs, before either is fine-mapped, and comes back a coloc_dataset. A
+    ## mistake in trait 2 then stops coloc() before SuSiE runs on trait 1, and
+    ## the checks inside wakefield_bf() and runsusie() find nothing more.
+    xs <- list(x1, x2)
+    for (i in 1:2)
+        if (kinds[i] == "dataset")
+            xs[[i]] <- .new_coloc_dataset(xs[[i]], call = call, trait = i,
+                                          use = method[i], word = word)
+
+    ## the adapters check what only they can: a fit's or log BFs' values
     adapt <- function(x, kind, m, trait) switch(kind,
         susie_fit = .adapt_susie(x, trait, susie.args = susie.args),
         bf        = .adapt_bf(x, trait),
         dataset   = if (identical(m, "susie")) .adapt_susie(x, trait, susie.args = susie.args)
-                    else .adapt_single(x, trait))
-    a1 <- adapt(x1, kinds[1], method[1], 1L)
-    a2 <- adapt(x2, kinds[2], method[2], 2L)
+                    else .adapt_single(x))
+    a1 <- adapt(xs[[1]], kinds[1], method[1], 1L)
+    a2 <- adapt(xs[[2]], kinds[2], method[2], 2L)
 
     ## The region-size guard, coloc.abf()'s own, applied once the snp counts
     ## are known. The prior for any one snp times the number of snps must stay
@@ -194,12 +223,16 @@ coloc <- function(x1, x2,
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' pp(res)                   # row = 1, the first pair, by default
 ##'
 ##' if (requireNamespace("susieR", quietly = TRUE)) {
 ##'     ## two credible sets in D3 against one in D4: two pairs
-##'     res2 <- coloc(coloc_test_data$D3, coloc_test_data$D4, method = "susie")
+##'     D3 <- as_coloc_dataset(coloc_test_data$D3)
+##'     D4 <- as_coloc_dataset(coloc_test_data$D4)
+##'     res2 <- coloc(D3, D4, method = "susie")
 ##'     n_signals(res2)
 ##'     pp(res2, row = 2)
 ##' }
@@ -238,7 +271,9 @@ pp <- function(x, row = 1) {
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' if (is_ok(res) && pp(res)["PP.H4.abf"] > 0.8)
 ##'     message("the traits share a causal variant")
 is_ok <- function(x) {
@@ -253,7 +288,9 @@ is_ok <- function(x) {
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' n_signals(res)
 n_signals <- function(x) {
     .need_coloc_result(x)
@@ -275,7 +312,9 @@ n_signals <- function(x) {
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' bf1 <- log_bf(res, 1)
 ##' dim(bf1)                         # one signal, 500 SNPs
 ##' ## fine-map trait 1 from the same numbers coloc() used

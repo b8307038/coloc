@@ -17,21 +17,23 @@
 ## ---- stage 1: what did the caller hand us? --------------------------------
 
 ## Stage 1 answers what KIND of thing this is, and nothing else. Whether the
-## contents are usable, snp ids present, values numeric, is the adapter's job:
-## it is the layer that knows what a log BF has to look like, and it can say so
-## in a message that names the actual problem. Asking here instead means an
-## input that is obviously a vector gets rejected as "not any of these".
+## contents are usable is checked later: a dataset's by .new_coloc_dataset(),
+## log BFs' by their adapter, the layer that knows what a log BF has to look
+## like, and each can say so in a message that names the actual problem. So
+## anything that is neither a fit nor log BFs is taken as a dataset, and the
+## door says what is wrong with it, with the trait's number: a list without
+## snp, NULL, or something that isn't a list at all.
 ##
 ## Order is load-bearing. A susie fit is also a list, and lbf_variable is also
 ## a matrix, so a later test would claim an input an earlier one should have
 ## caught. The package writes this check as "susie" %in% class(x)
 ## (R/susie.R:75); inherits() is the same test.
 .classify_input <- function(x) {
+    if (is.null(x))                    return("dataset")  # is.atomic(NULL) is TRUE before R 4.4
     if (inherits(x, "susie"))          return("susie_fit")
     if (is.matrix(x))                  return("bf")
     if (is.atomic(x))                  return("bf")   ## type checked by .adapt_bf()
-    if (is.list(x) && !is.null(x$snp)) return("dataset")
-    stop("input is not a susie fit, a log-BF vector or matrix, or a coloc dataset")
+    "dataset"
 }
 
 ## ---- stage 2: which method, per trait -------------------------------------
@@ -66,24 +68,19 @@
 
 ## ---- the three adapters ----------------------------------------------------
 
-## coloc.abf()'s first step, lifted out whole: check_dataset() and then
-## process.dataset(), as coloc.abf() runs them (R/claudia.R:418-422).
-## process.dataset() checks almost nothing itself, so without the check one NA
-## in beta reaches the engine and comes back as NA posteriors with a named hit.
-## Validation is the adapter's job because the adapter is what knows what its
-## input has to look like; runsusie() does the same for .adapt_susie().
+## coloc.abf()'s first step: Wakefield's log ABF for each snp, which
+## wakefield_bf() works out as process.dataset() does for coloc.abf(). coloc()
+## has checked the dataset already, so wakefield_bf()'s own check of it finds
+## nothing more.
 ##
 ## One row: the single causal variant assumed for the whole trait. No null
 ## column, because coloc.abf() appends none; only finemap.abf() does
 ## (R/claudia.R:329-333).
-.adapt_single <- function(x, trait = 1L, ...) {
-    check_dataset(x, trait)
-    suffix <- paste0("df", trait)
-    pd <- process.dataset(d = x, suffix = suffix)
-    bf <- matrix(pd[[paste0("lABF.", suffix)]], nrow = 1L,
-                 dimnames = list("sig1", pd$snp))
-    ## FALSE by construction, not by inspection: process.dataset() never
-    ## appends a null pseudo-snp. finemap.abf() does (R/claudia.R:329-333),
+.adapt_single <- function(x) {
+    w <- wakefield_bf(x)
+    bf <- matrix(w$lABF, nrow = 1L, dimnames = list("sig1", w$snp))
+    ## FALSE by construction, not by inspection: wakefield_bf() never appends
+    ## a null pseudo-snp. finemap.abf() does (R/claudia.R:329-333),
     ## coloc.abf() does not, and it is coloc.abf() this reproduces.
     list(bf = bf, meta = list(method = "single", idx = 1L, has_null = FALSE))
 }
@@ -96,10 +93,14 @@
     if (inherits(x, "susie")) {
         fit <- x
     } else {
-        ## runsusie() checks the dataset and labels its messages with suffix
+        ## runsusie() checks the dataset again, which finds nothing after
+        ## coloc()'s check, and labels its messages with suffix
         if ("suffix" %in% names(susie.args))
             stop("susie.args cannot set suffix: coloc() sets it to each trait's number")
-        fit <- do.call(runsusie, c(list(d = x, suffix = trait), susie.args))
+        ## the dataset goes in by its name, x, so an error from runsusie()
+        ## doesn't carry a call holding the whole dataset
+        fit <- do.call("runsusie",
+                       c(list(d = quote(x), suffix = trait), susie.args))
     }
     if (is.null(fit$lbf_variable))
         stop("trait ", trait, ": the susie fit has no lbf_variable")

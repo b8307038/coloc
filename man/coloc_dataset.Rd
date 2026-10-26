@@ -17,6 +17,7 @@ coloc_dataset(
   s = NULL,
   sdY = NULL,
   LD = NULL,
+  z = NULL,
   warn.minp = 1e-06
 )
 
@@ -48,6 +49,9 @@ trait}
 \item{LD}{matrix of LD between snps, with snp ids as row and
 column names}
 
+\item{z}{per-snp z-scores, optional: \code{\link[=runsusie]{runsusie()}} fine-maps from them in
+place of \code{beta / sqrt(varbeta)}}
+
 \item{warn.minp}{warn if no p value is smaller than this}
 
 \item{x}{a list with the elements of a coloc dataset, or a coloc_dataset}
@@ -74,7 +78,11 @@ a quantitative one.
 
 A dataset is checked when it is made. If you change its elements
 afterwards, coloc's functions check it again when they use it, but don't
-do that.
+do that. \code{as_coloc_dataset()} returns a coloc_dataset as it is:
+\code{\link[=check_dataset]{check_dataset()}} checks one again for errors, and
+\code{as_coloc_dataset(unclass(x))} makes it again.
+
+A \code{type} given as a factor, or with a name, comes back as a plain string.
 }
 \examples{
 D <- coloc_dataset(snp = paste0("s", 1:5),

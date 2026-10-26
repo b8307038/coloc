@@ -72,16 +72,21 @@ coloc.susie=function(dataset1, dataset2, back_calculate_lbf=FALSE, susie.args=li
   ## selection and the arithmetic all come from the adapters and the engine
   ## by way of coloc(). What stays is the old return shape.
   dots <- list(...)
+  ## through coloc()'s body, keeping 6.0.3's word, "dataset N: ", and showing
+  ## this function's own call in an error
   .coloc_result_as_6_0_3(
-      coloc(dataset1, dataset2, method = "susie", susie.args = susie.args,
-            prior = .prior_from_dots(dots), control = .control_from_dots(dots)))
+      .coloc(dataset1, dataset2, method = "susie", supplied = TRUE,
+             susie.args = susie.args, prior = .prior_from_dots(dots),
+             control = .control_from_dots(dots), word = "dataset", call = sys.call()))
 }
 
 finemap.susie=function(dataset1, susie.args=list(),  ...) {
   if("susie" %in% class(dataset1))
     s1=dataset1
   else
-    s1=do.call("runsusie", c(list(d=dataset1,suffix=1),susie.args))
+    ## the dataset goes in by its name, so an error from runsusie()
+    ## doesn't carry a call holding the whole dataset
+    s1=do.call("runsusie", c(list(d=quote(dataset1),suffix=1),susie.args))
   cs1=s1$sets
   if(is.null(cs1$cs) || length(cs1$cs)==0 )
     return(data.table(nsnps=NA))
@@ -99,7 +104,9 @@ finemap.susie=function(dataset1, susie.args=list(),  ...) {
 ##'
 ##' @title run coloc using susie to detect separate signals
 ##' @inheritParams coloc.signals
-##' @param bf2 named vector of log BF, names are snp ids and will be matched to column names of susie object's alpha
+##' @param bf2 log Bayes factors: a named vector, names are snp ids and will be
+##'     matched to column names of susie object's alpha, or a matrix with snp ids
+##'     as colnames. Anything else, such as a dataset or a SuSiE fit, is refused
 ##' @param susie.args named list of arguments to be passed to susieR::susie_rss()
 ##' @param ... other arguments passed to \link{coloc.bf_bf}, in particular prior
 ##'   values for causal association with one trait (p1, p2) or both (p12) and
@@ -108,6 +115,10 @@ finemap.susie=function(dataset1, susie.args=list(),  ...) {
 ##' @export
 ##' @author Chris Wallace
 coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=list(), ...) {
+  ## coloc() sorts its inputs by shape, so it would fine-map a dataset or a
+  ## SuSiE fit given here; bf2 has to be log Bayes factors already
+  if (!is.numeric(bf2))
+    stop("bf2 must be log Bayes factors: a named numeric vector or a matrix")
   dots <- list(...)
   prior <- .prior_from_dots(dots)
   ## AL02: 6.0.3 declared p1/p2/p12 here and forwarded none of them, so a
@@ -117,10 +128,13 @@ coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=lis
   if (is.null(dots$p2))  prior$p2  <- p2
   if (is.null(dots$p12)) prior$p12 <- p12
 
+  ## through coloc()'s body, as coloc.susie() goes
   .coloc_result_as_6_0_3(
       .without_method_warning(
-          coloc(dataset1, bf2, method = "susie", susie.args = susie.args,
-                prior = prior, control = .control_from_dots(dots))))
+          .coloc(dataset1, bf2, method = "susie", supplied = TRUE,
+                 susie.args = susie.args, prior = prior,
+                 control = .control_from_dots(dots), word = "dataset",
+                 call = sys.call())))
 }
 
 ##' Finemap one dataset represented by Bayes factors
@@ -136,7 +150,9 @@ coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=lis
 ##' @examples
 ##' data(coloc_test_data)
 ##' ## one signal's log Bayes factors, as kept by coloc()
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' fm <- finemap.bf(log_bf(res, 1))
 ##' fm$summary
 ##' head(fm$results[order(fm$results$SNP.PP.abf, decreasing = TRUE), ])
@@ -301,7 +317,7 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
 runsusie=function(d,suffix=1,
                   maxit=100,repeat_until_convergence=TRUE,
                   s_init=NULL, ...) {
-  check_dataset(d,suffix,req=c("beta","varbeta","LD","snp","N"))
+  check_dataset(d,suffix,req=.dataset_uses$susie)
   check_ld(d,d$LD)
   ##make copies of z and LD so we can subset if needed
   if(!("z" %in% names(d)))

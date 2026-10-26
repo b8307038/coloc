@@ -24,7 +24,8 @@
 ##' dataset has no `sdY`, it is estimated from `varbeta`, `MAF` and
 ##' `N`, with a warning. Again, please give sdY if known.
 ##'
-##' @param d a dataset made with [coloc_dataset()]
+##' @param d a dataset made with [coloc_dataset()], or a list, which it
+##'     converts with [as_coloc_dataset()] and says so once per session
 ##' @param effect_priors the prior standard deviation of a causal snp's
 ##'     effect, named by the type of trait: `quant` in units of the trait's
 ##'     standard deviation, and `cc` on the log odds ratio scale. This option
@@ -43,7 +44,8 @@
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' head(wakefield_bf(coloc_test_data$D1))
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' head(wakefield_bf(D1))
 wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
     if (!is.numeric(effect_priors) ||
         !all(c("quant", "cc") %in% names(effect_priors)) ||
@@ -56,6 +58,7 @@ wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
         check_dataset(d)
     } else {
         d <- as_coloc_dataset(d)
+        .note_once("plain_list", .plain_list_note("wakefield_bf"))
     }
     nd <- names(d)
     ## by the type's label: [[ would take a factor type by its code

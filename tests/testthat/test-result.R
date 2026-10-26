@@ -95,17 +95,17 @@ test_that("is_ok() is TRUE only when the posteriors were computed", {
 
 test_that("log_bf() returns each trait's log BFs as the adapter handed them over", {
     skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
-    D1 <- coloc_test_data$D1
-    D2 <- coloc_test_data$D2
-    D3 <- coloc_test_data$D3
-    D4 <- coloc_test_data$D4
+    D1 <- plain_test_data$D1
+    D2 <- plain_test_data$D2
+    D3 <- plain_test_data$D3
+    D4 <- plain_test_data$D4
     fit3 <- suppressMessages(runsusie(D3))
     fit4 <- suppressMessages(runsusie(D4))
     bf3 <- fit3$lbf_variable[fit3$sets$cs_index, , drop = FALSE]
     bf4 <- fit4$lbf_variable[fit4$sets$cs_index, , drop = FALSE]
     runs <- list(
         single = list(res = coloc(D1, D2),
-                      a1 = .adapt_single(D1, 1), a2 = .adapt_single(D2, 2)),
+                      a1 = .adapt_single(D1), a2 = .adapt_single(D2)),
         susie = list(res = suppressMessages(coloc(D3, D4, method = "susie")),
                      a1 = suppressMessages(.adapt_susie(D3, 1)),
                      a2 = suppressMessages(.adapt_susie(D4, 2))),
@@ -152,7 +152,7 @@ test_that("pp(), is_ok(), n_signals() and log_bf() say to run coloc() first", {
     ## no $status, $meta or $bf, and its $summary is a named vector, so without
     ## the check is_ok() would say FALSE, n_signals() NULL, and pp() and
     ## log_bf() would stop with misleading errors
-    invisible(utils::capture.output(old <- coloc.abf(coloc_test_data$D1, coloc_test_data$D2)))
+    invisible(utils::capture.output(old <- coloc.abf(plain_test_data$D1, plain_test_data$D2)))
     fns <- list(pp = pp, is_ok = is_ok, n_signals = n_signals, log_bf = log_bf)
     for (nm in names(fns)) {
         expect_error(fns[[nm]](old),

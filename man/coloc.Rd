@@ -55,7 +55,10 @@ Fine-mapping with SuSiE also needs \code{LD}, the correlation matrix of the
 SNPs, and \code{beta} with \code{varbeta}: p-values are not enough.
 \code{\link[=check_dataset]{check_dataset()}} lists every element and which combinations are
 needed, and checks a dataset for you. \link{coloc_test_data} holds four
-examples.
+examples. Make one with \code{\link[=coloc_dataset]{coloc_dataset()}}, or with
+\code{\link[=as_coloc_dataset]{as_coloc_dataset()}} from a list you already have, which checks it as
+it is made. A plain list works too: \code{coloc()} converts it, and says so
+once per session.
 \item \strong{A SuSiE fit}: the result of \code{\link[=runsusie]{runsusie()}} on a coloc dataset, or of
 \code{susieR::susie_rss()} passed through \code{\link[=annotate_susie]{annotate_susie()}}. \code{coloc()} uses
 the log Bayes factors of the credible sets the fit found, one signal per
@@ -94,8 +97,8 @@ given as log Bayes factors gives a warning.
 
 \examples{
 data(coloc_test_data)
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+D2 <- as_coloc_dataset(coloc_test_data$D2)
 
 ## two datasets, with at most one causal variant assumed in each trait
 res <- coloc(D1, D2)
@@ -109,8 +112,8 @@ bf1 <- log_bf(res, 1)   # trait 1's log Bayes factors, to fine-map
 finemap.bf(bf1)$summary
 
 if (requireNamespace("susieR", quietly = TRUE)) {
-    D3 <- coloc_test_data$D3
-    D4 <- coloc_test_data$D4
+    D3 <- as_coloc_dataset(coloc_test_data$D3)
+    D4 <- as_coloc_dataset(coloc_test_data$D4)
 
     ## fine-map both traits with SuSiE: one row per pair of credible sets
     res2 <- coloc(D3, D4, method = "susie")

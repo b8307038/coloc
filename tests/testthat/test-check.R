@@ -1,7 +1,6 @@
 library(coloc)
-data(coloc_test_data)
-D1 <- coloc_test_data$D1
-D3 <- coloc_test_data$D3
+D1 <- plain_test_data$D1
+D3 <- plain_test_data$D3
 
 B1=C1=D1
 C1[c("type","s")]=list(type="cc",s=0.5)
@@ -114,34 +113,23 @@ test_that("Infinite values in beta/varbeta triggers specific error", {
 ## that breaks it, checked by today's function and by 6.0.3's copy in
 ## helper-v603.R, which must give the same value, error and warnings. Other
 ## cases are valid datasets, datasets that break two rules (these fix the order
-## the rules run in), and the arguments req and warn.minp. Three things differ
-## from 6.0.3 on purpose. Two are tested in test-v603.R: the range of p-values,
-## above 0 and at most 1 (AL16), and a dataset with no type when type isn't
-## required, as on the SuSiE route (AL17). The third, tested at the end, is the
-## p-value warning, which a coloc_dataset gives when it is made (PR #2).
-
-## what a call gives: its value, its error message (NA when there is none) and
-## its warnings
-outcome <- function(expr) {
-    value <- NULL
-    warned <- character(0)
-    error <- tryCatch(withCallingHandlers({
-        value <- expr
-        NA_character_
-    }, warning = function(w) {
-        warned <<- c(warned, conditionMessage(w))
-        invokeRestart("muffleWarning")
-    }), error = conditionMessage)
-    list(value = value, error = error, warned = warned)
-}
+## the rules run in), and the arguments req and warn.minp. Each case runs with
+## the label 1, as coloc() checks a dataset, and with none, as a dataset is
+## made. Its message is 6.0.3's; today's reads as reprefix() words it: nothing
+## for "dataset : ", and "dataset 1: " on the four messages that named no
+## dataset and on the minimum p-value warning. Two sentences are reworded,
+## for lengths that differ and for a per-snp N, and their cases give today's
+## sentence as now, without its prefix. Three more things differ from 6.0.3 on
+## purpose, each tested in test-v603.R: the range of p-values, above 0 and at
+## most 1; a dataset with no type when type isn't required, as on the SuSiE
+## route; and the p-value warning, which a coloc_dataset gives when it is made
+## and not again (from PR #2).
 
 ## the datasets the cases are made from: D1 as given (beta and varbeta), and
 ## D1 as p-values, MAF and N
-pv1 <- D1
-pv1$pvalues <- 2 * pnorm(-abs(D1$beta / sqrt(D1$varbeta)))
-pv1[c("beta", "varbeta", "sdY")] <- NULL
+pv1 <- to_pvalues(D1)
 ## each case: the dataset, any arguments besides the dataset and its suffix,
-## and the error or warning both versions give
+## the error or warning 6.0.3 gives, and for a reworded message, now
 cases <- list(
     ## valid datasets
     "a valid dataset passes" =
@@ -189,13 +177,16 @@ cases <- list(
              error = "dataset 1: MAF should be a numeric, strictly >0 & <1"),
     "the vectors have the same length" =
         list(d = local({ d <- D1; d$beta <- d$beta[-1]; d }),
-             error = "dataset 1: lengths of inputs don't match: "),
+             error = "dataset 1: lengths of inputs don't match: ",
+             now = "snp has 500 values but beta has 499"),
     "N is a single number" =
         list(d = local({ d <- D1; d$N <- c(1000, 1000); d }),
-             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes."),
+             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes.",
+             now = "N must be a single number; coloc does not take per-snp sample sizes"),
     "N is numeric" =
         list(d = local({ d <- D1; d$N <- as.character(d$N); d }),
-             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes."),
+             error = "N should be a single numeric. coloc does not accomodate per-snp sample sizes.",
+             now = "N must be a single number; coloc does not take per-snp sample sizes"),
     "s is between 0 and 1" =
         list(d = local({ d <- D1; d$type <- "cc"; d$s <- 1.5; d }),
              error = "dataset 1: s must be between 0 and 1"),
@@ -274,38 +265,160 @@ cases <- list(
                          d$LD <- d$LD[, -1]; d }),
              error = "LD not square", warning = "minimum p value is: "))
 
+## today's message for 6.0.3's: through reprefix(), or for a reworded case its
+## own sentence with the prefix
+today <- function(case, then, suffix) {
+    if (is.null(case$now))
+        return(reprefix(then, suffix))
+    paste0(if (suffix == "") "" else paste0("dataset ", suffix, ": "), case$now)
+}
+
 for (what in names(cases)) {
     test_that(paste0("check_dataset(), today's and 6.0.3's: ", what), {
         case <- cases[[what]]
-        args <- c(list(case$d, 1), case$args)
-        now <- outcome(do.call(check_dataset, args))
-        expect_identical(now,
-                         outcome(get_match_6_0_3(do.call(check_dataset, args))))
-        ## and it stops at the rule it is meant to break, or passes, with the
-        ## warning it is meant to give
+        ## the same value, error and warnings as 6.0.3's, with the prefix as
+        ## check_dataset() gives it now, with a label and without
+        for (suffix in list(1, "")) {
+            args <- c(list(case$d, suffix), case$args)
+            now <- outcome(do.call(check_dataset, args))
+            then <- outcome(get_match_6_0_3(do.call(check_dataset, args)))
+            then$error <- today(case, then$error, suffix)
+            then$warned <- reprefix(then$warned, suffix)
+            expect_identical(now, then, label = paste0("suffix \"", suffix, "\""))
+        }
+        ## and 6.0.3 stops at the rule the case is meant to break, or passes,
+        ## with the warning it is meant to give
+        then <- outcome(get_match_6_0_3(do.call(check_dataset, c(list(case$d, 1), case$args))))
         if (is.null(case$error)) {
-            expect_identical(now$error, NA_character_)
+            expect_identical(then$error, NA_character_)
         } else {
-            expect_identical(now$error, case$error)
+            expect_identical(then$error, case$error)
         }
         if (is.null(case$warning)) {
-            expect_length(now$warned, 0)
+            expect_length(then$warned, 0)
         } else {
-            expect_match(now$warned, case$warning, fixed = TRUE)
+            expect_match(then$warned, case$warning, fixed = TRUE)
         }
     })
 }
 
-test_that("check_dataset() doesn't repeat the p-value warning for a coloc_dataset, where 6.0.3 did (PR #2)", {
-    ## a coloc_dataset gave the warning when it was made; a plain list still
-    ## gives it each time, as test-dataset.R checks
+## qc_dataset() runs the same rules without stopping, so its first FAIL row is
+## the message check_dataset() stops with for the same engine's req, without a
+## prefix, and a dataset check_dataset() passes has none. A case's own
+## arguments aren't used. Besides the cases, three datasets only SuSiE refuses
+only_susie <- list(
+    "a z with a missing value" =
+        local({ d <- D1; d$z <- d$beta / sqrt(d$varbeta); d$z[3] <- NA; d }),
+    "an LD a little short of a correlation matrix" =
+        local({ d <- D1; d$LD <- D1$LD * 0.998; d }),
+    "an LD given as a data frame" =
+        local({ d <- D1; d$LD <- as.data.frame(D1$LD); d }))
+for (engine in c("wakefield", "susie")) {
+    req <- .dataset_uses[[if (engine == "wakefield") "single" else "susie"]]
+    for (what in c(names(cases), names(only_susie))) {
+        d <- if (what %in% names(cases)) cases[[what]]$d else only_susie[[what]]
+        test_that(paste0("qc_dataset(engine = \"", engine, "\") fails first where check_dataset() stops: ",
+                         what), {
+            qc <- qc_dataset(d, engine = engine)
+            expect_identical(qc$detail[qc$status == "FAIL"][1],
+                             outcome(check_dataset(d, req = req))$error)
+        })
+    }
+}
+
+## ---- a mistake 6.0.3 didn't check doesn't take over its messages -------------
+## The rules added since 6.0.3 are placed so that a dataset 6.0.3 refused with
+## its own message keeps it: a rule for input 6.0.3 failed on with R's error
+## goes where that error was, and a rule for input 6.0.3 took goes after
+## 6.0.3's rules. Each mistake below is added to each case's dataset that holds
+## the element, and wherever 6.0.3 still stops at the case's own message,
+## check_dataset() must too. Each case is checked as coloc.abf() checks it, and
+## as SuSiE does, with LD required, unless the case sets req itself.
+mistakes <- list(
+    "a character beta" = function(d)
+        if (!is.null(d$beta)) { d$beta <- as.character(d$beta); d },
+    "a character varbeta" = function(d)
+        if (!is.null(d$varbeta)) { d$varbeta <- as.character(d$varbeta); d },
+    "character p-values" = function(d)
+        if (!is.null(d$pvalues)) { d$pvalues <- as.character(d$pvalues); d },
+    "a negative varbeta" = function(d)
+        if (!is.null(d$varbeta)) { d$varbeta[2] <- -abs(d$varbeta[2]); d },
+    "two types" = function(d) { d$type <- rep(d$type, 2); d },
+    "two values of s" = function(d) { d$s <- c(0.3, 0.3); d },
+    "a vector LD" = function(d)
+        if (!is.null(d$LD)) { d$LD <- as.vector(d$LD); d },
+    "a 3-D LD" = function(d)
+        if (is.matrix(d$LD)) {
+            d$LD <- array(d$LD, c(dim(d$LD), 1), dimnames = c(dimnames(d$LD), list(NULL)))
+            d
+        },
+    "an N of 0" = function(d) { d$N <- 0; d },
+    "an N of 1" = function(d) { d$N <- 1; d },
+    "an infinite N" = function(d) { d$N <- Inf; d },
+    "an sdY of 0" = function(d) { d$sdY <- 0; d },
+    "a z with a missing value" = function(d)
+        if (!is.null(d$snp)) { d$z <- replace(rep(1, length(d$snp)), 1, NA); d },
+    "a short z" = function(d)
+        if (!is.null(d$snp)) { d$z <- rep(1, length(d$snp) - 1); d },
+    "a character z" = function(d)
+        if (!is.null(d$snp)) { d$z <- rep("1", length(d$snp)); d },
+    "an infinite z" = function(d)
+        if (!is.null(d$snp)) { d$z <- replace(rep(1, length(d$snp)), 1, Inf); d })
+
+for (what in names(mistakes)) {
+    test_that(paste0("a dataset 6.0.3 refused keeps its message with ", what, " added"), {
+        for (use in c("single", "susie")) for (case in cases) {
+            if (is.null(case$error) || !is.list(case$d))
+                next
+            d <- mistakes[[what]](case$d)
+            if (is.null(d))
+                next
+            args <- c(list(d, 1), case$args)
+            if (is.null(args$req))
+                args$req <- .dataset_uses[[use]]
+            then <- outcome(get_match_6_0_3(do.call(check_dataset, args)))$error
+            if (identical(then, case$error))
+                expect_identical(outcome(do.call(check_dataset, args))$error, today(case, then, 1))
+        }
+    })
+}
+
+## ---- what else check_dataset() and check_ld() must keep -----------------------
+## The rules run in .gate() (R/check.R), but an error or warning shows the call
+## the user made, as 6.0.3's did (call_of() is in helper-datasets.R)
+
+test_that("check_dataset() errors and warns with its own call, as 6.0.3's did", {
+    dup <- D1
+    dup$snp[2] <- dup$snp[1]
     weak <- D1
     weak$beta <- weak$beta / 100
-    made <- suppressWarnings(as_coloc_dataset(weak))
-    now <- outcome(check_dataset(made, 1))
-    then <- outcome(get_match_6_0_3(check_dataset(made, 1)))
-    expect_length(now$warned, 0)
-    expect_match(then$warned, "minimum p value is: ", fixed = TRUE)
-    ## the warning is the only difference
-    expect_identical(now[c("value", "error")], then[c("value", "error")])
+    per_snp_N <- D1
+    per_snp_N$N <- rep(D1$N, length(D1$snp))
+    expect_identical(call_of(check_dataset(dup, 1)), quote(check_dataset(dup, 1)))
+    expect_identical(call_of(check_dataset(dup, 1)),
+                     call_of(get_match_6_0_3(check_dataset(dup, 1))))
+    expect_identical(call_of(check_dataset(weak, 1)),
+                     call_of(get_match_6_0_3(check_dataset(weak, 1))))
+    expect_identical(call_of(check_dataset(1:3, 1)),
+                     call_of(get_match_6_0_3(check_dataset(1:3, 1))))
+    expect_identical(call_of(check_dataset(per_snp_N, 1)),
+                     call_of(get_match_6_0_3(check_dataset(per_snp_N, 1))))
+    ## and through a function that calls it
+    expect_identical(call_of(suppressMessages(coloc.abf(dup, D1))),
+                     quote(check_dataset(d = dataset1, 1)))
+})
+
+test_that("check_ld(), today's against 6.0.3's", {
+    names_differ <- D3$LD
+    rownames(names_differ) <- paste0("r", seq_len(nrow(names_differ)))
+    lds <- list(valid = D3$LD, missing = NULL, data_frame = as.data.frame(D3$LD),
+                not_square = D3$LD[, -1], names_differ = names_differ,
+                snp_missing = D3$LD[-1, -1])
+    for (nm in names(lds)) {
+        LD <- lds[[nm]]
+        expect_identical(outcome(check_ld(D3, LD)),
+                         outcome(get_match_6_0_3(check_ld(D3, LD))), label = nm)
+        expect_identical(call_of(check_ld(D3, LD)),
+                         call_of(get_match_6_0_3(check_ld(D3, LD))), label = nm)
+    }
 })

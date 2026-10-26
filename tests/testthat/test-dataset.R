@@ -1,7 +1,6 @@
 library(coloc)
-data(coloc_test_data)
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
+D1 <- plain_test_data$D1
+D2 <- plain_test_data$D2
 
 ## a small dataset with one strong signal, so no p value warning
 small <- list(snp = paste0("s", 1:5), type = "quant", beta = c(0.1, 0.5, 0.2, 0, 0.05), varbeta = rep(0.01, 5), sdY = 1)
@@ -54,6 +53,40 @@ test_that("the p value warning is given once, when the dataset is made", {
     expect_warning(check_dataset(weak), "minimum p value")
 })
 
+test_that("a mistake when a dataset is made shows the constructor's call, and no trait", {
+    bad <- small
+    bad$beta[2] <- NA
+    expect_identical(call_of(as_coloc_dataset(bad)), quote(as_coloc_dataset(bad)))
+    expect_error(as_coloc_dataset(bad), "^beta contains missing values$")
+    expect_identical(call_of(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
+                                           varbeta = bad$varbeta, sdY = 1)),
+                     quote(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
+                                         varbeta = bad$varbeta, sdY = 1)))
+    ## and so does the minimum p-value warning
+    weak <- small
+    weak$beta <- rep(0.01, 5)
+    expect_identical(call_of(as_coloc_dataset(weak)), quote(as_coloc_dataset(weak)))
+    expect_warning(as_coloc_dataset(weak), "^minimum p value is: ")
+})
+
+test_that("coloc_dataset() refuses a negative varbeta with its own call", {
+    expect_identical(call_of(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
+                                           varbeta = -D1$varbeta, sdY = 1)),
+                     quote(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
+                                         varbeta = -D1$varbeta, sdY = 1)))
+    expect_error(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
+                               varbeta = -D1$varbeta, sdY = 1),
+                 "^varbeta must be positive$")
+})
+
+test_that("as_coloc_dataset() returns a coloc_dataset as it is, even one changed since it was made", {
+    broken <- as_coloc_dataset(small)
+    broken$beta[2] <- NA                # still a coloc_dataset: $<- keeps the class
+    expect_identical(as_coloc_dataset(broken), broken)
+    ## check_dataset() is the way to check it again, as the help says
+    expect_error(check_dataset(broken), "^beta contains missing values$")
+})
+
 test_that("a dataset changed after it was made is checked again when used", {
     D <- as_coloc_dataset(D1)
     D$beta[1] <- NA
@@ -73,10 +106,27 @@ test_that("a coloc_dataset still behaves as a list for generics with no method f
     expect_s3_class(data.table::as.data.table(D), "data.table") # plot_extended_data() does this
 })
 
+test_that("coloc_dataset() takes every element check_dataset() knows", {
+    expect_setequal(setdiff(names(formals(coloc_dataset)), "warn.minp"), .dataset_items)
+})
+
+test_that("a dataset may carry z, which print() lists among the per-snp elements", {
+    z <- small$beta / sqrt(small$varbeta)
+    D <- do.call(coloc_dataset, c(small, list(z = z)))
+    expect_identical(D$z, z)
+    expect_output(print(D), "per-snp: beta, varbeta, z", fixed = TRUE)
+    ## as_coloc_dataset() counts z as an element, not among the other ones
+    out <- capture.output(print(as_coloc_dataset(c(small, list(z = z, chr = 1)))))
+    expect_true("  other elements: chr " %in% out)
+})
+
 test_that("print() summarises the dataset", {
     D <- do.call(coloc_dataset, small)
     expect_output(print(D), "quantitative trait, 5 snps")
     expect_output(print(D), "sdY = 1")
+    ## the per-snp elements, without snp
+    expect_output(print(do.call(coloc_dataset, c(small, list(position = 1:5)))),
+                  "per-snp: beta, varbeta, position", fixed = TRUE)
     cc <- small; cc$type <- "cc"; cc$s <- 0.4; cc$sdY <- NULL
     expect_output(print(as_coloc_dataset(cc)), "coloc dataset: case-control trait, 5 snps", fixed = TRUE)
     ## the type is read by its label, as check_dataset() reads it: a factor, or
@@ -88,4 +138,13 @@ test_that("print() summarises the dataset", {
     ## LD only for an element of that name, not one like LD_ref
     ref <- small; ref$LD_ref <- diag(3)
     expect_false(any(grepl("LD:", capture.output(print(as_coloc_dataset(ref))), fixed = TRUE)))
+})
+
+test_that("a coloc_dataset checked again has no p-values worked out", {
+    ## so one with no snps gets no warning from min(), which isn't run
+    empty <- small
+    for (v in c("snp", "beta", "varbeta"))
+        empty[[v]] <- empty[[v]][0]
+    made <- suppressWarnings(do.call(coloc_dataset, empty))
+    expect_no_warning(check_dataset(made))
 })

@@ -14,10 +14,10 @@
 ## - one deliberate change: coloc.susie_bf() now uses the priors it is given
 ##   (AL02 in test-v603.R).
 
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
-D3 <- coloc_test_data$D3
-D4 <- coloc_test_data$D4
+D1 <- plain_test_data$D1
+D2 <- plain_test_data$D2
+D3 <- plain_test_data$D3
+D4 <- plain_test_data$D4
 bf <- matrix(c(0, 0, 8, 2, 0, 0, 0, 0), nrow = 1, dimnames = list("sig1", paste0("s", 1:8)))
 
 test_that("coloc.abf() keeps the summary sensitivity() requires", {
