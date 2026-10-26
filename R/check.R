@@ -196,7 +196,8 @@ check.dataset=function(...) {
 ## or MAF and N to estimate it. Its p-value route reads pvalues, MAF, N, and s
 ## for a case-control trait. SuSiE, the use whose req names LD, reads beta,
 ## varbeta, LD and N, and z when given, and not sdY. N is refused wherever it
-## is given, as no sample size is 0 or below.
+## is given, as no sample size is 0 or below, and so is an LD with more than
+## two dimensions, which no LD matrix has.
 
 ## ctx is list(nd, req, warn.minp), nd being the elements of d coloc knows;
 ## qc_dataset() adds classed and its thresholds, which .report_rules read
