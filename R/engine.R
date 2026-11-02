@@ -46,8 +46,11 @@
         msgs <<- c(msgs, m)
     }
 
-    p1 <- prior$p1; p2 <- prior$p2; p12 <- prior$p12
-    w1 <- prior$weights1; w2 <- prior$weights2
+    p1 <- prior$p1
+    p2 <- prior$p2
+    p12 <- prior$p12
+    w1 <- prior$weights1
+    w2 <- prior$weights2
 
     ## ---- 0. invariants the adapters are supposed to have established ------
     stopifnot(is.matrix(bf1), is.matrix(bf2),
@@ -84,7 +87,8 @@
     pp2 <- logbf_to_pp(bf2, p2, last_is_null = "null" %in% colnames(bf2))
     prop <- function(pp) rowSums(pp[, isnps, drop = FALSE]) /
                          rowSums(pp[, setdiff(colnames(pp), "null"), drop = FALSE])
-    prop1 <- prop(pp1); prop2 <- prop(pp2)
+    prop1 <- prop(pp1)
+    prop2 <- prop(pp2)
 
     ## ---- 5. the pair grid, and trimming -----------------------------------
     todo <- as.data.table(expand.grid(i = seq_len(nrow(bf1)), j = seq_len(nrow(bf2))))
@@ -174,8 +178,12 @@
         keep <- match(isnps, colnames(bf))
         list(bf = bf[, keep, drop = FALSE], w = w[keep])
     }
-    r1 <- restrict(bf1, w1); bf1 <- r1$bf; w1 <- r1$w
-    r2 <- restrict(bf2, w2); bf2 <- r2$bf; w2 <- r2$w
+    r1 <- restrict(bf1, w1)
+    bf1 <- r1$bf
+    w1 <- r1$w
+    r2 <- restrict(bf2, w2)
+    bf2 <- r2$bf
+    w2 <- r2$w
 
     ## Which combining function. combine_abf_weighted() reassociates the H3
     ## term, so it is NOT bit-identical to combine.abf() on the unweighted
@@ -196,7 +204,8 @@
     }
     pps  <- matrix(NA_real_, nrow(todo), 5L)
     snpp <- vector("list", nrow(todo))
-    h1 <- h2 <- character(nrow(todo))
+    h1 <- character(nrow(todo))
+    h2 <- character(nrow(todo))
     degenerate <- FALSE
 
     for (k in seq_len(nrow(todo))) {
