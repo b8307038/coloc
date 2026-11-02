@@ -41,9 +41,6 @@ at_each_door <- function(d, error, other = D1, susie = FALSE) {
             expect_no_error(quietly(!!door$call))
         }
     }
-    ## the reports take whatever a door refuses, never stopping or warning
-    testthat::expect_no_condition(qc_dataset(d, engine = if (susie) "susie" else "wakefield"))
-    testthat::expect_no_condition(qc_pair(other, d))
 }
 
 ## coloc.abf()'s summary, without its printing

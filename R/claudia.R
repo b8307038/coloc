@@ -152,7 +152,7 @@ sdY.est <- function(vbeta, maf, n) {
 }
 
 ## sdY.est()'s fit, the estimate of var(Y), without its warning or its stop,
-## so it can be 0 or below. qc_dataset() compares a given sdY with it
+## so it can be 0 or below. check_dataset() warns when a given sdY is far from it
 .sdY_fit <- function(vbeta, maf, n) {
     oneover <- 1/vbeta
     nvx <- 2 * n * maf * (1-maf)

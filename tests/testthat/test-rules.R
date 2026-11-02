@@ -13,28 +13,10 @@ test_that("each rule's elements are elements of a dataset", {
         expect_true(all(rule$about %in% .dataset_items), label = rule$id)
 })
 
-test_that("the minimum p-value step is the one warning", {
+test_that("the minimum p-value and sdY steps are the two warnings", {
     levels <- vapply(.dataset_rules, `[[`, "", "level")
     expect_true(all(levels %in% c("error", "warning")))
-    expect_identical(names(levels)[levels == "warning"], "min_p")
-})
-
-test_that("the rules only qc_dataset() runs have ids of their own, and their elements are a dataset's", {
-    ids <- vapply(.report_rules, `[[`, "", "id", USE.NAMES = FALSE)
-    expect_identical(names(.report_rules), ids)
-    expect_false(anyDuplicated(c(names(.dataset_rules), ids)) > 0)
-    for (rule in .report_rules) {
-        expect_identical(rule$level, "report", label = rule$id)
-        expect_true(all(rule$about %in% .dataset_items), label = rule$id)
-    }
-})
-
-test_that("qc_pair()'s rules have unique ids, and their elements are a dataset's", {
-    ids <- vapply(.pair_rules, `[[`, "", "id", USE.NAMES = FALSE)
-    expect_identical(names(.pair_rules), ids)
-    expect_false(anyDuplicated(ids) > 0)
-    for (rule in .pair_rules)
-        expect_true(all(rule$about %in% .dataset_items), label = rule$id)
+    expect_identical(names(levels)[levels == "warning"], c("min_p", "sdY_plausible"))
 })
 
 test_that("check_ld() runs the LD rules, in order", {
