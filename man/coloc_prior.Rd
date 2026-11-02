@@ -30,14 +30,18 @@ both traits}
 an object of class coloc_prior
 }
 \description{
-One object, validated once, in place of the same three probabilities being
-re-declared in every entry point.
+\code{coloc_prior()} sets the prior probabilities for \code{\link[=coloc]{coloc()}}, which say how
+likely any one SNP is, before the data are seen, to be causal for one
+trait or for both. Give the result to \code{\link[=coloc]{coloc()}} as \code{prior}; without one,
+\code{\link[=coloc]{coloc()}} uses \code{coloc_prior()}'s defaults. To repeat an analysis made
+with \code{\link[=coloc.abf]{coloc.abf()}}, whose \code{p12} defaults to \code{1e-5}, give \code{p12 = 1e-5}.
 }
 \details{
-\code{p1}, \code{p2} and \code{p12} are each the prior probability for any one SNP: that
-it is causal for trait 1 only, trait 2 only, or both. Each is a single
-number. To let the prior vary across SNPs, give weights, which scale it
-SNP by SNP.
+\code{p1} is the prior probability that any one SNP is causal for trait 1
+only, \code{p2} for trait 2 only, and \code{p12} for both. Each is a single number,
+and \code{p12} must be at least \code{p1 * p2} and at most the smaller of \code{p1} and
+\code{p2}. To let the prior vary across SNPs, give weights, which scale it SNP
+by SNP.
 }
 \examples{
 coloc_prior()                    # the defaults

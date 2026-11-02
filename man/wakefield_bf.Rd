@@ -24,8 +24,11 @@ log ABF)
 }
 \description{
 \code{wakefield_bf()} gives Wakefield's approximate Bayes factor (ABF) for each
-snp in a dataset, on the log scale: the evidence for an effect at that snp
-against no effect.
+snp in a dataset, on the log scale. Each is the evidence for an effect at
+that snp against no effect. \code{\link[=coloc]{coloc()}} computes these for each dataset it
+analyses with \code{method = "single"}, and compares the two traits snp by
+snp. Call \code{wakefield_bf()} to see which snps carry one trait's evidence,
+or to use its log Bayes factors elsewhere, such as in \code{\link[=finemap.bf]{finemap.bf()}}.
 }
 \details{
 Wakefield showed we could get ABF as

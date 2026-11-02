@@ -155,7 +155,7 @@ test_that(".adapt_bf() takes a matrix with no rows, which coloc() reports as no 
     expect_equal(dim(.adapt_bf(none)$bf), c(0L, 3L))
     bf <- matrix(c(0, 8, 0), nrow = 1, dimnames = list("sig1", snps))
     expect_warning(res <- coloc(none, bf),
-                   "at least one trait has no signals, nothing to colocalise",
+                   "trait 1 has no signal, so there is nothing to colocalise; with SuSiE, this means no credible set",
                    fixed = TRUE)
     expect_equal(res$status, "no_signal")
 })

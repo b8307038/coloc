@@ -35,21 +35,21 @@ test_that("p12 may sit exactly on its bounds", {
     expect_s3_class(coloc_prior(p1 = 0.2, p2 = 0.2, p12 = 0.04), "coloc_prior")
     expect_s3_class(coloc_prior(p1 = 1e-4, p2 = 1e-4, p12 = 1e-4), "coloc_prior")
     expect_error(coloc_prior(p1 = 0.2, p2 = 0.2, p12 = 0.039),
-                 "p12 must lie in [p1*p2, min(p1, p2)]",
+                 "p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is 0.039",
                  fixed = TRUE)
     expect_error(coloc_prior(p12 = 2e-4),
-                 "p12 must lie in [p1*p2, min(p1, p2)]",
+                 "p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is 2e-04",
                  fixed = TRUE)
 })
 
 test_that("prior weights must be positive and not NA", {
     expect_equal(coloc_prior(weights1 = c(1, 2, 3))$weights1, c(1, 2, 3))
     expect_error(coloc_prior(weights1 = c(1, -1)),
-                 "prior weights must be non-NA and positive", fixed = TRUE)
+                 "weights1 must be above 0 with no missing values; weight 2 is -1", fixed = TRUE)
     expect_error(coloc_prior(weights1 = c(1, 0)),
-                 "prior weights must be non-NA and positive", fixed = TRUE)
+                 "weights1 must be above 0 with no missing values; weight 2 is 0", fixed = TRUE)
     expect_error(coloc_prior(weights2 = c(1, NA)),
-                 "prior weights must be non-NA and positive", fixed = TRUE)
+                 "weights2 must be above 0 with no missing values; weight 2 is NA", fixed = TRUE)
 })
 
 test_that("weights for both traits warn, as coloc.abf() did", {

@@ -115,7 +115,8 @@ coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=lis
   ## coloc() sorts its inputs by shape, so it would fine-map a dataset or a
   ## SuSiE fit given here; bf2 has to be log Bayes factors already
   if (!is.numeric(bf2))
-    stop("bf2 must be log Bayes factors: a named numeric vector or a matrix")
+    stop("bf2 is ", .what_is(bf2), "; it must hold log Bayes factors, as a numeric vector ",
+         "named by snp or a numeric matrix with snp ids as column names")
   dots <- list(...)
   prior <- .prior_from_dots(dots)
   ## the caller's p1, p2 and p12, from the signature
@@ -201,21 +202,33 @@ finemap.bf=function(bf1, p1=1e-4) {
        priors=c(p1=p1))
 }
 
-##' Colocalise two datasets represented by Bayes factors
+##' Colocalise two traits given as log Bayes factors
 ##'
-##' This is the workhorse behind many coloc functions
+##' `coloc.bf_bf()` compares two traits given as log Bayes factors, such as
+##' the credible sets of two SuSiE fits, each signal of trait 1 with each
+##' signal of trait 2. It returns the result in the form [coloc.signals()]
+##' does. [coloc()] takes log Bayes factors too, and returns a
+##' [coloc_result].
 ##'
-##' @title Coloc data through Bayes factors
+##' A missing value or `+Inf` in `bf1` or `bf2` leaves its signal's posterior
+##' probabilities undefined, so `coloc.bf_bf()` stops on one, naming the
+##' matrix and a snp. `-Inf`, a snp with no support, is allowed.
+##'
 ##' @inheritParams coloc.signals
-##' @param bf1 named vector of log BF, or matrix of BF with colnames (cols=snps, rows=signals)
-##' @param bf2 named vector of log BF, or matrix of BF with colnames (cols=snps, rows=signals)
-##' @param trim_by_posterior it is important that the signals to be colocalised
-##'   are covered by adequate numbers of snps in both datasets. If TRUE, signals
-##'   for which snps in common do not capture least overlap.min proportion of
-##'   their posteriors support are dropped and colocalisation not attempted.
-##' @param overlap.min see trim_by_posterior
-##' @param prior_weights1 Non-negative weights for the prior probability a SNP is associated with trait 1 
-##' @param prior_weights2 Non-negative weights for the prior probability a SNP is asscoiated with trait 2
+##' @param bf1 trait 1's log Bayes factors, as a vector named by snp, for one
+##'   signal, or as a matrix with one row per signal and snp ids as column
+##'   names
+##' @param bf2 trait 2's log Bayes factors, in the same form
+##' @param p12 prior probability a SNP is associated with both traits,
+##'   default 5e-6. It must be at least `p1 * p2` and at most the smaller of
+##'   `p1` and `p2`
+##' @param trim_by_posterior whether to drop signal pairs failing overlap.min
+##' @param overlap.min minimum proportion of a signal's posterior that must
+##'   fall on snps shared with the other trait before the pair is considered
+##' @param prior_weights1 weights for the prior probability that each snp is
+##'   associated with trait 1, above 0 with no missing values
+##' @param prior_weights2 weights for the prior probability that each snp is
+##'   associated with trait 2, above 0 with no missing values
 ##' @return coloc.signals style result
 ##' @export
 ##' @author Chris Wallace
@@ -238,10 +251,15 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
   ## a missing or +Inf log BF leaves its signal's posteriors undefined; -Inf,
   ## a snp with no support, is fine
   bad <- function(bf) anyNA(bf) || any(bf == Inf)
+  ## the snp of the first such value, for the message
+  first_bad <- function(bf) {
+    j <- which(is.na(bf) | bf == Inf, arr.ind = TRUE)[1, "col"]
+    if(is.null(colnames(bf))) paste("column", j) else colnames(bf)[j]
+  }
   if(bad(bf1))
-    stop("bf1 contains missing or infinite log Bayes factors")
+    stop("bf1 has missing or +Inf log Bayes factors, such as at ", first_bad(bf1))
   if(bad(bf2))
-    stop("bf2 contains missing or infinite log Bayes factors")
+    stop("bf2 has missing or +Inf log Bayes factors, such as at ", first_bad(bf2))
 
   res <- .coloc_engine(bf1, bf2, prior = prior,
                        control = list(overlap.min = overlap.min,

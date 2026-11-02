@@ -213,7 +213,7 @@ columns.
 | `"no_signal"` | a trait had no signal, for example SuSiE found no credible set | no rows |
 | `"no_overlap"` | the two traits share no SNPs | no rows |
 | `"all_trimmed"` | every pair was left out, because too little of a signal's posterior falls on SNPs the other trait has (`overlap.min` in `coloc_control()`) | a row per pair, with `PP.H0.abf` to `PP.H4.abf` `NA` |
-| `"degenerate"` | some pair's posteriors could not be computed; `coloc()` checks its inputs to prevent this, so it should not be seen | that pair's posteriors `NA` |
+| `"degenerate"` | some pair's posteriors could not be computed; `coloc()` checks its inputs to prevent this, so it should be rare | that pair's posteriors `NA` |
 
 Here are the first four: `"ok"` is `res_single` from above, and the other three
 come from small changes to the test data. Each of those three warns as it

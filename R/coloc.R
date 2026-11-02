@@ -14,27 +14,32 @@
 ##' @section Inputs:
 ##' Each of `x1` and `x2` is one of three things.
 ##'
-##' * **A coloc dataset**: a list holding one trait's summary statistics for
-##'   the region. It has vectors with one value per SNP (`snp`, and `beta`
-##'   with `varbeta`, or `pvalues` with `MAF`) and single values that describe
-##'   the study (`type`, which is `"quant"` or `"cc"`; `N`; and `sdY` or `s`).
-##'   Fine-mapping with SuSiE also needs `LD`, the correlation matrix of the
-##'   SNPs, and `beta` with `varbeta`: p-values are not enough.
-##'   [check_dataset()] lists every element and which combinations are
-##'   needed, and checks a dataset for you. [coloc_test_data] holds four
-##'   examples. Make one with [coloc_dataset()], or with
-##'   [as_coloc_dataset()] from a list you already have, which checks it as
-##'   it is made. A plain list works too: `coloc()` converts it, and says so
-##'   once per session.
-##' * **A SuSiE fit**: the result of [runsusie()] on a coloc dataset, or of
-##'   `susieR::susie_rss()` passed through [annotate_susie()]. `coloc()` uses
-##'   the log Bayes factors of the credible sets the fit found, one signal per
-##'   credible set.
-##' * **Log Bayes factors**: a numeric vector with one value per SNP, named by
-##'   SNP id, for a single signal; or a matrix with one row per signal and one
-##'   column per SNP, with SNP ids as its column names. A column named
+##' * A coloc dataset, which holds one trait's summary statistics for the
+##'   region. It is a list with vectors that have one value per SNP (`snp`,
+##'   and `beta` with `varbeta`, or `pvalues` with `MAF`) and single values
+##'   that describe the study (`type`, which is `"quant"` or `"cc"`; `N`; and
+##'   `sdY` or `s`). Fine-mapping with SuSiE also needs `LD`, the correlation
+##'   matrix of the SNPs, and `beta` with `varbeta`, as p-values are not
+##'   enough. [check_dataset()] lists every element and which combinations
+##'   are needed. Make a dataset with [coloc_dataset()], or with
+##'   [as_coloc_dataset()] from a list you already have; both check it as
+##'   they make it. [coloc_test_data] holds four examples. A plain list works
+##'   too, as `coloc()` converts it and says so once per session.
+##' * A SuSiE fit, the result of [runsusie()] on a coloc dataset, or of
+##'   `susieR::susie_rss()` passed through [annotate_susie()], which names its
+##'   SNPs. `coloc()` uses the log Bayes factors of the credible sets the fit
+##'   found, one signal per credible set.
+##' * Log Bayes factors, as a numeric vector with one value per SNP, named by
+##'   SNP id, for a single signal; or as a matrix with one row per signal and
+##'   one column per SNP, with SNP ids as its column names. A column named
 ##'   `"null"`, if there is one, holds the log Bayes factor for no
-##'   association.
+##'   association. They must have no missing or infinite values, and no SNP
+##'   id twice.
+##'
+##' `coloc()` checks each dataset with [check_dataset()], for what its
+##' `method` needs, before it fine-maps either trait. It stops at the first
+##' problem, with a message that begins "dataset 1:" or "dataset 2:", so a
+##' mistake in trait 2 stops `coloc()` before SuSiE runs on trait 1.
 ##'
 ##' The two traits are matched by SNP id, and only the SNPs both have are
 ##' compared.
@@ -242,9 +247,10 @@ pp <- function(x, row = 1) {
 ##' the posteriors for that.
 ##'
 ##' `if (res$summary$PP.H4.abf > 0.9)` fails when the posteriors were not
-##' computed: with no rows (no shared SNPs, or no signal in a trait) the test
-##' is `logical(0)`, and with posteriors that are `NA` (every pair trimmed, or
-##' a pair that could not be computed) it is `NA`. Ask `is_ok()` first.
+##' computed. With no rows, when the traits share no SNPs or a trait has no
+##' signal, the test is `logical(0)`. When every pair was trimmed, or a pair's
+##' posteriors could not be computed, `PP.H0.abf` to `PP.H4.abf` are `NA`, and
+##' so is the test. Ask `is_ok()` first.
 ##'
 ##' @param x a coloc_result
 ##' @return `TRUE` or `FALSE`

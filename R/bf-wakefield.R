@@ -3,8 +3,11 @@
 ##' Wakefield's approximate Bayes factor for each snp
 ##'
 ##' `wakefield_bf()` gives Wakefield's approximate Bayes factor (ABF) for each
-##' snp in a dataset, on the log scale: the evidence for an effect at that snp
-##' against no effect.
+##' snp in a dataset, on the log scale. Each is the evidence for an effect at
+##' that snp against no effect. [coloc()] computes these for each dataset it
+##' analyses with `method = "single"`, and compares the two traits snp by
+##' snp. Call `wakefield_bf()` to see which snps carry one trait's evidence,
+##' or to use its log Bayes factors elsewhere, such as in [finemap.bf()].
 ##'
 ##' Wakefield showed we could get ABF as
 ##'

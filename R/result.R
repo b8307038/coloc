@@ -27,8 +27,9 @@
 ##'     compared, one signal from each trait. Its columns are `nsnps`, the
 ##'     number of SNPs the two traits share; `hit1` and `hit2`, each signal's
 ##'     top SNP; `PP.H0.abf` to `PP.H4.abf`, the posterior probabilities of
-##'     the five hypotheses; and `idx1` and `idx2`, which signal of each trait
-##'     the row compares, as listed in `meta$idx1` and `meta$idx2`.}
+##'     the five hypotheses, all five `NA` when they were not computed (see
+##'     Status); and `idx1` and `idx2`, which signal of each trait the row
+##'     compares, as listed in `meta$idx1` and `meta$idx2`.}
 ##'   \item{`results`}{a data.table with one row per shared SNP: `snp`, and
 ##'     for each row of `summary` the posterior probability that this SNP is
 ##'     the shared causal variant, if H4 is true. The column is
@@ -74,8 +75,9 @@
 ##'     of a signal falls on them. `hit1` and `hit2` are each trait's own top
 ##'     SNP, shared or not.}
 ##'   \item{`"degenerate"`}{the posteriors of some pair could not be
-##'     computed. That pair's posteriors are `NA`. [coloc()] checks its
-##'     inputs to prevent this, so it should not be seen.}
+##'     computed. That pair's posteriors, `PP.H0.abf` to `PP.H4.abf`, are
+##'     `NA`. [coloc()] and [coloc.bf_bf()] refuse missing log Bayes factors,
+##'     which would cause this, so it should be rare.}
 ##' }
 ##'
 ##' Two rules hold for every result: `summary` has no rows only when no pair

@@ -62,7 +62,7 @@ test_that("the susie doors keep their old return shapes", {
                           sets = list(cs = list(), cs_index = integer(0))),
                      class = "susie")
     expect_warning(res <- coloc.susie(fit, fit),
-                   "at least one trait has no signals, nothing to colocalise",
+                   "traits 1 and 2 have no signal, so there is nothing to colocalise; with SuSiE, this means no credible set",
                    fixed = TRUE)
     expect_true(is.na(res$nsnps))
 })

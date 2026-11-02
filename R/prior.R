@@ -24,22 +24,30 @@ validate_coloc_prior <- function(x) {
     ## 0.04000000000000001, so eps lets p12 = 0.04 pass
     eps <- sqrt(.Machine$double.eps)
     if (any(x$p12 < x$p1 * x$p2 * (1 - eps)) || any(x$p12 > pmin(x$p1, x$p2) * (1 + eps)))
-        stop("p12 must lie in [p1*p2, min(p1, p2)]")
-    for (w in list(x$weights1, x$weights2))
-        if (!is.null(w) && any(is.na(w) | w <= 0))
-            stop("prior weights must be non-NA and positive")
+        stop("p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is ", x$p12)
+    for (nm in c("weights1", "weights2")) {
+        w <- x[[nm]]
+        if (!is.null(w) && any(is.na(w) | w <= 0)) {
+            i <- which(is.na(w) | w <= 0)[1]
+            stop(nm, " must be above 0 with no missing values; weight ", i, " is ", w[i])
+        }
+    }
     x
 }
 
 ##' Prior probabilities for a colocalisation analysis
 ##'
-##' One object, validated once, in place of the same three probabilities being
-##' re-declared in every entry point.
+##' `coloc_prior()` sets the prior probabilities for [coloc()], which say how
+##' likely any one SNP is, before the data are seen, to be causal for one
+##' trait or for both. Give the result to [coloc()] as `prior`; without one,
+##' [coloc()] uses `coloc_prior()`'s defaults. To repeat an analysis made
+##' with [coloc.abf()], whose `p12` defaults to `1e-5`, give `p12 = 1e-5`.
 ##'
-##' `p1`, `p2` and `p12` are each the prior probability for any one SNP: that
-##' it is causal for trait 1 only, trait 2 only, or both. Each is a single
-##' number. To let the prior vary across SNPs, give weights, which scale it
-##' SNP by SNP.
+##' `p1` is the prior probability that any one SNP is causal for trait 1
+##' only, `p2` for trait 2 only, and `p12` for both. Each is a single number,
+##' and `p12` must be at least `p1 * p2` and at most the smaller of `p1` and
+##' `p2`. To let the prior vary across SNPs, give weights, which scale it SNP
+##' by SNP.
 ##'
 ##' @param p1 the prior probability for any one SNP that it is associated with
 ##'   trait 1 only

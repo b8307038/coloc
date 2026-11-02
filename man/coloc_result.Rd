@@ -22,8 +22,9 @@ one causal variant.
 compared, one signal from each trait. Its columns are \code{nsnps}, the
 number of SNPs the two traits share; \code{hit1} and \code{hit2}, each signal's
 top SNP; \code{PP.H0.abf} to \code{PP.H4.abf}, the posterior probabilities of
-the five hypotheses; and \code{idx1} and \code{idx2}, which signal of each trait
-the row compares, as listed in \code{meta$idx1} and \code{meta$idx2}.}
+the five hypotheses, all five \code{NA} when they were not computed (see
+Status); and \code{idx1} and \code{idx2}, which signal of each trait the row
+compares, as listed in \code{meta$idx1} and \code{meta$idx2}.}
 \item{\code{results}}{a data.table with one row per shared SNP: \code{snp}, and
 for each row of \code{summary} the posterior probability that this SNP is
 the shared causal variant, if H4 is true. The column is
@@ -71,8 +72,9 @@ because the hypotheses are weighed on the shared SNPs, and too little
 of a signal falls on them. \code{hit1} and \code{hit2} are each trait's own top
 SNP, shared or not.}
 \item{\code{"degenerate"}}{the posteriors of some pair could not be
-computed. That pair's posteriors are \code{NA}. \code{\link[=coloc]{coloc()}} checks its
-inputs to prevent this, so it should not be seen.}
+computed. That pair's posteriors, \code{PP.H0.abf} to \code{PP.H4.abf}, are
+\code{NA}. \code{\link[=coloc]{coloc()}} and \code{\link[=coloc.bf_bf]{coloc.bf_bf()}} refuse missing log Bayes factors,
+which would cause this, so it should be rare.}
 }
 
 Two rules hold for every result: \code{summary} has no rows only when no pair

@@ -22,11 +22,11 @@ test_that("coloc_dataset() and as_coloc_dataset() agree", {
 
 test_that("mistakes are refused when the dataset is made", {
     expect_error(coloc_dataset(snp = small$snp, beta = small$beta, varbeta = small$varbeta, sdY = 1),
-                 "missing required element(s) type", fixed = TRUE)
+                 "type is missing, and coloc needs it here", fixed = TRUE)
     expect_error(coloc_dataset(type = "quant", beta = small$beta, varbeta = small$varbeta, sdY = 1),
-                 "missing required element(s) snp", fixed = TRUE)
+                 "snp is missing, and coloc needs it here", fixed = TRUE)
     expect_error(coloc_dataset(snp = small$snp, type = "quant", beta = small$beta, sdY = 1),
-                 "require p values and MAF if beta, varbeta are unavailable",
+                 "pvalues and MAF are missing; without beta and varbeta, coloc needs pvalues, MAF and N",
                  fixed = TRUE)
     bad <- small
     bad$beta[2] <- NA
@@ -38,16 +38,16 @@ test_that("mistakes are refused when the dataset is made", {
 
 test_that("as_coloc_dataset() refuses things that are not datasets", {
     expect_error(as_coloc_dataset(1:5),
-                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a integer",
+                 "the dataset is a numeric vector, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
                  fixed = TRUE)
     expect_error(as_coloc_dataset(matrix(0, 2, 2)),
-                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a matrix",
+                 "the dataset is a numeric matrix, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
                  fixed = TRUE)
     expect_error(as_coloc_dataset(as.data.frame(small[c("snp", "beta", "varbeta")])),
-                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a data.frame",
+                 "the dataset is a data.frame, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
                  fixed = TRUE)
     expect_error(as_coloc_dataset(structure(list(), class = "susie")),
-                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a susie",
+                 "the dataset is a SuSiE fit, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
                  fixed = TRUE)
 })
 

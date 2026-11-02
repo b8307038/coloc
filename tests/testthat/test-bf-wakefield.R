@@ -91,7 +91,7 @@ test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_datas
     ## a list goes through as_coloc_dataset(), which refuses a data.frame,
     ## where check_dataset() alone would report "missing required element(s) type"
     expect_error(wakefield_bf(as.data.frame(D1[c("snp", "beta", "varbeta")])),
-                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a data.frame",
+                 "the dataset is a data.frame, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
                  fixed = TRUE)
     ## a coloc_dataset changed since it was made is checked again
     changed <- as_coloc_dataset(D1)

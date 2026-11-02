@@ -297,7 +297,7 @@ test_that("coloc.bf_bf() with every pair trimmed returns 6.0.3's result, apart f
     ## PP.H0 is NA, where 6.0.3 gave a number
     far <- bf_a[, 5:8]
     expect_warning(got <- coloc.bf_bf(far, bf_b),
-                   "snp overlap too small between datasets: too few snps with high posterior in one trait represented in other",
+                   "every signal pair was left out, because less than overlap.min (0.5) of a signal's posterior falls on snps both traits have",
                    fixed = TRUE)
     expect_warning(expected <- get_match_6_0_3(coloc.bf_bf(far, bf_b)))
     expect_equal(names(got), names(expected))
@@ -319,7 +319,7 @@ test_that("coloc.susie() refuses a dataset without snp, as 6.0.3's did, naming i
     no_snp$snp <- NULL
     expect_error(suppressMessages(get_match_6_0_3(coloc.susie(no_snp, D4))))
     expect_error(coloc.susie(no_snp, D4),
-                 "dataset 1: missing required element(s) snp", fixed = TRUE)
+                 "dataset 1: snp is missing, and coloc needs it here", fixed = TRUE)
 })
 
 ## ---- the deliberate differences, one test each -------------------------------
@@ -379,13 +379,13 @@ test_that("the old functions refuse a p12 outside [p1 * p2, min(p1, p2)], which 
     expect_no_error(get_match_6_0_3(coloc.bf_bf(bf_a, bf_b, p12 = 1e-3)))
     expect_no_error(get_match_6_0_3(coloc.susie(fit3, fit4, p12 = 1e-3)))
     expect_error(coloc.bf_bf(bf_a, bf_b, p12 = 1e-3),
-                 "p12 must lie in [p1*p2, min(p1, p2)]",
+                 "p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is 0.001",
                  fixed = TRUE)
     expect_error(coloc.susie(fit3, fit4, p12 = 1e-3),
-                 "p12 must lie in [p1*p2, min(p1, p2)]",
+                 "p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is 0.001",
                  fixed = TRUE)
     expect_error(coloc.susie_bf(fit3, bf4, p12 = 1e-3),
-                 "p12 must lie in [p1*p2, min(p1, p2)]",
+                 "p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is 0.001",
                  fixed = TRUE)
 })
 
@@ -453,10 +453,10 @@ test_that("check_dataset() reports a dataset with no type, where 6.0.3 gave R's 
     d$type <- NULL
     req <- c("beta", "varbeta", "LD", "snp", "N")   # runsusie()'s, without type
     expect_error(check_dataset(d, 1, req = req),
-                 'dataset 1: variable type not set',
+                 'dataset 1: type is missing; set type to "quant" for a quantitative trait or "cc" for a case-control trait',
                  fixed = TRUE)
     ## 6.0.3 refused it too when type was required, as coloc.abf() asks
-    expect_error(check_dataset(d, 1), "dataset 1: missing required element(s) type", fixed = TRUE)
+    expect_error(check_dataset(d, 1), "dataset 1: type is missing, and coloc needs it here", fixed = TRUE)
 })
 
 test_that("a SuSiE fit with a duplicated snp id is refused, where 6.0.3 used the first", {
@@ -507,7 +507,7 @@ test_that("check_dataset()'s errors and warnings hold the dataset's number, and 
     bad3$beta[1] <- NA
     expect_error(runsusie(bad3), "dataset 1: beta contains missing values", fixed = TRUE)
     expect_error(check_dataset(1:3, 2),
-                 "dataset 2: is not a list",
+                 "dataset 2: this is a numeric vector, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
                  fixed = TRUE)
     ## without a label
     expect_error(finemap.abf(bad), "beta contains missing values", fixed = TRUE)
@@ -521,22 +521,22 @@ test_that("check_dataset()'s errors and warnings hold the dataset's number, and 
     not_square <- D2
     not_square$LD <- not_square$LD[, -1]
     expect_error(coloc.abf(D1, not_square),
-                 "dataset 2: LD not square", fixed = TRUE)
+                 "dataset 2: LD must be square, but it has 500 rows and 499 columns", fixed = TRUE)
     ## the minimum p-value warning, given once for each dataset
     weak <- D1
     weak$beta <- weak$beta / 100
     weak2 <- D2
     weak2$beta <- weak2$beta / 100
     expect_warning(expect_warning(coloc.abf(weak, weak2),
-                                  "dataset 1: minimum p value is: 0.93383",
+                                  "dataset 1: the smallest p-value is 0.93383, so this dataset may have no association in the region.",
                                   fixed = TRUE, class = "coloc_min_p"),
-                   "dataset 2: minimum p value is: 0.93863",
+                   "dataset 2: the smallest p-value is 0.93863, so this dataset may have no association in the region.",
                    fixed = TRUE, class = "coloc_min_p")
     expect_warning(check_dataset(weak, 2),
-                   "dataset 2: minimum p value is: 0.93383",
+                   "dataset 2: the smallest p-value is 0.93383, so this dataset may have no association in the region.",
                    fixed = TRUE, class = "coloc_min_p")
     expect_warning(check_dataset(weak),
-                   "minimum p value is: 0.93383",
+                   "the smallest p-value is 0.93383, so this dataset may have no association in the region.",
                    fixed = TRUE, class = "coloc_min_p")
 })
 
@@ -560,15 +560,15 @@ test_that("coloc.susie_bf() refuses a bf2 that isn't log Bayes factors, where 6.
     expect_error(suppressMessages(get_match_6_0_3(coloc.susie_bf(fit3, D4))))
     expect_error(suppressMessages(get_match_6_0_3(coloc.susie_bf(fit3, fit4))))
     expect_error(coloc.susie_bf(fit3, D4),
-                 "bf2 must be log Bayes factors: a named numeric vector or a matrix",
+                 "bf2 is a list; it must hold log Bayes factors, as a numeric vector named by snp or a numeric matrix with snp ids as column names",
                  fixed = TRUE)
     expect_error(coloc.susie_bf(fit3, fit4),
-                 "bf2 must be log Bayes factors: a named numeric vector or a matrix",
+                 "bf2 is a SuSiE fit; it must hold log Bayes factors, as a numeric vector named by snp or a numeric matrix with snp ids as column names",
                  fixed = TRUE)
     chr <- bf4
     storage.mode(chr) <- "character"
     expect_error(coloc.susie_bf(fit3, chr),
-                 "bf2 must be log Bayes factors: a named numeric vector or a matrix",
+                 "bf2 is a character matrix; it must hold log Bayes factors, as a numeric vector named by snp or a numeric matrix with snp ids as column names",
                  fixed = TRUE)
 })
 

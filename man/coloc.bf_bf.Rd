@@ -2,7 +2,7 @@
 % Please edit documentation in R/susie.R
 \name{coloc.bf_bf}
 \alias{coloc.bf_bf}
-\title{Coloc data through Bayes factors}
+\title{Colocalise two traits given as log Bayes factors}
 \usage{
 coloc.bf_bf(
   bf1,
@@ -17,9 +17,11 @@ coloc.bf_bf(
 )
 }
 \arguments{
-\item{bf1}{named vector of log BF, or matrix of BF with colnames (cols=snps, rows=signals)}
+\item{bf1}{trait 1's log Bayes factors, as a vector named by snp, for one
+signal, or as a matrix with one row per signal and snp ids as column
+names}
 
-\item{bf2}{named vector of log BF, or matrix of BF with colnames (cols=snps, rows=signals)}
+\item{bf2}{trait 2's log Bayes factors, in the same form}
 
 \item{p1}{prior probability a SNP is associated with trait 1,
 default 1e-4}
@@ -28,27 +30,34 @@ default 1e-4}
 default 1e-4}
 
 \item{p12}{prior probability a SNP is associated with both traits,
-default 1e-5}
+default 5e-6. It must be at least \code{p1 * p2} and at most the smaller of
+\code{p1} and \code{p2}}
 
-\item{overlap.min}{see trim_by_posterior}
+\item{overlap.min}{minimum proportion of a signal's posterior that must
+fall on snps shared with the other trait before the pair is considered}
 
-\item{trim_by_posterior}{it is important that the signals to be colocalised
-are covered by adequate numbers of snps in both datasets. If TRUE, signals
-for which snps in common do not capture least overlap.min proportion of
-their posteriors support are dropped and colocalisation not attempted.}
+\item{trim_by_posterior}{whether to drop signal pairs failing overlap.min}
 
-\item{prior_weights1}{Non-negative weights for the prior probability a SNP is associated with trait 1}
+\item{prior_weights1}{weights for the prior probability that each snp is
+associated with trait 1, above 0 with no missing values}
 
-\item{prior_weights2}{Non-negative weights for the prior probability a SNP is asscoiated with trait 2}
+\item{prior_weights2}{weights for the prior probability that each snp is
+associated with trait 2, above 0 with no missing values}
 }
 \value{
 coloc.signals style result
 }
 \description{
-Colocalise two datasets represented by Bayes factors
+\code{coloc.bf_bf()} compares two traits given as log Bayes factors, such as
+the credible sets of two SuSiE fits, each signal of trait 1 with each
+signal of trait 2. It returns the result in the form \code{\link[=coloc.signals]{coloc.signals()}}
+does. \code{\link[=coloc]{coloc()}} takes log Bayes factors too, and returns a
+\link{coloc_result}.
 }
 \details{
-This is the workhorse behind many coloc functions
+A missing value or \code{+Inf} in \code{bf1} or \code{bf2} leaves its signal's posterior
+probabilities undefined, so \code{coloc.bf_bf()} stops on one, naming the
+matrix and a snp. \code{-Inf}, a snp with no support, is allowed.
 }
 \author{
 Chris Wallace

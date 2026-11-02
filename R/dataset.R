@@ -30,40 +30,42 @@
     invisible(TRUE)
 }
 
-## the plain-list note from fn, naming the traits given as plain lists, if any
-.plain_list_note <- function(fn, traits = NULL) {
-    given <- if (length(traits) > 1L)
-                 paste("plain lists for datasets", paste(traits, collapse = " and "),
-                       "and converted them")
-             else paste0("a plain list", if (length(traits)) paste(" for dataset", traits),
-                         " and converted it")
-    paste0(fn, "() was given ", given, " with as_coloc_dataset().\n",
-           "Make datasets with coloc_dataset() or as_coloc_dataset().\n",
-           "(shown once per session)")
+## the plain-list note from fn, naming the datasets given as plain lists, if any
+.plain_list_note <- function(fn, datasets = NULL) {
+    what <- if (length(datasets) > 1L)
+                paste("datasets", paste(datasets, collapse = " and "), "are plain lists, so",
+                      paste0(fn, "()"), "converted them to coloc_datasets")
+            else paste(if (length(datasets)) paste("dataset", datasets) else "the dataset",
+                       "is a plain list, so", paste0(fn, "()"), "converted it to a coloc_dataset")
+    paste0(what, ".\n(shown once per session)")
 }
 
 ##' Make a coloc dataset
 ##'
-##' `coloc_dataset()` builds a dataset from its parts and checks it with
-##' [check_dataset()], so a mistake is reported where the dataset is made
-##' rather than later, inside `coloc()`. The result has class
-##' `"coloc_dataset"`, but is still a list with the same elements, so code that
-##' reads `D$beta` works unchanged.
+##' A coloc dataset holds one trait's summary statistics for one region, in
+##' the form [coloc()] reads. `coloc_dataset()` makes one from its elements,
+##' given as arguments, and `as_coloc_dataset()` makes one from a list that
+##' holds them, such as a dataset made for an earlier version of coloc. Both
+##' check the dataset with [check_dataset()], so a mistake is reported where
+##' the dataset is made, not later inside [coloc()]. Make your datasets with
+##' them before you call [coloc()] or [wakefield_bf()]. Those two also take a
+##' plain list, which they convert, and say so once per session.
 ##'
-##' `as_coloc_dataset()` does the same for a dataset that is already a list, as
-##' made for earlier versions of coloc. Elements coloc does not use are kept.
+##' The result has class `"coloc_dataset"`, but is still a list with the same
+##' elements, so code that reads `D$beta` works unchanged. `as_coloc_dataset()`
+##' keeps elements coloc does not use.
 ##'
 ##' Which elements are needed depends on the data, and [check_dataset()] gives
-##' the details. In brief: always give `snp` and `type`; give `beta` and
-##' `varbeta` if you have them, or `pvalues`, `MAF` and `N` if not; give `s`
-##' for a case-control trait, and `sdY` (or `MAF` and `N`, to estimate it) for
-##' a quantitative one.
+##' the details. In brief, always give `snp` and `type`, and give `beta` and
+##' `varbeta` if you have them. Without them, give `pvalues`, `MAF` and `N`,
+##' and `s` for a case-control trait. A quantitative trait given as `beta` and
+##' `varbeta` needs `sdY`, or `MAF` and `N` so coloc can estimate it.
+##' Fine-mapping with SuSiE needs `beta`, `varbeta`, `LD` and `N`.
 ##'
-##' A dataset is checked when it is made. If you change its elements
-##' afterwards, coloc's functions check it again when they use it, but don't
-##' do that. `as_coloc_dataset()` returns a coloc_dataset as it is:
-##' [check_dataset()] checks one again for errors, and
-##' `as_coloc_dataset(unclass(x))` makes it again.
+##' If you change a dataset's elements after it is made, coloc's functions
+##' check it again when they use it. `as_coloc_dataset()` returns a
+##' coloc_dataset as it is, without checking it again; [check_dataset()]
+##' checks one you have changed.
 ##'
 ##' A `type` given as a factor, or with a name, comes back as a plain string.
 ##' 
@@ -133,9 +135,7 @@ as_coloc_dataset <- function(x, warn.minp = 1e-6) {
 .new_coloc_dataset <- function(d, warn.minp = 1e-6, trait = NULL, use = "single") {
     ## a data.frame and a susie fit are lists too, but neither is a dataset
     if (!is.list(d) || is.data.frame(d) || inherits(d, "susie"))
-        stop(if (!is.null(trait)) paste0("dataset ", trait, ": "),
-             "expected a coloc dataset: a list, or the result of coloc_dataset(), not a ",
-             class(d)[1], call. = FALSE)
+        .stop_not_a_dataset(d, trait)
     if (!inherits(d, "coloc_dataset"))
         d <- unclass(d)
     check_dataset(d, suffix = trait, req = .dataset_uses[[use]], warn.minp = warn.minp)

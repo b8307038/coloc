@@ -90,7 +90,7 @@ test_that("beta, varbeta and p-values must be numeric where they are read, where
     ## with a zero varbeta as well
     zero_too <- chr_beta
     zero_too$varbeta[1] <- 0
-    at_each_door(zero_too, error = "Zero values in varbeta")
+    at_each_door(zero_too, error = "varbeta has zeros, such as at s1; a variance must be above 0")
 })
 
 test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
@@ -100,7 +100,7 @@ test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
     ## with a zero as well
     zero_too <- neg
     zero_too$varbeta[1] <- 0
-    at_each_door(zero_too, error = "Zero values in varbeta")
+    at_each_door(zero_too, error = "varbeta has zeros, such as at s1; a variance must be above 0")
     ## beside p-values varbeta isn't read, and passes as in 6.0.3
     beside_p <- to_pvalues(D1)
     beside_p$varbeta <- -D1$varbeta
@@ -137,7 +137,7 @@ test_that("LD must be a matrix, and for SuSiE a numeric one, where 6.0.3 failed 
     not_square <- D1
     not_square$LD <- array(D1$LD[, -1], c(500, 499, 1), dimnames = list(D1$snp, D1$snp[-1], NULL))
     expect_error(check_dataset(not_square, 2),
-                 "dataset 2: LD not square", fixed = TRUE)
+                 "dataset 2: LD must be square, but it has 500 rows and 499 columns", fixed = TRUE)
     ## a data frame LD has two dimensions: where LD isn't required it passes,
     ## with 6.0.3's answer
     df_ld <- D1
@@ -278,7 +278,7 @@ test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numer
     not_square <- D3
     not_square$LD <- D3$LD[, -1]
     expect_error(susie_check(not_square),
-                 "dataset 1: LD not square", fixed = TRUE)
+                 "dataset 1: LD must be square, but it has 500 rows and 499 columns", fixed = TRUE)
 })
 
 test_that(".is_correlation() compares every block of a large LD", {
@@ -305,7 +305,7 @@ test_that("for SuSiE z must have a finite number for each snp, where 6.0.3 faile
                 "one value too many" = "snp has 500 values but z has 501",
                 "character" = "z must be numeric",
                 "logical" = "z must be numeric",
-                "an infinite value" = "Infinite values in z")
+                "an infinite value" = "z has infinite values, such as at s5")
     for (what in names(broken)) {
         b <- broken[[what]]
         d <- D3

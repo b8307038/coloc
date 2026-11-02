@@ -89,11 +89,11 @@ test_that("Negative prior weights cause errors, with coloc() in place of coloc.a
 
   expect_error(
     coloc(D1, D2, prior = coloc_prior(weights1 = c(-1, rep(1, 499)), weights2 = rep(1, 500))),
-    "prior weights must be non-NA and positive", fixed = TRUE
+    "weights1 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
   expect_error(
     coloc(D1, D2, prior = coloc_prior(weights1 = rep(1, 500), weights2 = c(-1, rep(1, 499)))),
-    "prior weights must be non-NA and positive", fixed = TRUE
+    "weights2 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
 
 })
@@ -108,7 +108,7 @@ test_that("NA prior weights cause errors (coloc.abf())", {
 test_that("NA prior weights cause errors, with coloc() in place of coloc.abf()", {
   expect_error(
     coloc(D1, D2, prior = coloc_prior(weights1 = rep(NA, 500))),
-    "prior weights must be non-NA and positive", fixed = TRUE
+    "weights1 must be above 0 with no missing values; weight 1 is NA", fixed = TRUE
   )
 })
 
@@ -152,14 +152,14 @@ test_that("Prior weight length consistency is checked, with coloc() in place of 
 test_that("NA prior weights cause errors (coloc.susie())", {
   expect_error(
     coloc.susie(susie_D1, susie_D2, prior_weights1 = rep(NA, 500)),
-    "prior weights must be non-NA and positive", fixed = TRUE
+    "weights1 must be above 0 with no missing values; weight 1 is NA", fixed = TRUE
   )
 })
 
 test_that("NA prior weights cause errors, with coloc() in place of coloc.susie()", {
   expect_error(
     coloc(susie_D1, susie_D2, prior = coloc_prior(weights1 = rep(NA, 500))),
-    "prior weights must be non-NA and positive", fixed = TRUE
+    "weights1 must be above 0 with no missing values; weight 1 is NA", fixed = TRUE
   )
 })
 
@@ -167,7 +167,7 @@ test_that("Negative prior weights cause errors (coloc.susie())", {
 
   expect_error(
     coloc.susie(susie_D1, susie_D2, prior_weights1 = c(-1, rep(1, 499))),
-    "prior weights must be non-NA and positive", fixed = TRUE
+    "weights1 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
 
 })
@@ -176,7 +176,7 @@ test_that("Negative prior weights cause errors, with coloc() in place of coloc.s
 
   expect_error(
     coloc(susie_D1, susie_D2, prior = coloc_prior(weights1 = c(-1, rep(1, 499)))),
-    "prior weights must be non-NA and positive", fixed = TRUE
+    "weights1 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
 
 })

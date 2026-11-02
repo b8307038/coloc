@@ -146,9 +146,9 @@ test_that("coloc.bf_bf() stops on a missing or +Inf log BF in either matrix, and
         x <- a
         x[1, 2] <- value
         expect_error(coloc.bf_bf(x, b),
-                     "bf1 contains missing or infinite log Bayes factors", fixed = TRUE)
+                     "bf1 has missing or +Inf log Bayes factors, such as at s2", fixed = TRUE)
         expect_error(coloc.bf_bf(b, x),
-                     "bf2 contains missing or infinite log Bayes factors", fixed = TRUE)
+                     "bf2 has missing or +Inf log Bayes factors, such as at s2", fixed = TRUE)
     }
     x <- a
     x[1, 2] <- -Inf

@@ -40,7 +40,9 @@
 
     ## ---- 1. a trait with no signal, as when SuSiE finds no credible set ---
     if (nrow(bf1) == 0L || nrow(bf2) == 0L) {
-        note("at least one trait has no signals, nothing to colocalise")
+        note(if (nrow(bf1) == 0L && nrow(bf2) == 0L) "traits 1 and 2 have"
+             else paste("trait", if (nrow(bf1) == 0L) 1 else 2, "has"),
+             " no signal, so there is nothing to colocalise; with SuSiE, this means no credible set")
         return(new_coloc_result(status = "no_signal", messages = msgs, prior = prior))
     }
 
@@ -78,8 +80,8 @@
     drop[is.na(drop)] <- FALSE
 
     if (all(drop)) {
-        note("snp overlap too small between datasets: too few snps with high ",
-             "posterior in one trait represented in other")
+        note("every signal pair was left out, because less than overlap.min (",
+             control$overlap.min, ") of a signal's posterior falls on snps both traits have")
         ## each trait's own top snp by log BF, shared or not, which shows where
         ## its signal is when no pair overlaps enough
         top <- function(bf, ix) {

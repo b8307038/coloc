@@ -35,7 +35,7 @@ test_that("method is per trait: a trait without LD can stay single", {
     D1_noLD$LD <- NULL
     ## SuSiE needs LD, so "susie" for both cannot run
     expect_error(suppressMessages(coloc(D1_noLD, D3, method = "susie")),
-                 "dataset 1: missing required element(s) LD", fixed = TRUE)
+                 "dataset 1: LD is missing, and coloc needs it here", fixed = TRUE)
     mixed <- suppressMessages(coloc(D1_noLD, D3, method = c("single", "susie")))
     expect_equal(mixed$meta$method, c("single", "susie"))
     expect_equal(n_signals(mixed), 2L)
@@ -77,18 +77,18 @@ test_that("a prior given as a plain list is checked for scalars and weights", {
     ## error that blames coloc
     expect_error(coloc(bf, bf, prior = list(p1 = 1e-4, p2 = 1e-4, p12 = 5e-6,
                                             weights1 = c(1, -1, 5, 1))),
-                 "prior weights must be non-NA and positive", fixed = TRUE)
+                 "weights1 must be above 0 with no missing values; weight 2 is -1", fixed = TRUE)
 })
 
 test_that("coloc() checks p12's bounds in a plain list, and in a coloc_prior edited after it was made", {
     bf <- matrix(c(0, 0, 8, 2), nrow = 1, dimnames = list("sig1", paste0("s", 1:4)))
     expect_error(coloc(bf, bf, prior = list(p1 = 1e-4, p2 = 1e-4, p12 = 1e-3)),
-                 "p12 must lie in [p1*p2, min(p1, p2)]",
+                 "p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is 0.001",
                  fixed = TRUE)
     edited <- coloc_prior()
     edited$p12 <- 1e-3
     expect_error(coloc(bf, bf, prior = edited),
-                 "p12 must lie in [p1*p2, min(p1, p2)]",
+                 "p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is 0.001",
                  fixed = TRUE)
 })
 
@@ -103,14 +103,14 @@ mistakes <- list(
 
 ## the error each mistake gets, after its "dataset 1: " label. The SuSiE route
 ## doesn't require type, so a missing one gets the check on type's message
-refusals <- c("no type" = "missing required element(s) type",
+refusals <- c("no type" = "type is missing, and coloc needs it here",
               "a wrong type" = "type must be quant or cc",
               "an NA beta" = "beta contains missing values",
-              "a duplicated snp" = "duplicated snps found",
+              "a duplicated snp" = "snp has duplicated ids, such as s1; each snp must appear once",
               "mismatched lengths" = "snp has 500 values but beta has 499",
-              "a zero varbeta" = "Zero values in varbeta")
+              "a zero varbeta" = "varbeta has zeros, such as at s5; a variance must be above 0")
 susie_refusals <- replace(refusals, "no type",
-                          'variable type not set')
+                          'type is missing; set type to "quant" for a quantitative trait or "cc" for a case-control trait')
 
 ## each dataset as a plain list, and made with as_coloc_dataset() before the
 ## mistake: $<- keeps the class, so coloc() checks the changed dataset again
@@ -180,7 +180,7 @@ test_that("a mistake in a dataset names the dataset, and shows no call", {
     not_square <- D2
     not_square$LD <- not_square$LD[, -1]
     expect_error(coloc(D1, not_square),
-                 "dataset 2: LD not square", fixed = TRUE)
+                 "dataset 2: LD must be square, but it has 500 rows and 499 columns", fixed = TRUE)
 })
 
 test_that("a coloc_dataset changed after it was made is checked again", {
@@ -202,7 +202,7 @@ test_that("both datasets are checked before either is fine-mapped", {
             said <<- c(said, conditionMessage(m))
             invokeRestart("muffleMessage")
         })
-    expect_identical(conditionMessage(err), "dataset 2: missing required element(s) LD")
+    expect_identical(conditionMessage(err), "dataset 2: LD is missing, and coloc needs it here")
     expect_length(said, 0)
 })
 
@@ -214,13 +214,13 @@ test_that("a weak dataset gives one minimum p-value warning, on either route", {
     ## the first line of each minimum p-value warning
     minp <- function(w) sub("\n.*", "", w$message[w$class == "coloc_min_p"])
     expect_equal(minp(warnings_of(coloc(weak(D1), weak(D2)))),
-                 c("dataset 1: minimum p value is: 0.93383",
-                   "dataset 2: minimum p value is: 0.93863"))
+                 c("dataset 1: the smallest p-value is 0.93383, so this dataset may have no association in the region.",
+                   "dataset 2: the smallest p-value is 0.93863, so this dataset may have no association in the region."))
     skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
     w <- warnings_of(suppressMessages(coloc(weak(D3), weak(D4), method = "susie")))
     expect_equal(minp(w),
-                 c("dataset 1: minimum p value is: 0.91098",
-                   "dataset 2: minimum p value is: 0.94878"))
+                 c("dataset 1: the smallest p-value is 0.91098, so this dataset may have no association in the region.",
+                   "dataset 2: the smallest p-value is 0.94878, so this dataset may have no association in the region."))
 })
 
 test_that("coloc.susie() and coloc.susie_bf() name the dataset, and show no call", {
@@ -256,22 +256,22 @@ test_that("a factor or named type comes back as a string once checked", {
 test_that("a data frame given as a dataset is refused, naming the trait", {
     df <- as.data.frame(D1[c("snp", "beta", "varbeta")])
     expect_error(coloc(df, D2),
-                 "dataset 1: expected a coloc dataset: a list, or the result of coloc_dataset(), not a data.frame",
+                 "dataset 1: this is a data.frame, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
                  fixed = TRUE)
 })
 
 test_that("what is neither a fit nor log BFs is checked as a dataset, naming the trait", {
     no_snp <- D1
     no_snp$snp <- NULL
-    expect_error(coloc(no_snp, D2), "dataset 1: missing required element(s) snp", fixed = TRUE)
-    expect_error(coloc(D1, no_snp), "dataset 2: missing required element(s) snp", fixed = TRUE)
+    expect_error(coloc(no_snp, D2), "dataset 1: snp is missing, and coloc needs it here", fixed = TRUE)
+    expect_error(coloc(D1, no_snp), "dataset 2: snp is missing, and coloc needs it here", fixed = TRUE)
     ## NULL is refused the same way whatever the version of R, where
     ## is.atomic(NULL) changed
     expect_error(coloc(NULL, D2),
-                 "dataset 1: expected a coloc dataset: a list, or the result of coloc_dataset(), not a NULL",
+                 "dataset 1: this is NULL, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
                  fixed = TRUE)
     expect_error(coloc(D1, sum),
-                 "dataset 2: expected a coloc dataset: a list, or the result of coloc_dataset(), not a function",
+                 "dataset 2: this is a function, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
                  fixed = TRUE)
 })
 
