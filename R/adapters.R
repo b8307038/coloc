@@ -58,8 +58,9 @@
         }
         if (kinds[i] == "bf") {
             if (supplied)
-                warning("trait ", i, ": method is inapplicable to precomputed log BFs",
-                        call. = FALSE)
+                warning(warningCondition(
+                    paste0("trait ", i, ": method is inapplicable to precomputed log BFs"),
+                    class = "coloc_method_ignored", call = NULL))
             method[i] <- NA_character_
         }
     }

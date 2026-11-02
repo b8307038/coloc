@@ -372,8 +372,5 @@ print.coloc_result <- function(x, ...) {
 ## signature is "one dataset, one BF matrix", so there the warning is noise
 ## about a choice the caller was never offered.
 .without_method_warning <- function(expr) {
-    withCallingHandlers(expr, warning = function(w) {
-        if (grepl("method is inapplicable", conditionMessage(w), fixed = TRUE))
-            invokeRestart("muffleWarning")
-    })
+    withCallingHandlers(expr, coloc_method_ignored = function(w) invokeRestart("muffleWarning"))
 }

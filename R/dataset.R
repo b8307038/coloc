@@ -26,7 +26,7 @@
     if (key %in% .coloc_state$noted)
         return(invisible(FALSE))
     .coloc_state$noted <- c(.coloc_state$noted, key)
-    warning(message, call. = FALSE)
+    warning(warningCondition(message, class = paste0("coloc_", key), call = NULL))
     invisible(TRUE)
 }
 

@@ -62,7 +62,7 @@ Collate:
     'data.R'
     'zzz.R'
 Depends: 
-    R (>= 3.5)
+    R (>= 3.6.0)
 LazyData: true
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0

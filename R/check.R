@@ -418,7 +418,8 @@ names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
         if (is.null(problem) || inherits(problem, "passed"))
             next
         if (rule$level == "warning") {
-            warning(simpleWarning(paste0(prefix, problem), call))
+            warning(warningCondition(paste0(prefix, problem), class = paste0("coloc_", rule$id),
+                                     call = call))
             next
         }
         stop(simpleError(paste0(prefix, problem), call))
