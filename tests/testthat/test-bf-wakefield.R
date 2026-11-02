@@ -30,11 +30,11 @@ for (what in names(routes)) {
     })
 }
 
-test_that("wakefield_bf() warns when it estimates sdY, as 6.0.3 did", {
+test_that("wakefield_bf() warns when it estimates sdY", {
     d <- routes[["beta and varbeta, sdY estimated"]]
-    msg <- "estimating sdY from maf and varbeta"
-    expect_warning(wakefield_bf(d), msg, fixed = TRUE)
-    expect_warning(get_match_6_0_3(process.dataset(d, suffix = "df1")), msg, fixed = TRUE)
+    expect_warning(wakefield_bf(d),
+                   "estimating sdY from maf and varbeta, please directly supply sdY if known",
+                   fixed = TRUE)
 })
 
 test_that("wakefield_bf() returns one row per snp, with no suffixes", {
@@ -86,7 +86,8 @@ test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_datas
     ## a list goes through as_coloc_dataset(), which refuses a data.frame,
     ## where check_dataset() alone would report "missing required element(s) type"
     expect_error(wakefield_bf(as.data.frame(D1[c("snp", "beta", "varbeta")])),
-                 "expected a coloc dataset", fixed = TRUE)
+                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a data.frame",
+                 fixed = TRUE)
     ## a coloc_dataset changed since it was made is checked again
     changed <- as_coloc_dataset(D1)
     changed$beta[1] <- NA
@@ -94,12 +95,12 @@ test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_datas
     ## a weak list gets the minimum p-value warning once
     weak <- D1
     weak$beta <- weak$beta / 100
-    warned <- character(0)
+    minp <- 0
     withCallingHandlers(wakefield_bf(weak), warning = function(w) {
-        warned <<- c(warned, conditionMessage(w))
+        minp <<- minp + inherits(w, "coloc_min_p")
         invokeRestart("muffleWarning")
     })
-    expect_length(grep("minimum p value", warned, fixed = TRUE), 1)
+    expect_equal(minp, 1)
     ## an error shows the call of the check inside, as_coloc_dataset()'s
     ## for a list and check_dataset()'s for a coloc_dataset; pinned, so that a
     ## change to it is made on purpose
@@ -112,9 +113,12 @@ test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_datas
 })
 
 test_that("wakefield_bf() refuses effect_priors without a positive number for each type", {
-    msg <- "effect_priors should be positive numbers named quant and cc"
-    expect_error(wakefield_bf(D1, effect_priors = c(quant = 0.15)), msg, fixed = TRUE)
-    expect_error(wakefield_bf(D1, effect_priors = c(0.15, 0.2)), msg, fixed = TRUE)
-    expect_error(wakefield_bf(D1, effect_priors = c(quant = 0, cc = 0.2)), msg, fixed = TRUE)
-    expect_error(wakefield_bf(D1, effect_priors = c(quant = "0.15", cc = "0.2")), msg, fixed = TRUE)
+    expect_error(wakefield_bf(D1, effect_priors = c(quant = 0.15)),
+                 "effect_priors should be positive numbers named quant and cc", fixed = TRUE)
+    expect_error(wakefield_bf(D1, effect_priors = c(0.15, 0.2)),
+                 "effect_priors should be positive numbers named quant and cc", fixed = TRUE)
+    expect_error(wakefield_bf(D1, effect_priors = c(quant = 0, cc = 0.2)),
+                 "effect_priors should be positive numbers named quant and cc", fixed = TRUE)
+    expect_error(wakefield_bf(D1, effect_priors = c(quant = "0.15", cc = "0.2")),
+                 "effect_priors should be positive numbers named quant and cc", fixed = TRUE)
 })

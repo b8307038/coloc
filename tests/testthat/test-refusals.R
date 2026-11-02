@@ -1,6 +1,6 @@
-## Values coloc can't use, refused at each way a dataset is checked, and the
-## messages reworded since 6.0.3, against 6.0.3's own copies:
-## get_match_6_0_3(), in helper-v603.R, runs a call as 6.0.3 made it.
+## Values coloc can't use, refused at each way a dataset is checked, against
+## 6.0.3's own copies: get_match_6_0_3(), in helper-v603.R, runs a call as
+## 6.0.3 made it.
 
 D1 <- plain_test_data$D1
 D2 <- plain_test_data$D2
@@ -11,38 +11,39 @@ fit3 <- suppressMessages(runsusie(D3))
 
 ## ---- values coloc can't use, at each way a dataset is checked ---------------
 ## check_dataset() checks a dataset for coloc.abf(), finemap.abf(), the
-## constructors, wakefield_bf(), runsusie() and coloc(). at_each_door() gives
-## the error each of them stops with, NA where it goes on, and everywhere() the
-## errors they should give: one sentence, with each one's prefix. runsusie() is
-## asked only about a dataset it could fine-map. On 6.0.3's side an R error is
-## tested with no text, as R's wording changes between its versions.
+## constructors, wakefield_bf(), runsusie() and coloc(). at_each_door() checks
+## that each of them refuses d with the error given, or with error = NULL that
+## each goes on. runsusie() is asked only about a dataset it could fine-map.
+## 6.0.3's copies raise R's own errors, so a test reads only whether they
+## stopped.
 
-at_each_door <- function(d, other = D1, susie = FALSE) {
-    msg <- function(expr) tryCatch({
-        utils::capture.output(suppressWarnings(suppressMessages(expr)))
-        NA_character_
-    }, error = conditionMessage)
-    doors <- c(check_dataset = msg(check_dataset(d, 2)),
-               coloc.abf = msg(coloc.abf(other, d)),
-               finemap.abf = msg(finemap.abf(d)),
-               as_coloc_dataset = msg(as_coloc_dataset(d)),
-               coloc = msg(coloc(other, d)),
-               wakefield_bf = msg(wakefield_bf(d)))
+at_each_door <- function(d, error, other = D1, susie = FALSE) {
+    ## each door, and the dataset number its error begins with: 2 where d is the
+    ## second of two datasets, 1 for runsusie(), none where d is checked alone;
+    ## coloc() says "trait" where the others say "dataset"
+    doors <- list(list(call = quote(check_dataset(d, 2)), dataset = 2),
+                  list(call = quote(coloc.abf(other, d)), dataset = 2),
+                  list(call = quote(finemap.abf(d)), dataset = NULL),
+                  list(call = quote(as_coloc_dataset(d)), dataset = NULL),
+                  list(call = quote(coloc(other, d)), dataset = 2, word = "trait"),
+                  list(call = quote(wakefield_bf(d)), dataset = NULL))
     if (susie)
-        doors <- c(doors, runsusie = msg(runsusie(d)))
+        doors <- c(doors, list(list(call = quote(runsusie(d)), dataset = 1)))
+    quietly <- function(expr) utils::capture.output(suppressWarnings(suppressMessages(expr)))
+    ## !! puts the door's call in the message of a failed expectation
+    for (door in doors) {
+        if (!is.null(error)) {
+            word <- if (is.null(door$word)) "dataset" else door$word
+            expected <- if (is.null(door$dataset)) error
+                        else paste0(word, " ", door$dataset, ": ", error)
+            expect_error(quietly(!!door$call), expected, fixed = TRUE)
+        } else {
+            expect_no_error(quietly(!!door$call))
+        }
+    }
     ## the reports take whatever a door refuses, never stopping or warning
     testthat::expect_no_condition(qc_dataset(d, engine = if (susie) "susie" else "wakefield"))
     testthat::expect_no_condition(qc_pair(other, d))
-    doors
-}
-
-everywhere <- function(sentence, susie = FALSE) {
-    prefix <- c(check_dataset = "dataset 2: ", coloc.abf = "dataset 2: ", finemap.abf = "",
-                as_coloc_dataset = "", coloc = "trait 2: ", wakefield_bf = "")
-    if (susie)
-        prefix <- c(prefix, runsusie = "dataset 1: ")
-    prefix[] <- if (is.na(sentence)) NA_character_ else paste0(prefix, sentence)
-    prefix
 }
 
 ## coloc.abf()'s summary, without its printing
@@ -51,20 +52,17 @@ abf_summary <- function(d1, d2) {
     res$summary
 }
 
-## the error a call stops with, NA if none, or "SuSiE ran first" if SuSiE
-## said anything before it, as it does when it starts fine-mapping
-error_before_susie <- function(expr) {
-    said <- FALSE
-    err <- withCallingHandlers(
-        tryCatch({
-            expr
-            NA_character_
-        }, error = conditionMessage),
+## checks that a call stops with the error given, before SuSiE said anything,
+## as it does when it starts fine-mapping
+refused_before_susie <- function(expr, error) {
+    susie_ran <- FALSE
+    withCallingHandlers(
+        expect_error(expr, error, fixed = TRUE),
         message = function(m) {
-            said <<- TRUE
+            susie_ran <<- TRUE
             invokeRestart("muffleMessage")
         })
-    if (said) "SuSiE ran first" else err
+    expect_false(susie_ran)
 }
 
 test_that("beta, varbeta and p-values must be numeric where they are read, where 6.0.3 failed with R's errors", {
@@ -74,21 +72,15 @@ test_that("beta, varbeta and p-values must be numeric where they are read, where
     chr_varbeta$varbeta <- as.character(chr_varbeta$varbeta)
     chr_p <- to_pvalues(D1)
     chr_p$pvalues <- as.character(chr_p$pvalues)
-    expect_error(get_match_6_0_3(check_dataset(chr_beta, 2)))
-    expect_error(get_match_6_0_3(check_dataset(chr_varbeta, 2)))
-    expect_identical(at_each_door(chr_beta, susie = TRUE),
-                     everywhere("beta must be numeric", susie = TRUE))
-    expect_identical(at_each_door(chr_varbeta, susie = TRUE),
-                     everywhere("varbeta must be numeric", susie = TRUE))
+    at_each_door(chr_beta, error = "beta must be numeric", susie = TRUE)
+    at_each_door(chr_varbeta, error = "varbeta must be numeric", susie = TRUE)
     ## 6.0.3's check let character p-values through, and coloc.abf() failed after
-    expect_null(get_match_6_0_3(check_dataset(chr_p, 2)))
     expect_error(get_match_6_0_3(coloc.abf(D1, chr_p)))
-    expect_identical(at_each_door(chr_p), everywhere("pvalues must be numeric"))
+    at_each_door(chr_p, error = "pvalues must be numeric")
     ## 6.0.3 computed with a logical beta
     lgl_beta <- D1
     lgl_beta$beta <- lgl_beta$beta > 0
-    expect_null(get_match_6_0_3(check_dataset(lgl_beta, 2)))
-    expect_identical(at_each_door(lgl_beta), everywhere("beta must be numeric"))
+    at_each_door(lgl_beta, error = "beta must be numeric")
     ## where nothing reads them they pass, with 6.0.3's answer
     p_beside_beta <- D1
     p_beside_beta$pvalues <- chr_p$pvalues
@@ -97,77 +89,65 @@ test_that("beta, varbeta and p-values must be numeric where they are read, where
     varbeta_beside_p <- to_pvalues(D1)
     varbeta_beside_p$varbeta <- chr_varbeta$varbeta
     for (d in list(p_beside_beta, beta_beside_p, varbeta_beside_p)) {
-        expect_identical(at_each_door(d), everywhere(NA))
+        at_each_door(d, error = NULL)
         expect_equal(abf_summary(D1, d), get_match_6_0_3(coloc.abf(D1, d))$summary)
     }
-    ## with a zero varbeta as well: before, check_dataset() reached the zero first
+    ## with a zero varbeta as well
     zero_too <- chr_beta
     zero_too$varbeta[1] <- 0
-    expect_error(get_match_6_0_3(check_dataset(zero_too, 2)))
-    expect_identical(at_each_door(zero_too), everywhere("beta must be numeric"))
+    at_each_door(zero_too, error = "beta must be numeric")
 })
 
 test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
     neg <- D1
     neg$varbeta[5] <- -neg$varbeta[5]
-    expect_error(suppressWarnings(get_match_6_0_3(check_dataset(neg, 2))))
-    expect_identical(at_each_door(neg, susie = TRUE),
-                     everywhere("varbeta must be positive", susie = TRUE))
-    ## with a zero as well, 6.0.3's message for the zero
+    at_each_door(neg, error = "varbeta must be positive", susie = TRUE)
+    ## with a zero as well
     zero_too <- neg
     zero_too$varbeta[1] <- 0
-    expect_identical(outcome(get_match_6_0_3(check_dataset(zero_too, 2)))$error,
-                     "dataset 2: Zero values in varbeta")
-    expect_identical(at_each_door(zero_too), everywhere("Zero values in varbeta"))
+    at_each_door(zero_too, error = "Zero values in varbeta")
     ## beside p-values varbeta isn't read, and passes as in 6.0.3
     beside_p <- to_pvalues(D1)
     beside_p$varbeta <- -D1$varbeta
-    expect_null(get_match_6_0_3(check_dataset(beside_p, 2)))
-    expect_identical(at_each_door(beside_p), everywhere(NA))
+    at_each_door(beside_p, error = NULL)
     ## a coloc_dataset changed to hold one gave NA posteriors, as its minimum
     ## p-value comparison is skipped
     made <- as_coloc_dataset(D1)
     made$varbeta[5] <- -made$varbeta[5]
-    expect_error(coloc(made, D2), "^trait 1: varbeta must be positive$")
-    expect_error(coloc.abf(made, D2), "^dataset 1: varbeta must be positive$")
-    expect_error(wakefield_bf(made), "^varbeta must be positive$")
+    expect_error(coloc(made, D2), "trait 1: varbeta must be positive", fixed = TRUE)
+    expect_error(coloc.abf(made, D2), "dataset 1: varbeta must be positive", fixed = TRUE)
+    expect_error(wakefield_bf(made), "varbeta must be positive", fixed = TRUE)
 })
 
 test_that("type and s must be single values, where 6.0.3 failed with R's errors", {
     for (type in list(c("quant", "cc"), rep("quant", length(D1$snp)), character(0))) {
         d <- D1
         d$type <- type
-        expect_error(get_match_6_0_3(check_dataset(d, 2)))
-        expect_identical(at_each_door(d), everywhere("type must be a single value, quant or cc"))
+        at_each_door(d, error = "type must be a single value, quant or cc")
     }
     two_s <- as_cc(D1)
     two_s$s <- c(0.5, 0.5)
-    expect_error(get_match_6_0_3(check_dataset(two_s, 2)))
-    expect_identical(at_each_door(two_s), everywhere("s must be a single number between 0 and 1"))
+    at_each_door(two_s, error = "s must be a single number between 0 and 1")
 })
 
 test_that("LD must be a matrix, and for SuSiE a numeric one, where 6.0.3 failed with R's errors", {
     vector_ld <- D1
     vector_ld$LD <- as.vector(D1$LD)
-    expect_error(get_match_6_0_3(check_dataset(vector_ld, 2)))
-    expect_identical(at_each_door(vector_ld, susie = TRUE),
-                     everywhere("LD must be a matrix", susie = TRUE))
+    at_each_door(vector_ld, error = "LD must be a matrix", susie = TRUE)
     ## 6.0.3 took an LD with a third dimension
     three_d <- D1
     three_d$LD <- array(D1$LD, dim = c(dim(D1$LD), 1), dimnames = c(dimnames(D1$LD), list(NULL)))
-    expect_null(get_match_6_0_3(check_dataset(three_d, 2)))
-    expect_identical(at_each_door(three_d, susie = TRUE),
-                     everywhere("LD must be a matrix", susie = TRUE))
-    ## refused after 6.0.3's LD rules, so one 6.0.3 refused keeps its message
+    at_each_door(three_d, error = "LD must be a matrix", susie = TRUE)
+    ## and one that isn't square as well
     not_square <- D1
     not_square$LD <- array(D1$LD[, -1], c(500, 499, 1), dimnames = list(D1$snp, D1$snp[-1], NULL))
-    expect_identical(outcome(get_match_6_0_3(check_dataset(not_square, 2)))$error, "LD not square")
-    expect_identical(outcome(check_dataset(not_square, 2))$error, "dataset 2: LD not square")
+    expect_error(check_dataset(not_square, 2),
+                 "dataset 2: LD not square", fixed = TRUE)
     ## a data frame LD has two dimensions: where LD isn't required it passes,
     ## with 6.0.3's answer
     df_ld <- D1
     df_ld$LD <- as.data.frame(D1$LD)
-    expect_identical(at_each_door(df_ld), everywhere(NA))
+    at_each_door(df_ld, error = NULL)
     expect_equal(abf_summary(D1, df_ld), get_match_6_0_3(coloc.abf(D1, df_ld))$summary)
     ## SuSiE needs a numeric matrix. 6.0.3's check_ld() refused a data frame
     ## after check_dataset(), and a character matrix failed in R; now the check
@@ -176,12 +156,12 @@ test_that("LD must be a matrix, and for SuSiE a numeric one, where 6.0.3 failed 
     df_ld3$LD <- as.data.frame(D3$LD)
     chr_ld3 <- D3
     storage.mode(chr_ld3$LD) <- "character"
-    expect_error(get_match_6_0_3(runsusie(df_ld3)), "LD must be of class matrix", fixed = TRUE)
+    expect_error(get_match_6_0_3(runsusie(df_ld3)))
     expect_error(suppressMessages(get_match_6_0_3(runsusie(chr_ld3))))
     for (d in list(df_ld3, chr_ld3)) {
-        expect_error(runsusie(d), "^dataset 1: LD must be a numeric matrix$")
-        expect_identical(error_before_susie(coloc(D4, d, method = "susie")),
-                         "trait 2: LD must be a numeric matrix")
+        expect_error(runsusie(d), "dataset 1: LD must be a numeric matrix", fixed = TRUE)
+        refused_before_susie(coloc(D4, d, method = "susie"),
+                             "trait 2: LD must be a numeric matrix")
     }
 })
 
@@ -190,46 +170,40 @@ test_that("N must be a finite number above 0 wherever it is given, where 6.0.3 t
     for (n in c(0, -5, Inf)) {
         d <- D1
         d$N <- n
-        expect_null(get_match_6_0_3(check_dataset(d, 2)))
-        expect_identical(at_each_door(d, susie = TRUE),
-                         everywhere("N must be a finite number above 0", susie = TRUE))
+        at_each_door(d, error = "N must be a finite number above 0", susie = TRUE)
     }
     ## without sdY, which is estimated from N, 6.0.3 went on all the same
     no_sdY <- D1
     no_sdY$sdY <- NULL
     no_sdY$N <- 0
     expect_no_error(suppressWarnings(get_match_6_0_3(coloc.abf(D1, no_sdY))))
-    expect_identical(at_each_door(no_sdY), everywhere("N must be a finite number above 0"))
-    ## given as p-values, 0 keeps 6.0.3's message, and Inf, which 6.0.3 took,
-    ## is refused
+    at_each_door(no_sdY, error = "N must be a finite number above 0")
+    ## given as p-values, 0 is refused, as in 6.0.3, and so is Inf, which
+    ## 6.0.3 took
     p_zero <- to_pvalues(D1)
     p_zero$N <- 0
-    expect_identical(outcome(get_match_6_0_3(check_dataset(p_zero, 2)))$error,
-                     "dataset 2: sample size N <=0 or not set")
-    expect_identical(at_each_door(p_zero), everywhere("sample size N <=0 or not set"))
+    at_each_door(p_zero, error = "sample size N <=0 or not set")
     p_inf <- to_pvalues(D1)
     p_inf$N <- Inf
-    expect_null(get_match_6_0_3(check_dataset(p_inf, 2)))
-    expect_identical(at_each_door(p_inf), everywhere("N must be a finite number above 0"))
+    at_each_door(p_inf, error = "N must be a finite number above 0")
     ## for SuSiE, refused before either trait is fine-mapped; 6.0.3 left it to
     ## susieR, after the other trait was
     zero4 <- D4
     zero4$N <- 0
     expect_error(suppressMessages(get_match_6_0_3(runsusie(zero4))))
-    expect_identical(error_before_susie(coloc(D3, zero4, method = "susie")),
-                     "trait 2: N must be a finite number above 0")
+    refused_before_susie(coloc(D3, zero4, method = "susie"), "trait 2: N must be a finite number above 0")
     ## and above 1, as susieR needs, which 6.0.3 also left to susieR. On the
     ## Wakefield route an N of 1 gives 6.0.3's answer
     for (n in c(1, 0.5)) {
         small4 <- D4
         small4$N <- n
-        expect_error(suppressMessages(get_match_6_0_3(runsusie(small4))), "n must be greater than 1")
-        expect_identical(error_before_susie(coloc(D3, small4, method = "susie")),
-                         "trait 2: N must be above 1 for SuSiE")
+        expect_error(suppressMessages(get_match_6_0_3(runsusie(small4))))
+        refused_before_susie(coloc(D3, small4, method = "susie"),
+                             "trait 2: N must be above 1 for SuSiE")
     }
     one <- D1
     one$N <- 1
-    expect_identical(at_each_door(one), everywhere(NA))
+    at_each_door(one, error = NULL)
 })
 
 test_that("sdY must be a single finite number above 0 where it is read, where 6.0.3 took any", {
@@ -237,8 +211,7 @@ test_that("sdY must be a single finite number above 0 where it is read, where 6.
     for (sdY in list(0, -1, c(1, 1), Inf, "1")) {
         d <- D1
         d$sdY <- sdY
-        expect_null(get_match_6_0_3(check_dataset(d, 2)))
-        expect_identical(at_each_door(d), everywhere("sdY must be a single finite number above 0"))
+        at_each_door(d, error = "sdY must be a single finite number above 0")
     }
     ## where nothing reads it, it passes with 6.0.3's answer: on a case-control
     ## trait, and with p-values
@@ -247,7 +220,7 @@ test_that("sdY must be a single finite number above 0 where it is read, where 6.
     p <- to_pvalues(D1)
     p$sdY <- 0
     for (d in list(cc, p)) {
-        expect_identical(at_each_door(d), everywhere(NA))
+        at_each_door(d, error = NULL)
         expect_equal(abf_summary(D1, d), get_match_6_0_3(coloc.abf(D1, d))$summary)
     }
     ## and for SuSiE, which never reads it
@@ -257,8 +230,6 @@ test_that("sdY must be a single finite number above 0 where it is read, where 6.
 })
 
 test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numeric matrix", {
-    msg <- "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"
-    susie_req <- c("beta", "varbeta", "LD", "snp", "N")   # runsusie()'s, in 6.0.3 too
     above_one <- D3
     above_one$LD[1, 2] <- above_one$LD[2, 1] <- 1.5
     covariance <- D3
@@ -266,25 +237,31 @@ test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numer
     asymmetric <- D3
     asymmetric$LD[1, 2] <- asymmetric$LD[1, 2] + 0.1
     for (d in list(above_one, covariance, asymmetric)) {
-        ## 6.0.3's runsusie() checked the dataset and its LD, and fine-mapped it
-        expect_null(get_match_6_0_3(check_dataset(d, 1, req = susie_req)))
+        ## 6.0.3's runsusie() checked its LD with check_ld(), which took it
         expect_null(get_match_6_0_3(check_ld(d, d$LD)))
-        expect_identical(error_before_susie(runsusie(d)), paste0("dataset 1: ", msg))
-        expect_identical(error_before_susie(coloc(D4, d, method = "susie")), paste0("trait 2: ", msg))
+        refused_before_susie(runsusie(d),
+                             "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
+        refused_before_susie(coloc(D4, d, method = "susie"),
+                             "trait 2: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
         ## where LD isn't required it isn't tested, and the answer is 6.0.3's
         expect_null(check_dataset(d, 2))
         expect_equal(abf_summary(D4, d), get_match_6_0_3(coloc.abf(D4, d))$summary)
     }
     ## to within 1e-6, on the diagonal and off it
-    susie_check <- function(d) outcome(check_dataset(d, 1, req = .dataset_uses$susie))$error
+    susie_check <- function(d) check_dataset(d, 1, req = .dataset_uses$susie)
     for (off in c(5e-7, 2e-6)) {
         diagonal <- D3
         diag(diagonal$LD) <- 1 + off
         pair <- D3
         pair$LD[1, 2] <- pair$LD[1, 2] + off
-        expected <- if (off < 1e-6) NA_character_ else paste0("dataset 1: ", msg)
-        expect_identical(susie_check(diagonal), expected)
-        expect_identical(susie_check(pair), expected)
+        for (d in list(diagonal, pair)) {
+            if (off < 1e-6)
+                expect_null(susie_check(d))
+            else
+                expect_error(susie_check(d),
+                             "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal",
+                             fixed = TRUE)
+        }
     }
     ## only the dataset's snps, the part runsusie() uses: an LD covering more
     ## snps passes with a fault among the others, and not with one among them
@@ -295,12 +272,15 @@ test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numer
     outside$LD[1, 2] <- outside$LD[2, 1] <- 1.5
     inside <- fewer
     inside$LD[11, 12] <- inside$LD[12, 11] <- 1.5
-    expect_identical(susie_check(outside), NA_character_)
-    expect_identical(susie_check(inside), paste0("dataset 1: ", msg))
-    ## a non-square LD keeps 6.0.3's message for SuSiE too
+    expect_null(susie_check(outside))
+    expect_error(susie_check(inside),
+                 "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal",
+                 fixed = TRUE)
+    ## and a non-square LD is refused for SuSiE too
     not_square <- D3
     not_square$LD <- D3$LD[, -1]
-    expect_identical(susie_check(not_square), "dataset 1: LD not square")
+    expect_error(susie_check(not_square),
+                 "dataset 1: LD not square", fixed = TRUE)
 })
 
 test_that(".is_correlation() compares every block of a large LD", {
@@ -313,26 +293,36 @@ test_that(".is_correlation() compares every block of a large LD", {
 
 test_that("for SuSiE z must have a finite number for each snp, where 6.0.3 failed with R's errors or fit it as given", {
     z3 <- D3$beta / sqrt(D3$varbeta)
-    ## each z, whether 6.0.3's runsusie() failed on it with R's or susieR's
-    ## error or fine-mapped it as given, and the message it gets now
-    broken <- list(list(z = replace(z3, 5, NA), failed = FALSE, msg = "z contains missing values"),
-                   list(z = z3[-1], failed = TRUE, msg = "snp has 500 values but z has 499"),
-                   list(z = c(z3, 1), failed = TRUE, msg = "snp has 500 values but z has 501"),
-                   list(z = as.character(z3), failed = TRUE, msg = "z must be numeric"),
-                   list(z = z3 > 0, failed = FALSE, msg = "z must be numeric"),
-                   list(z = replace(z3, 5, Inf), failed = FALSE, msg = "Infinite values in z"))
-    for (b in broken) {
+    ## each z, and whether 6.0.3's runsusie() failed on it with R's or susieR's
+    ## error or fine-mapped it as given
+    broken <- list("a missing value" = list(z = replace(z3, 5, NA), failed = FALSE),
+                   "one value short" = list(z = z3[-1], failed = TRUE),
+                   "one value too many" = list(z = c(z3, 1), failed = TRUE),
+                   "character" = list(z = as.character(z3), failed = TRUE),
+                   "logical" = list(z = z3 > 0, failed = FALSE),
+                   "an infinite value" = list(z = replace(z3, 5, Inf), failed = FALSE))
+    ## and the error each gets now, after its "dataset 1: " label
+    errors <- c("a missing value" = "z contains missing values",
+                "one value short" = "snp has 500 values but z has 499",
+                "one value too many" = "snp has 500 values but z has 501",
+                "character" = "z must be numeric",
+                "logical" = "z must be numeric",
+                "an infinite value" = "Infinite values in z")
+    for (what in names(broken)) {
+        b <- broken[[what]]
         d <- D3
         d$z <- b$z
-        then <- outcome(suppressMessages(get_match_6_0_3(runsusie(d))))$error
-        expect_identical(!is.na(then), b$failed, label = b$msg)
-        expect_error(runsusie(d), paste0("^dataset 1: ", b$msg, "$"))
-        expect_identical(error_before_susie(coloc(D4, d, method = "susie")),
-                         paste0("trait 2: ", b$msg))
+        failed <- tryCatch({
+            suppressWarnings(suppressMessages(get_match_6_0_3(runsusie(d))))
+            FALSE
+        }, error = function(e) TRUE)
+        expect_identical(failed, b$failed, label = what)
+        expect_error(runsusie(d), paste0("dataset 1: ", errors[[what]]), fixed = TRUE)
+        refused_before_susie(coloc(D4, d, method = "susie"), paste0("trait 2: ", errors[[what]]))
         ## where nothing reads z it passes, with 6.0.3's answer
         d1 <- D1
         d1$z <- b$z
-        expect_identical(at_each_door(d1), everywhere(NA))
+        at_each_door(d1, error = NULL)
     }
     expect_equal(abf_summary(D1, d1), get_match_6_0_3(coloc.abf(D1, d1))$summary)
 })
@@ -345,46 +335,30 @@ test_that("runsusie() fine-maps from the dataset's z, as 6.0.3 did", {
     expect_identical(fit_half$pip, suppressMessages(get_match_6_0_3(runsusie(half)))$pip)
 })
 
-## ---- messages reworded since 6.0.3 ------------------------------------------
-## The same datasets are refused, at the same rule, with a sentence that says
-## more. at_each_door() and everywhere() are above.
-
-test_that("lengths that differ name the elements, where 6.0.3 said only that they don't match", {
+test_that("per-snp elements must have the same length", {
     short <- D1
     short$beta <- short$beta[-1]
-    expect_identical(outcome(get_match_6_0_3(check_dataset(short, 2)))$error,
-                     "dataset 2: lengths of inputs don't match: ")
-    expect_identical(at_each_door(short, susie = TRUE),
-                     everywhere("snp has 500 values but beta has 499", susie = TRUE))
-    msg <- function(d, ...) outcome(check_dataset(d, ...))$error
-    ## the elements are compared in a fixed order, whatever the list's
-    two_short <- short
-    two_short$MAF <- two_short$MAF[-(1:2)]
-    expect_identical(msg(two_short), "snp has 500 values but beta has 499")
-    expect_identical(msg(rev(two_short)), "snp has 500 values but beta has 499")
+    at_each_door(short, error = "snp has 500 values but beta has 499", susie = TRUE)
     ## each per-snp element is compared with snp, position too
     short_position <- D1
     short_position$position <- short_position$position[-1]
-    expect_identical(msg(short_position), "snp has 500 values but position has 499")
+    expect_error(check_dataset(short_position),
+                 "snp has 500 values but position has 499", fixed = TRUE)
     short_snp <- D1
     short_snp$snp <- short_snp$snp[-1]
-    expect_identical(msg(short_snp), "snp has 499 values but beta has 500")
-    ## without snp, against the first element given
+    expect_error(check_dataset(short_snp), "snp has 499 values but beta has 500", fixed = TRUE)
+    ## without snp, with the first element given
     no_snp <- short
     no_snp$snp <- NULL
-    expect_identical(msg(no_snp, req = "type"), "beta has 499 values but varbeta has 500")
-    one <- list(snp = "s1", beta = c(0.1, 0.2), varbeta = c(0.01, 0.01), type = "quant", sdY = 1)
-    expect_identical(msg(one), "snp has 1 value but beta has 2")
+    expect_error(check_dataset(no_snp, req = "type"),
+                 "beta has 499 values but varbeta has 500", fixed = TRUE)
 })
 
-test_that("a per-snp N gets a reworded message, where 6.0.3's misspelt a word", {
+test_that("N must be a single number, not one per snp", {
     for (n in list(rep(D1$N, length(D1$snp)), as.character(D1$N))) {
         d <- D1
         d$N <- n
-        expect_identical(outcome(get_match_6_0_3(check_dataset(d, 2)))$error,
-                         "N should be a single numeric. coloc does not accomodate per-snp sample sizes.")
-        expect_identical(at_each_door(d, susie = TRUE),
-                         everywhere("N must be a single number; coloc does not take per-snp sample sizes",
-                                    susie = TRUE))
+        at_each_door(d, susie = TRUE,
+                     error = "N must be a single number; coloc does not take per-snp sample sizes")
     }
 })

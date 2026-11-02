@@ -3,8 +3,9 @@ D1 <- plain_test_data$D1
   result.nonull=runsusie(D1)
   pi0=1e-4
   ## 3rd edition: expect_warning() returns the condition, not the value, so the
-  ## fit has to be assigned inside the expectation rather than from its result
-  expect_warning(result.null <- runsusie(D1, null_weight = pi0))
+  ## fit has to be assigned inside the expectation rather than from its result.
+  ## The warning is R's own, from cov2cor() inside susieR, not one of coloc's
+  expect_warning(result.null <- runsusie(D1, null_weight = pi0), class = "simpleWarning")
 
 test_that("passing null_weight works", {
   expect_equal(result.null$pi[ length(D1$beta)+1 ], pi0)

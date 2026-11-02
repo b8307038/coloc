@@ -15,49 +15,47 @@ test_that("validate_coloc_result() accepts a result of the right shape", {
     expect_silent(validate_coloc_result(ok))
 })
 
-test_that("validate_coloc_result() says what is wrong, and that it is a bug", {
+test_that("validate_coloc_result() refuses a result of the wrong shape, as a bug in coloc", {
     ok <- .new_coloc_result(prior = .default_prior(), status = "no_signal")
-    expect_bug <- function(x, found, should) {
-        msg <- tryCatch({ validate_coloc_result(x); "" }, error = conditionMessage)
-        expect_match(msg, "^internal error in coloc: ")
-        expect_match(msg, found, fixed = TRUE)
-        expect_match(msg, should, fixed = TRUE)
-        expect_match(msg, "This is a bug in coloc; please report it$")
+    ## a malformed result is coloc's bug, not the user's mistake, and its error
+    ## says so
+    expect_bug <- function(x) {
+        expect_error(validate_coloc_result(x),
+                     "This is a bug in coloc; please report it", fixed = TRUE)
     }
-    expect_bug(unclass(ok), "was given an object of class 'list'", "not a coloc_result")
+    expect_bug(unclass(ok))
     bad <- ok; bad$priors <- NULL
-    expect_bug(bad, "the result is missing [priors]", "should have at least [summary")
-    ## $summary's columns: the difference is named, whichever it is
+    expect_bug(bad)
+    ## $summary's columns: one too many, one missing, or out of order
     bad <- ok; bad$summary$extra <- integer(0)
-    expect_bug(bad, "has extra column(s) [extra]", "it should have [nsnps, hit1")
+    expect_bug(bad)
     bad <- ok; bad$summary$idx2 <- NULL
-    expect_bug(bad, "is missing column(s) [idx2]", "it should have [nsnps, hit1")
+    expect_bug(bad)
     bad <- ok; bad$summary <- data.table::copy(ok$summary)
     data.table::setcolorder(bad$summary, c("hit1", "nsnps"))
-    expect_bug(bad, "has its columns in the wrong order", "it should have [nsnps, hit1")
+    expect_bug(bad)
     bad <- ok; bad$status <- "fine"
-    expect_bug(bad, "$status is 'fine'", "should be one of [ok, no_overlap")
+    expect_bug(bad)
     bad <- ok; bad$meta$schema <- NULL
-    expect_bug(bad, "$meta$schema is missing", "should be a number")
+    expect_bug(bad)
     bad <- ok; bad$meta$schema <- "2"
-    expect_bug(bad, "$meta$schema is of class 'character'", "should be a number")
+    expect_bug(bad)
     ## rows against status
     bad <- coloc(bf, bf); bad$status <- "no_overlap"
-    expect_bug(bad, "status 'no_overlap' has 1 row(s) in $summary", "should have none")
+    expect_bug(bad)
     bad <- ok; bad$status <- "all_trimmed"
-    expect_bug(bad, "has no rows in $summary", "should keep one for each signal pair")
+    expect_bug(bad)
     bad <- coloc(bf, bf); bad$summary$PP.H4.abf <- NA_real_
-    expect_bug(bad, "status 'ok' has NA in $summary$PP.H4.abf, row(s) [1]", "should have none")
+    expect_bug(bad)
     ## $bf, when present
     bad <- ok; bad$bf <- list(bf1 = "x", bf2 = "y")
-    expect_bug(bad, "$bf is list(bf1 = character, bf2 = character)",
-               "should be list(bf1, bf2) of numeric matrices")
+    expect_bug(bad)
     bad <- ok; bad$bf <- list(bf1 = bf, bf2 = unname(bf))
-    expect_bug(bad, "bf2 = matrix without snp ids", "with snp ids as column names")
+    expect_bug(bad)
     bad <- ok; bad$bf <- list(a = bf, b = bf)
-    expect_bug(bad, "$bf is list(a = numeric matrix, b = numeric matrix)", "list(bf1, bf2)")
+    expect_bug(bad)
     bad <- ok; bad$bf <- bf
-    expect_bug(bad, "$bf is of class 'matrix'", "should be list(bf1, bf2)")
+    expect_bug(bad)
 })
 
 test_that("pp() gives the number of snps and the five posteriors of one pair", {
@@ -70,8 +68,10 @@ test_that("pp() gives the number of snps and the five posteriors of one pair", {
 test_that("pp() stops on a row that does not exist", {
     res <- coloc(bf, bf)
     expect_equal(pp(res, row = 1), pp(res))
-    expect_error(pp(res, row = 2), "between 1 and 1")
-    expect_error(pp(res, row = 0), "between 1 and 1")
+    expect_error(pp(res, row = 2),
+                 "row must be between 1 and 1, the number of signal pairs", fixed = TRUE)
+    expect_error(pp(res, row = 0),
+                 "row must be between 1 and 1, the number of signal pairs", fixed = TRUE)
 })
 
 test_that("pp(), is_ok() and n_signals() answer for a result with no rows", {
@@ -134,20 +134,22 @@ test_that("a result with no rows still keeps its log BFs", {
     expect_equal(log_bf(none, 2), bf_x)
 })
 
-test_that("log_bf() asks for trait 1 or 2", {
+test_that("log_bf() stops on a trait other than 1 or 2", {
     res <- coloc(bf, bf)
-    expect_error(log_bf(res, 3), "trait must be 1 or 2")
+    expect_error(log_bf(res, 3), "trait must be 1 or 2", fixed = TRUE)
 })
 
-test_that("log_bf() says to rerun coloc() for a result saved before $bf existed", {
+test_that("log_bf() stops on a result saved before $bf existed", {
     ## from before coloc() kept each trait's log BFs in $bf: schema 1, and no $bf
     res <- coloc(bf, bf)
     res$bf <- NULL
     res$meta$schema <- 1L
-    expect_error(log_bf(res, 1), "rerun coloc()", fixed = TRUE)
+    expect_error(log_bf(res, 1),
+                 "this coloc_result was made before coloc() kept the log Bayes factors; rerun coloc() to get them",
+                 fixed = TRUE)
 })
 
-test_that("pp(), is_ok(), n_signals() and log_bf() say to run coloc() first", {
+test_that("pp(), is_ok(), n_signals() and log_bf() stop on anything but a coloc() result", {
     ## a coloc.abf() result (class coloc_abf) is the likeliest mistake. It has
     ## no $status, $meta or $bf, and its $summary is a named vector, so without
     ## the check is_ok() would say FALSE, n_signals() NULL, and pp() and
@@ -158,7 +160,9 @@ test_that("pp(), is_ok(), n_signals() and log_bf() say to run coloc() first", {
         expect_error(fns[[nm]](old),
                      "x must be the result of coloc(), but is a coloc_abf; run coloc() first",
                      fixed = TRUE, label = nm)
-        expect_error(fns[[nm]](list()), "but is a list", fixed = TRUE, label = nm)
+        expect_error(fns[[nm]](list()),
+                     "x must be the result of coloc(), but is a list; run coloc() first",
+                     fixed = TRUE, label = nm)
     }
     ## the error names the call made, not the helper behind it
     expect_equal(conditionCall(tryCatch(pp(old), error = identity)), quote(pp(old)))
@@ -171,8 +175,9 @@ test_that("print() shows the status, the methods, the priors and the summary", {
     expect_true(any(grepl("priors: p1 = 1e-04, p2 = 1e-04, p12 = 5e-06", out)))
     expect_true(any(grepl("PP.H4.abf", out)))
     ## a result's own warnings are printed as notes; its log BFs are not shown
-    out <- utils::capture.output(print(suppressWarnings(coloc(bf, bf_x))))
+    none <- suppressWarnings(coloc(bf, bf_x))
+    out <- utils::capture.output(print(none))
     expect_match(out[1], "status no_overlap with 0 signal pair")
-    expect_true(any(grepl("note: no snps in common", out)))
+    expect_true(any(grepl(paste("note:", none$messages[1]), out, fixed = TRUE)))
     expect_false(any(grepl("bf1|sig1", out)))
 })

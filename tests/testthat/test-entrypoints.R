@@ -65,11 +65,13 @@ test_that("the susie doors keep their old return shapes", {
     expect_true(data.table::is.data.table(res$summary))
     expect_named(res, c("summary", "results", "priors"))
     expect_false(inherits(res, "coloc_result"))
-    ## no credible sets: a bare data.table, as in 6.0.3, with the engine's wording
+    ## no credible sets: a bare data.table, as in 6.0.3, with the engine's warning
     fit <- structure(list(lbf_variable = matrix(0, 3, 4, dimnames = list(NULL, paste0("s", 1:4))),
                           sets = list(cs = list(), cs_index = integer(0))),
                      class = "susie")
-    expect_warning(res <- coloc.susie(fit, fit), "no signals")
+    expect_warning(res <- coloc.susie(fit, fit),
+                   "at least one trait has no signals, nothing to colocalise",
+                   fixed = TRUE)
     expect_true(is.na(res$nsnps))
 })
 
@@ -98,27 +100,38 @@ test_that("the old doors reject a vector prior, as coloc_prior() does", {
     ## 6.0.3 accepted a vector p1 or p2 (AL10 in test-v603.R).
     ## coloc.susie() and coloc.susie_bf() go through coloc(), which checks
     vec <- rep(1e-4, 8)
-    msg <- tryCatch(coloc_prior(p1 = vec), error = conditionMessage)
-    expect_error(coloc.bf_bf(bf, bf, p1 = vec), msg, fixed = TRUE)
-    expect_error(coloc.bf_bf(bf, bf, p2 = vec), msg, fixed = TRUE)
+    expect_error(coloc_prior(p1 = vec),
+                 "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                 fixed = TRUE)
+    expect_error(coloc.bf_bf(bf, bf, p1 = vec),
+                 "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                 fixed = TRUE)
+    expect_error(coloc.bf_bf(bf, bf, p2 = vec),
+                 "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                 fixed = TRUE)
     fit <- structure(list(lbf_variable = bf, sets = list(cs = list(3L), cs_index = 1L)),
                      class = "susie")
-    expect_error(coloc.susie(fit, fit, p1 = vec), msg, fixed = TRUE)
-    expect_error(coloc.susie_bf(fit, bf, p2 = vec), msg, fixed = TRUE)
+    expect_error(coloc.susie(fit, fit, p1 = vec),
+                 "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                 fixed = TRUE)
+    expect_error(coloc.susie_bf(fit, bf, p2 = vec),
+                 "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                 fixed = TRUE)
     ## with weights too
     expect_error(coloc.bf_bf(bf, bf, p1 = vec, prior_weights1 = rep(1, 8)),
-                 "must each be a scalar")
-    ## coloc.abf() stops earlier, in adjust_prior(), with R's own message
-    abf <- tryCatch(coloc.abf(D1, D2, p1 = rep(1e-4, 500)), error = conditionMessage)
-    expect_false(grepl("must each be a scalar", abf))
+                 "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                 fixed = TRUE)
+    ## coloc.abf() stops earlier, in adjust_prior(), with R's own error
+    expect_error(coloc.abf(D1, D2, p1 = rep(1e-4, 500)),
+                 "the condition has length > 1", fixed = TRUE)
 })
 
 test_that("coloc.bf_bf() still fails as 6.0.3 did on a character matrix", {
     ## coloc.bf_bf() hands its matrices straight to the engine, not through
     ## .adapt_bf(), so it lacks coloc()'s checks: a character matrix fails in
-    ## the arithmetic with R's "non-numeric argument", as in 6.0.3, where
-    ## coloc() stops first with "log Bayes factors must be numeric"
+    ## the arithmetic with R's own error, as in 6.0.3, where coloc() refuses it
+    ## first with its own error
     chr <- matrix("a", 2, 3, dimnames = list(NULL, paste0("s", 1:3)))
     num <- matrix(0, 2, 3, dimnames = list(NULL, paste0("s", 1:3)))
-    expect_error(coloc.bf_bf(chr, num), "non-numeric argument")
+    expect_error(coloc.bf_bf(chr, num), "non-numeric argument to binary operator", fixed = TRUE)
 })

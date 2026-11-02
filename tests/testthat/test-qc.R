@@ -149,7 +149,9 @@ test_that("the engine decides which checks run, and what is required", {
     expect_identical(status_of(qc_dataset(asymmetric))[["LD_correlation"]], "ok")
     expect_null(check_dataset(asymmetric))
     expect_identical(status_of(qc_dataset(asymmetric, engine = "susie"))[["LD_correlation"]], "FAIL")
-    expect_error(check_dataset(asymmetric, req = .dataset_uses$susie), "LD must be a correlation matrix")
+    expect_error(check_dataset(asymmetric, req = .dataset_uses$susie),
+                 "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal",
+                 fixed = TRUE)
     no_N <- as_coloc_dataset(D3)
     no_N$N <- NULL
     expect_identical(status_of(qc_dataset(no_N))[["required"]], "ok")

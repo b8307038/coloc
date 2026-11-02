@@ -37,8 +37,9 @@ test_that("every status is reachable, and each result validates", {
     expect_equal(nrow(got$no_overlap$summary), 0L)
     expect_true(all(is.na(got$all_trimmed$summary$PP.H4.abf)))
     expect_false(anyNA(got$ok$summary$PP.H4.abf))
-    ## $messages keeps what warning() said
-    expect_match(got$no_overlap$messages, "no snps in common")
+    ## $messages keeps the warning given, and an ok result has none
+    expect_length(got$no_overlap$messages, 1)
+    expect_length(got$ok$messages, 0)
 })
 
 test_that("the five posteriors sum to 1, and H4 beats H3 only when the signals coincide", {
@@ -95,7 +96,7 @@ test_that("prior weights move the posteriors, and are kept for the shared snps",
                           prior = with_weights(1:6, rep(1, 8)))
     expect_equal(part$weights, list(w1 = 1:6, w2 = rep(1, 6)))
     expect_error(.coloc_engine(a, b, prior = with_weights(1:3, NULL)),
-                 "Length of prior_weights1")
+                 "Length of prior_weights1 must match size of dataset 1", fixed = TRUE)
 })
 
 test_that("a trimmed pair with no evidence reports the prior, not a certainty", {

@@ -15,14 +15,18 @@ test_that("p1, p2 and p12 must each be a scalar", {
     for (arg in c("p1", "p2", "p12")) {
         a <- list(rep(1e-4, 8))
         names(a) <- arg
-        expect_error(do.call(coloc_prior, a), "must each be a scalar.*weights1/weights2",
-                     label = arg)
+        expect_error(do.call(coloc_prior, a),
+                     "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                     fixed = TRUE, label = arg)
     }
-    ## checked before the bounds, which would accept a vector
-    expect_error(coloc_prior(p1 = c(1e-4, 1e-4), weights1 = c(1, 1)), "must each be a scalar")
+    ## refused although the bounds alone would accept this vector
+    expect_error(coloc_prior(p1 = c(1e-4, 1e-4), weights1 = c(1, 1)),
+                 "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                 fixed = TRUE)
     ## and in a plain list, as coloc() and coloc.bf_bf() check it
     expect_error(validate_coloc_prior(list(p1 = 1e-4, p2 = c(1e-4, 1e-4), p12 = 5e-6)),
-                 "must each be a scalar")
+                 "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                 fixed = TRUE)
     expect_silent(validate_coloc_prior(.default_prior()))
 })
 
@@ -30,15 +34,22 @@ test_that("p12 may sit exactly on its bounds", {
     ## 0.2 * 0.2 rounds to 0.04000000000000001, just above a p12 of 0.04
     expect_s3_class(coloc_prior(p1 = 0.2, p2 = 0.2, p12 = 0.04), "coloc_prior")
     expect_s3_class(coloc_prior(p1 = 1e-4, p2 = 1e-4, p12 = 1e-4), "coloc_prior")
-    expect_error(coloc_prior(p1 = 0.2, p2 = 0.2, p12 = 0.039), "p12 must lie")
-    expect_error(coloc_prior(p12 = 2e-4), "p12 must lie")
+    expect_error(coloc_prior(p1 = 0.2, p2 = 0.2, p12 = 0.039),
+                 "p12 must lie in [p1*p2, min(p1, p2)]",
+                 fixed = TRUE)
+    expect_error(coloc_prior(p12 = 2e-4),
+                 "p12 must lie in [p1*p2, min(p1, p2)]",
+                 fixed = TRUE)
 })
 
 test_that("prior weights must be positive and not NA", {
     expect_equal(coloc_prior(weights1 = c(1, 2, 3))$weights1, c(1, 2, 3))
-    expect_error(coloc_prior(weights1 = c(1, -1)), "non-NA and positive")
-    expect_error(coloc_prior(weights1 = c(1, 0)), "non-NA and positive")
-    expect_error(coloc_prior(weights2 = c(1, NA)), "non-NA and positive")
+    expect_error(coloc_prior(weights1 = c(1, -1)),
+                 "prior weights must be non-NA and positive", fixed = TRUE)
+    expect_error(coloc_prior(weights1 = c(1, 0)),
+                 "prior weights must be non-NA and positive", fixed = TRUE)
+    expect_error(coloc_prior(weights2 = c(1, NA)),
+                 "prior weights must be non-NA and positive", fixed = TRUE)
 })
 
 test_that("weights for both traits warn, as coloc.abf() did", {
@@ -47,7 +58,9 @@ test_that("weights for both traits warn, as coloc.abf() did", {
     ## is made, so coloc() given one warns (AL15 in test-v603.R); coloc.abf()
     ## still warns from its own copy, and the other old entry points, which
     ## build plain lists, don't
-    expect_warning(coloc_prior(weights1 = c(1, 2), weights2 = c(1, 2)), "both traits")
+    expect_warning(coloc_prior(weights1 = c(1, 2), weights2 = c(1, 2)),
+                   "Prior weights specified for both traits.\n  The two weight vectors should be derived from independent sources of\n  information, i.e. not computed using the same method.",
+                   fixed = TRUE)
     expect_silent(coloc_prior(weights1 = c(1, 2)))
 })
 
@@ -60,17 +73,22 @@ test_that("coloc_control() holds the defaults", {
 
 test_that("coloc_control() takes overlap.min in (0, 1]", {
     expect_equal(coloc_control(overlap.min = 1)$overlap.min, 1)
-    msg <- "overlap.min must be a single number above 0 and at most 1"
-    expect_error(coloc_control(overlap.min = 0), msg, fixed = TRUE)
-    expect_error(coloc_control(overlap.min = 1.5), msg, fixed = TRUE)
-    expect_error(coloc_control(overlap.min = NA_real_), msg, fixed = TRUE)
-    expect_error(coloc_control(overlap.min = c(0.5, 0.6)), msg, fixed = TRUE)
-    expect_error(coloc_control(overlap.min = "0.5"), msg, fixed = TRUE)
+    expect_error(coloc_control(overlap.min = 0),
+                 "overlap.min must be a single number above 0 and at most 1", fixed = TRUE)
+    expect_error(coloc_control(overlap.min = 1.5),
+                 "overlap.min must be a single number above 0 and at most 1", fixed = TRUE)
+    expect_error(coloc_control(overlap.min = NA_real_),
+                 "overlap.min must be a single number above 0 and at most 1", fixed = TRUE)
+    expect_error(coloc_control(overlap.min = c(0.5, 0.6)),
+                 "overlap.min must be a single number above 0 and at most 1", fixed = TRUE)
+    expect_error(coloc_control(overlap.min = "0.5"),
+                 "overlap.min must be a single number above 0 and at most 1", fixed = TRUE)
 })
 
 test_that("coloc_control() takes TRUE or FALSE for trim_by_posterior", {
     expect_false(coloc_control(trim_by_posterior = FALSE)$trim_by_posterior)
-    msg <- "trim_by_posterior must be TRUE or FALSE"
-    expect_error(coloc_control(trim_by_posterior = NA), msg, fixed = TRUE)
-    expect_error(coloc_control(trim_by_posterior = "yes"), msg, fixed = TRUE)
+    expect_error(coloc_control(trim_by_posterior = NA),
+                 "trim_by_posterior must be TRUE or FALSE", fixed = TRUE)
+    expect_error(coloc_control(trim_by_posterior = "yes"),
+                 "trim_by_posterior must be TRUE or FALSE", fixed = TRUE)
 })

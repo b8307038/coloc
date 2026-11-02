@@ -20,21 +20,33 @@ test_that("coloc_dataset() and as_coloc_dataset() agree", {
     expect_identical(as_coloc_dataset(D1)$beta, do.call(coloc_dataset, D1)$beta)
 })
 
-test_that("mistakes are reported when the dataset is made, with check_dataset()'s messages", {
-    expect_error(coloc_dataset(snp = small$snp, beta = small$beta, varbeta = small$varbeta, sdY = 1), "missing required element\\(s\\) type")
-    expect_error(coloc_dataset(type = "quant", beta = small$beta, varbeta = small$varbeta, sdY = 1), "missing required element\\(s\\) snp")
-    expect_error(coloc_dataset(snp = small$snp, type = "quant", beta = small$beta, sdY = 1), "require p values and MAF")
+test_that("mistakes are refused when the dataset is made", {
+    expect_error(coloc_dataset(snp = small$snp, beta = small$beta, varbeta = small$varbeta, sdY = 1),
+                 "missing required element(s) type", fixed = TRUE)
+    expect_error(coloc_dataset(type = "quant", beta = small$beta, varbeta = small$varbeta, sdY = 1),
+                 "missing required element(s) snp", fixed = TRUE)
+    expect_error(coloc_dataset(snp = small$snp, type = "quant", beta = small$beta, sdY = 1),
+                 "require p values and MAF if beta, varbeta are unavailable",
+                 fixed = TRUE)
     bad <- small; bad$beta[2] <- NA
-    expect_error(as_coloc_dataset(bad), "beta contains missing values")
+    expect_error(as_coloc_dataset(bad), "beta contains missing values", fixed = TRUE)
     bad <- small; bad$type <- "binary"
-    expect_error(as_coloc_dataset(bad), "type must be quant or cc")
+    expect_error(as_coloc_dataset(bad), "type must be quant or cc", fixed = TRUE)
 })
 
 test_that("as_coloc_dataset() refuses things that are not datasets", {
-    expect_error(as_coloc_dataset(1:5), "expected a coloc dataset")
-    expect_error(as_coloc_dataset(matrix(0, 2, 2)), "expected a coloc dataset")
-    expect_error(as_coloc_dataset(as.data.frame(small[c("snp", "beta", "varbeta")])), "expected a coloc dataset")
-    expect_error(as_coloc_dataset(structure(list(), class = "susie")), "expected a coloc dataset")
+    expect_error(as_coloc_dataset(1:5),
+                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a integer",
+                 fixed = TRUE)
+    expect_error(as_coloc_dataset(matrix(0, 2, 2)),
+                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a matrix",
+                 fixed = TRUE)
+    expect_error(as_coloc_dataset(as.data.frame(small[c("snp", "beta", "varbeta")])),
+                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a data.frame",
+                 fixed = TRUE)
+    expect_error(as_coloc_dataset(structure(list(), class = "susie")),
+                 "expected a coloc dataset: a list, or the result of coloc_dataset(), not a susie",
+                 fixed = TRUE)
 })
 
 test_that("as_coloc_dataset() keeps elements coloc does not use, and passes a coloc_dataset through", {
@@ -47,17 +59,17 @@ test_that("as_coloc_dataset() keeps elements coloc does not use, and passes a co
 
 test_that("the p value warning is given once, when the dataset is made", {
     weak <- small; weak$beta <- rep(0.01, 5)
-    expect_warning(D <- as_coloc_dataset(weak), "minimum p value")
-    expect_warning(check_dataset(D), NA)
+    expect_warning(D <- as_coloc_dataset(weak), class = "coloc_min_p")
+    expect_no_warning(check_dataset(D))
     ## a plain list still warns every time, as before
-    expect_warning(check_dataset(weak), "minimum p value")
+    expect_warning(check_dataset(weak), class = "coloc_min_p")
 })
 
 test_that("a mistake when a dataset is made shows the constructor's call, and no trait", {
     bad <- small
     bad$beta[2] <- NA
     expect_identical(call_of(as_coloc_dataset(bad)), quote(as_coloc_dataset(bad)))
-    expect_error(as_coloc_dataset(bad), "^beta contains missing values$")
+    expect_error(as_coloc_dataset(bad), "beta contains missing values", fixed = TRUE)
     expect_identical(call_of(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
                                            varbeta = bad$varbeta, sdY = 1)),
                      quote(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
@@ -66,7 +78,9 @@ test_that("a mistake when a dataset is made shows the constructor's call, and no
     weak <- small
     weak$beta <- rep(0.01, 5)
     expect_identical(call_of(as_coloc_dataset(weak)), quote(as_coloc_dataset(weak)))
-    expect_warning(as_coloc_dataset(weak), "^minimum p value is: ")
+    expect_warning(as_coloc_dataset(weak),
+                   "minimum p value is: 0.92034",
+                   fixed = TRUE, class = "coloc_min_p")
 })
 
 test_that("coloc_dataset() refuses a negative varbeta with its own call", {
@@ -76,7 +90,7 @@ test_that("coloc_dataset() refuses a negative varbeta with its own call", {
                                          varbeta = -D1$varbeta, sdY = 1)))
     expect_error(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
                                varbeta = -D1$varbeta, sdY = 1),
-                 "^varbeta must be positive$")
+                 "varbeta must be positive", fixed = TRUE)
 })
 
 test_that("as_coloc_dataset() returns a coloc_dataset as it is, even one changed since it was made", {
@@ -84,14 +98,14 @@ test_that("as_coloc_dataset() returns a coloc_dataset as it is, even one changed
     broken$beta[2] <- NA                # still a coloc_dataset: $<- keeps the class
     expect_identical(as_coloc_dataset(broken), broken)
     ## check_dataset() is the way to check it again, as the help says
-    expect_error(check_dataset(broken), "^beta contains missing values$")
+    expect_error(check_dataset(broken), "beta contains missing values", fixed = TRUE)
 })
 
 test_that("a dataset changed after it was made is checked again when used", {
     D <- as_coloc_dataset(D1)
     D$beta[1] <- NA
     expect_s3_class(D, "coloc_dataset") # $<- keeps the class, so the class alone cannot be trusted
-    expect_error(coloc(D, D2), "beta contains missing values")
+    expect_error(coloc(D, D2), "trait 1: beta contains missing values", fixed = TRUE)
 })
 
 test_that("a coloc_dataset gives the same results as the plain list", {
