@@ -5,7 +5,11 @@ D1 <- plain_test_data$D1
 ## D1 on each route wakefield_bf() takes
 routes <- list(
     "beta and varbeta, sdY given" = D1,
-    "beta and varbeta, sdY estimated" = local({ d <- D1; d$sdY <- NULL; d }),
+    "beta and varbeta, sdY estimated" = local({
+        d <- D1
+        d$sdY <- NULL
+        d
+    }),
     "beta and varbeta, case-control" = as_cc(D1),
     "p-values" = to_pvalues(D1),
     "p-values, case-control" = to_pvalues(as_cc(D1)),
@@ -44,7 +48,8 @@ test_that("wakefield_bf() returns one row per snp, with no suffixes", {
     expect_identical(got$position, D1$position)
     ## the row names are row numbers, whatever the input's vectors are named
     named <- D1
-    names(named$beta) <- names(named$position) <- D1$snp
+    names(named$beta) <- D1$snp
+    names(named$position) <- D1$snp
     expect_identical(rownames(wakefield_bf(named)), as.character(seq_along(D1$snp)))
     ## no snps and no position: no rows, where a single NA position would fail
     none <- no_position(D1)
@@ -55,8 +60,8 @@ test_that("wakefield_bf() returns one row per snp, with no suffixes", {
 
 test_that("effect_priors reaches both routes", {
     ## 6.0.3's approx.bf.estimates() takes effect_priors, though
-    ## process.dataset() never passed it on (AL06) and the p-value route had
-    ## 0.15 and 0.2 written in. Its formula is the p-value route's when sdY is 1
+    ## process.dataset() never passed it on and the p-value route had 0.15 and
+    ## 0.2 written in. Its formula is the p-value route's when sdY is 1
     wide <- c(quant = 0.3, cc = 0.4)
     for (what in c("beta and varbeta, sdY given", "beta and varbeta, case-control",
                    "p-values", "p-values, case-control")) {

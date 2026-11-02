@@ -135,8 +135,8 @@ check_dataset <- function(d,
         fail("snp should be a character vector but is a factor")
     if ("MAF" %in% nd && (!is.numeric(d$MAF) || any(d$MAF <= 0 | d$MAF >= 1)))
         fail("MAF should be a numeric, strictly >0 & <1")
-    ## each per-snp element but z has as many values as snp, or without snp as
-    ## the first of them, in .per_snp_items' order; z is compared with the
+    ## each per-snp element but z has as many values as snp, or, without snp,
+    ## as the first of them in .per_snp_items' order; z is compared with the
     ## same element below
     per_snp <- intersect(setdiff(.per_snp_items, "z"), nd)
     ref <- if ("snp" %in% per_snp) "snp" else per_snp[1]
@@ -254,14 +254,12 @@ check.dataset=function(...) {
 }
 
 
-## LD as a correlation matrix: values in [-1, 1], 1 on the diagonal, and equal
-## to its transpose, each to within tol, with no missing values. Any LD worked
-## out in 64-bit arithmetic passes with room to spare, and so does one stored
-## as 32-bit floats. Only one worked out in 32-bit arithmetic by rescaling each
-## snp to sd 1 first can miss by more, about 2e-5 at 1,000 people, and is
-## refused. A covariance matrix or a value of 1.5 is far outside it. The
-## transpose is compared in blocks of 500 columns, so a large LD isn't copied
-## whole.
+## TRUE when LD is a correlation matrix, to within tol: no missing values,
+## values in [-1, 1], 1 on the diagonal, and symmetric. The default passes an
+## LD worked out in 64-bit arithmetic or stored as 32-bit floats, but one
+## worked out in 32-bit arithmetic can be out by about 2e-5, and is refused.
+## The transpose is compared in blocks of 500 columns, so a large LD isn't
+## copied whole.
 .is_correlation <- function(LD, tol = 1e-6) {
     if (anyNA(LD))
         return(FALSE)

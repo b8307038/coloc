@@ -1,8 +1,8 @@
 ## ---------------------------------------------------------------------------
-## The front door.
-##
-## Stages 1 and 2 and the three adapters, wired together. Additive: every
-## existing entry point still works and still returns what it always did.
+## coloc(), the entry point. It checks each input, turns it into log Bayes
+## factors with the adapter for its kind, and has the engine compare the two.
+## Below it are the functions that read its result, and the helpers the old
+## functions use to call it.
 ## ---------------------------------------------------------------------------
 
 ##' Colocalisation of two genetic traits
@@ -122,10 +122,9 @@ coloc <- function(x1, x2,
                   prior = coloc_prior(),
                   control = coloc_control(),
                   susie.args = list()) {
-    ## `method` is a match.arg default VECTOR, so an unsupplied method arrives
-    ## as c("single", "susie") and is indistinguishable from a deliberate
-    ## per-trait request. Per-trait scope and match.arg-style defaults do not
-    ## compose, so the default is collapsed explicitly.
+    ## method's default lists the choices, c("single", "susie"), which would
+    ## read as "single" for trait 1 and "susie" for trait 2, so a method not
+    ## given is "single"
     supplied <- !missing(method)
     if (!supplied) method <- "single"
 
@@ -153,12 +152,9 @@ coloc <- function(x1, x2,
     a1 <- adapt(xs[[1]], kinds[1], method[1], 1L)
     a2 <- adapt(xs[[2]], kinds[2], method[2], 2L)
 
-    ## The region-size guard, coloc.abf()'s own, applied once the snp counts
-    ## are known. The prior for any one snp times the number of snps must stay
-    ## below 1, or nothing is left for "no causal variant". adjust_prior()
-    ## warns and caps it at 1/(nsnps + 1), so coloc() gives coloc.abf()'s
-    ## numbers on a large region. p12 counts the snps the traits share, as
-    ## coloc.abf() does.
+    ## The prior for one snp times the number of snps must stay below 1, or
+    ## nothing is left for "no causal variant". adjust_prior() warns and caps
+    ## it at 1/(nsnps + 1), as coloc.abf() does; p12 counts the shared snps.
     snps1 <- setdiff(colnames(a1$bf), "null")
     snps2 <- setdiff(colnames(a2$bf), "null")
     prior$p1  <- adjust_prior(prior$p1,  length(snps1), "1")
@@ -167,24 +163,20 @@ coloc <- function(x1, x2,
 
     res <- .coloc_engine(a1$bf, a2$bf, prior = prior, control = control)
 
-    ## The engine reports idx1/idx2 as row numbers of the TRIMMED matrices,
-    ## which is not what a caller wants back, so they are mapped through
-    ## meta$idx exactly as coloc.susie() does at R/susie.R:96-98. meta$idx is
-    ## what makes that work the same way whichever adapter ran.
+    ## the engine numbers each trait's signals by their rows in the adapter's
+    ## matrix; meta$idx maps them back to the input's own numbers, such as a
+    ## SuSiE fit's components
     if (nrow(res$summary)) {
         res$summary$idx1 <- a1$meta$idx[res$summary$idx1]
         res$summary$idx2 <- a2$meta$idx[res$summary$idx2]
     }
-    ## $meta fills in two stages: the engine writes what it knows, and the
-    ## front door adds what only it can know, since the engine never learns
-    ## which adapter ran.
+    ## the engine doesn't know which adapter ran, so coloc() adds the methods
+    ## and each trait's signal ids to $meta
     res$meta$method <- c(a1$meta$method, a2$meta$method)
     res$meta$idx1 <- a1$meta$idx
     res$meta$idx2 <- a2$meta$idx
-    ## Each trait's log BFs as the adapter handed them to the engine, before
-    ## the snps were intersected or any pair trimmed, so they can be taken on
-    ## to fine-mapping without being computed again. Set here rather than in
-    ## the engine, which has five exits and would need it at each.
+    ## each trait's log BFs as the engine got them, before they were cut to the
+    ## shared snps, so they can be fine-mapped without computing them again
     res$bf <- list(bf1 = a1$bf, bf2 = a2$bf)
     validate_coloc_result(res)
 
@@ -199,7 +191,7 @@ coloc <- function(x1, x2,
 .is_plain_list <- function(x)
     is.list(x) && !inherits(x, c("coloc_dataset", "susie"))
 
-## ---- accessors, so nobody reaches into internals to ask -------------------
+## ---- functions that read a coloc_result -----------------------------------
 
 ##' Posterior probabilities from a coloc_result
 ##'
@@ -227,9 +219,8 @@ coloc <- function(x1, x2,
 ##' }
 pp <- function(x, row = 1) {
     .need_coloc_result(x)
-    ## No rows means no signal pair was summarised, so the count is 0 and
-    ## agrees with n_signals(). The posteriors stay NA under the governing
-    ## rule: they could not be computed.
+    ## with no rows, nsnps is 0, as n_signals() is, and the posteriors are NA,
+    ## as none were computed
     if (!nrow(x$summary))
         return(stats::setNames(c(0, rep(NA_real_, 5L)),
                                c("nsnps", paste0("PP.H", 0:4, ".abf"))))
@@ -334,18 +325,17 @@ print.coloc_result <- function(x, ...) {
     invisible(x)
 }
 
-## ---- adapting the old entry points ----------------------------------------
+## ---- helpers for the old functions ----------------------------------------
 
-## The old doors take priors and control as loose arguments in `...`. Collect
-## them here, starting from the canonical defaults so the numbers stay in one
-## place. The result is an unclassed list, which coloc() checks.
+## Builds the prior from the old functions' loose arguments in `...`, starting
+## from the defaults. It is a plain list, which coloc() checks.
 .prior_from_dots <- function(dots) {
     out <- .default_prior()
     for (nm in c("p1", "p2", "p12"))
         if (!is.null(dots[[nm]])) out[[nm]] <- dots[[nm]]
-    ## x[["nm"]] <- NULL DELETES the element; x["nm"] <- list(NULL) sets it.
-    ## The engine reads either as NULL, but keeping the shape identical to
-    ## .default_prior() is what stops the two drifting apart.
+    ## x["nm"] <- list(NULL) keeps the element, as NULL, where
+    ## x[["nm"]] <- NULL would delete it, so the prior has .default_prior()'s
+    ## elements
     out["weights1"] <- list(dots$prior_weights1)
     out["weights2"] <- list(dots$prior_weights2)
     out
@@ -358,10 +348,10 @@ print.coloc_result <- function(x, ...) {
     out
 }
 
-## coloc()'s note on a plain list, and its warning that method doesn't apply to
-## log BFs, are about choices the old functions' callers were never offered.
-## The note's key is put back, so a user's own coloc() on a plain list later in
-## the session still gets the note.
+## Runs coloc() for an old function, without coloc()'s note on a plain list or
+## its warning that method doesn't apply to log BFs, as neither is about a
+## choice the old function's caller had. The note's key is put back, so a
+## user's own coloc() on a plain list later in the session still gets it.
 .as_old_function <- function(expr) {
     noted <- .coloc_state$noted
     on.exit(.coloc_state$noted <- noted)

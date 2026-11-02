@@ -2,7 +2,8 @@ library(coloc)
 D1 <- plain_test_data$D1
 D3 <- plain_test_data$D3
 
-B1=C1=D1
+B1=D1
+C1=D1
 C1[c("type","s")]=list(type="cc",s=0.5)
 B1[c("type","s")]=list(type="cc",s=2)
 
@@ -154,110 +155,259 @@ cases <- list(
     "a dataset given as p-values passes" =
         list(d = pv1),
     "a case-control trait with beta and varbeta needs neither s nor sdY" =
-        list(d = local({ d <- D1; d$type <- "cc"; d$sdY <- NULL; d })),
+        list(d = local({
+                 d <- D1
+                 d$type <- "cc"
+                 d$sdY <- NULL
+                 d
+             })),
     "a dataset without LD passes" =
-        list(d = local({ d <- D1; d$LD <- NULL; d })),
+        list(d = local({
+                 d <- D1
+                 d$LD <- NULL
+                 d
+             })),
     "an element check_dataset() doesn't know may hold missing values" =
-        list(d = local({ d <- D1; d$extra <- NA; d })),
+        list(d = local({
+                 d <- D1
+                 d$extra <- NA
+                 d
+             })),
     ## a dataset for each check
     "the dataset is a list" =
         list(d = 1:3,
              error = "dataset 1: is not a list"),
     "the required elements are there" =
-        list(d = local({ d <- D1; d$snp <- NULL; d }),
+        list(d = local({
+                 d <- D1
+                 d$snp <- NULL
+                 d
+             }),
              error = "dataset 1: missing required element(s) snp"),
     "two required elements missing" =
-        list(d = local({ d <- D1; d$type <- NULL; d$snp <- NULL; d }),
+        list(d = local({
+                 d <- D1
+                 d$type <- NULL
+                 d$snp <- NULL
+                 d
+             }),
              error = "dataset 1: missing required element(s) type, snp"),
     "no missing values in beta" =
-        list(d = local({ d <- D1; d$beta[1] <- NA; d }),
+        list(d = local({
+                 d <- D1
+                 d$beta[1] <- NA
+                 d
+             }),
              error = "dataset 1: beta contains missing values"),
     "no missing values in MAF" =
-        list(d = local({ d <- D1; d$MAF[1] <- NA; d }),
+        list(d = local({
+                 d <- D1
+                 d$MAF[1] <- NA
+                 d
+             }),
              error = "dataset 1: MAF contains missing values"),
     "type is quant or cc" =
-        list(d = local({ d <- D1; d$type <- "binary"; d }),
+        list(d = local({
+                 d <- D1
+                 d$type <- "binary"
+                 d
+             }),
              error = "dataset 1: type must be quant or cc"),
     "the snp ids are unique" =
-        list(d = local({ d <- D1; d$snp[2] <- d$snp[1]; d }),
+        list(d = local({
+                 d <- D1
+                 d$snp[2] <- d$snp[1]
+                 d
+             }),
              error = "dataset 1: duplicated snps found"),
     "snp is not a factor" =
-        list(d = local({ d <- D1; d$snp <- factor(d$snp); d }),
+        list(d = local({
+                 d <- D1
+                 d$snp <- factor(d$snp)
+                 d
+             }),
              error = "dataset 1: snp should be a character vector but is a factor"),
     "MAF is above 0" =
-        list(d = local({ d <- D1; d$MAF[1] <- 0; d }),
+        list(d = local({
+                 d <- D1
+                 d$MAF[1] <- 0
+                 d
+             }),
              error = "dataset 1: MAF should be a numeric, strictly >0 & <1"),
     "MAF is below 1" =
-        list(d = local({ d <- D1; d$MAF[1] <- 1; d }),
+        list(d = local({
+                 d <- D1
+                 d$MAF[1] <- 1
+                 d
+             }),
              error = "dataset 1: MAF should be a numeric, strictly >0 & <1"),
     "MAF is numeric" =
-        list(d = local({ d <- D1; d$MAF <- as.character(d$MAF); d }),
+        list(d = local({
+                 d <- D1
+                 d$MAF <- as.character(d$MAF)
+                 d
+             }),
              error = "dataset 1: MAF should be a numeric, strictly >0 & <1"),
     "the vectors have the same length" =
-        list(d = local({ d <- D1; d$beta <- d$beta[-1]; d }),
+        list(d = local({
+                 d <- D1
+                 d$beta <- d$beta[-1]
+                 d
+             }),
              error = "dataset 1: snp has 500 values but beta has 499"),
     "N is a single number" =
-        list(d = local({ d <- D1; d$N <- c(1000, 1000); d }),
+        list(d = local({
+                 d <- D1
+                 d$N <- c(1000, 1000)
+                 d
+             }),
              error = "dataset 1: N must be a single number; coloc does not take per-snp sample sizes"),
     "N is numeric" =
-        list(d = local({ d <- D1; d$N <- as.character(d$N); d }),
+        list(d = local({
+                 d <- D1
+                 d$N <- as.character(d$N)
+                 d
+             }),
              error = "dataset 1: N must be a single number; coloc does not take per-snp sample sizes"),
     "s is between 0 and 1" =
-        list(d = local({ d <- D1; d$type <- "cc"; d$s <- 1.5; d }),
+        list(d = local({
+                 d <- D1
+                 d$type <- "cc"
+                 d$s <- 1.5
+                 d
+             }),
              error = "dataset 1: s must be between 0 and 1"),
     "s is above 0" =
-        list(d = local({ d <- D1; d$type <- "cc"; d$s <- 0; d }),
+        list(d = local({
+                 d <- D1
+                 d$type <- "cc"
+                 d$s <- 0
+                 d
+             }),
              error = "dataset 1: s must be between 0 and 1"),
     "s is below 1" =
-        list(d = local({ d <- D1; d$type <- "cc"; d$s <- 1; d }),
+        list(d = local({
+                 d <- D1
+                 d$type <- "cc"
+                 d$s <- 1
+                 d
+             }),
              error = "dataset 1: s must be between 0 and 1"),
     "s is numeric" =
-        list(d = local({ d <- D1; d$type <- "cc"; d$s <- "0.5"; d }),
+        list(d = local({
+                 d <- D1
+                 d$type <- "cc"
+                 d$s <- "0.5"
+                 d
+             }),
              error = "dataset 1: s must be between 0 and 1"),
     "beta without varbeta needs p-values and MAF" =
-        list(d = local({ d <- D1; d$varbeta <- NULL; d }),
+        list(d = local({
+                 d <- D1
+                 d$varbeta <- NULL
+                 d
+             }),
              error = "dataset 1: require p values and MAF if beta, varbeta are unavailable"),
     "without beta and varbeta, there are p-values" =
-        list(d = local({ d <- D1; d$beta <- NULL; d$varbeta <- NULL; d }),
+        list(d = local({
+                 d <- D1
+                 d$beta <- NULL
+                 d$varbeta <- NULL
+                 d
+             }),
              error = "dataset 1: require p values and MAF if beta, varbeta are unavailable"),
     "without beta and varbeta, there is MAF" =
-        list(d = local({ d <- pv1; d$MAF <- NULL; d }),
+        list(d = local({
+                 d <- pv1
+                 d$MAF <- NULL
+                 d
+             }),
              error = "dataset 1: require p values and MAF if beta, varbeta are unavailable"),
     "a case-control trait given as p-values has s" =
-        list(d = local({ d <- pv1; d$type <- "cc"; d }),
+        list(d = local({
+                 d <- pv1
+                 d$type <- "cc"
+                 d
+             }),
              error = "dataset 1: require, s, proportion of samples who are cases, if beta, varbeta are unavailable"),
     "a trait given as p-values has N" =
-        list(d = local({ d <- pv1; d$N <- NULL; d }),
+        list(d = local({
+                 d <- pv1
+                 d$N <- NULL
+                 d
+             }),
              error = "dataset 1: sample size N <=0 or not set"),
     "a trait given as p-values has N above 0" =
-        list(d = local({ d <- pv1; d$N <- 0; d }),
+        list(d = local({
+                 d <- pv1
+                 d$N <- 0
+                 d
+             }),
              error = "dataset 1: N must be a finite number above 0"),
     "beta and varbeta are finite" =
-        list(d = local({ d <- D1; d$beta[1] <- Inf; d }),
+        list(d = local({
+                 d <- D1
+                 d$beta[1] <- Inf
+                 d
+             }),
              error = "dataset 1: Infinite values in beta and/or varbeta"),
     "varbeta has no zeros" =
-        list(d = local({ d <- D1; d$varbeta[1] <- 0; d }),
+        list(d = local({
+                 d <- D1
+                 d$varbeta[1] <- 0
+                 d
+             }),
              error = "dataset 1: Zero values in varbeta"),
     "a warning when no p-value is small" =
-        list(d = local({ d <- D1; d$beta <- d$beta / 100; d }),
+        list(d = local({
+                 d <- D1
+                 d$beta <- d$beta / 100
+                 d
+             }),
              warning = "dataset 1: minimum p value is: 0.93383"),
     "a warning when no p-value is small, given as p-values" =
-        list(d = local({ d <- pv1; d$pvalues[] <- 0.5; d }),
+        list(d = local({
+                 d <- pv1
+                 d$pvalues[] <- 0.5
+                 d
+             }),
              warning = "dataset 1: minimum p value is: 0.5"),
     "a quantitative trait without sdY has MAF" =
-        list(d = local({ d <- D1; d$sdY <- NULL; d$MAF <- NULL; d }),
+        list(d = local({
+                 d <- D1
+                 d$sdY <- NULL
+                 d$MAF <- NULL
+                 d
+             }),
              error = "dataset 1: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
     "a quantitative trait without sdY has N" =
-        list(d = local({ d <- D1; d$sdY <- NULL; d$N <- NULL; d }),
+        list(d = local({
+                 d <- D1
+                 d$sdY <- NULL
+                 d$N <- NULL
+                 d
+             }),
              error = "dataset 1: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
     "LD is square" =
-        list(d = local({ d <- D1; d$LD <- d$LD[, -1]; d }),
+        list(d = local({
+                 d <- D1
+                 d$LD <- d$LD[, -1]
+                 d
+             }),
              error = "dataset 1: LD not square"),
     "LD's row and column names are the same" =
-        list(d = local({ d <- D1; rownames(d$LD)[1] <- "x"; d }),
+        list(d = local({
+                 d <- D1
+                 rownames(d$LD)[1] <- "x"
+                 d
+             }),
              error = "dataset 1: LD rownames != colnames"),
     "LD covers every snp" =
-        list(d = local({ d <- D1; d$LD <- d$LD[-1, -1]; d }),
+        list(d = local({
+                 d <- D1
+                 d$LD <- d$LD[-1, -1]
+                 d
+             }),
              error = "dataset 1: colnames in LD do not contain all SNPs"),
     ## the arguments
     "warn.minp sets when the warning is given" =
@@ -268,16 +418,30 @@ cases <- list(
              error = "dataset 1: missing required element(s) pvalues"),
     ## datasets that fail two checks
     "a wrong type and duplicated snps" =
-        list(d = local({ d <- D1; d$type <- "binary"
-                         d$snp[2] <- d$snp[1]; d }),
+        list(d = local({
+                 d <- D1
+                 d$type <- "binary"
+                 d$snp[2] <- d$snp[1]
+                 d
+             }),
              error = "dataset 1: type must be quant or cc"),
     "an s out of range, without beta or p-values" =
-        list(d = local({ d <- D1; d$beta <- NULL; d$varbeta <- NULL
-                         d$type <- "cc"; d$s <- 1.5; d }),
+        list(d = local({
+                 d <- D1
+                 d$beta <- NULL
+                 d$varbeta <- NULL
+                 d$type <- "cc"
+                 d$s <- 1.5
+                 d
+             }),
              error = "dataset 1: s must be between 0 and 1"),
     "a bad LD stops a weak dataset before the p-value warning" =
-        list(d = local({ d <- D1; d$beta <- d$beta / 100
-                         d$LD <- d$LD[, -1]; d }),
+        list(d = local({
+                 d <- D1
+                 d$beta <- d$beta / 100
+                 d$LD <- d$LD[, -1]
+                 d
+             }),
              error = "dataset 1: LD not square"))
 
 for (what in names(cases)) {
@@ -387,7 +551,8 @@ test_that("check_ld(), and so finemap.signals() and coloc.signals(), refuse an L
     too_large <- D3$LD * 1.5
     diag(too_large) <- 1
     with_na <- D3$LD
-    with_na[1, 2] <- with_na[2, 1] <- NA
+    with_na[1, 2] <- NA
+    with_na[2, 1] <- NA
     lds <- list(character = list(LD = character_ld, error = "LD must be a numeric matrix"),
                 too_large = list(LD = too_large,
                                  error = "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"),

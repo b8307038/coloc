@@ -1,19 +1,12 @@
 ## ---------------------------------------------------------------------------
-## The coloc_result contract.
+## The coloc_result. Every result has the same fields, whatever happened, and
+## $status says what happened. Two rules hold for every result:
 ##
-## 6.0.3's problem is that THE SHAPE ENCODES THE OUTCOME: coloc.bf_bf() alone
-## has five return shapes, and a consumer cannot know what it is holding until
-## it inspects it. Two of those shapes are already broken, failing
-## sensitivity()'s stopifnot("priors" %in% names(obj)) with an opaque message.
+##   rows exist if and only if a signal pair was considered;
+##   posteriors are NA if and only if they could not be computed.
 ##
-## One class, one shape, outcome in a field. The governing rule:
-##
-##   Rows exist iff a signal pair was considered.
-##   Posteriors are NA iff they could not be computed.
-##
-## THE SHAPE IS FROZEN HERE. Any later change to it is stop-the-line, which is
-## why the contract is a function rather than a roxygen block: a contract in a
-## comment drifts, a contract that is asserted on every return cannot.
+## validate_coloc_result() checks the fields and the rules on every result the
+## engine returns.
 ## ---------------------------------------------------------------------------
 
 ##' The result of coloc()
@@ -111,7 +104,7 @@
 ##' @name coloc_result
 NULL
 
-## The one summary shape. Zero rows is legal; a different column set is not.
+## An empty $summary, with the columns every $summary has
 .empty_summary <- function() {
     data.table(nsnps = integer(0), hit1 = character(0), hit2 = character(0),
                PP.H0.abf = numeric(0), PP.H1.abf = numeric(0),
@@ -178,8 +171,8 @@ validate_coloc_result <- function(x) {
             else paste0("of class '", class(x$meta$schema)[1], "'"),
             " but should be a number, the version of the result's shape")
 
-    ## rows exist iff a signal pair was considered; posteriors are NA iff they
-    ## could not be computed
+    ## rows only where a signal pair was considered, and NA posteriors only
+    ## where they could not be computed
     if (x$status %in% c("no_overlap", "no_signal") && nrow(x$summary))
         bug("a result with status '", x$status, "' has ", nrow(x$summary),
             " row(s) in $summary but should have none, as no signal pair was considered")
@@ -224,7 +217,7 @@ new_coloc_result <- function(summary = .empty_summary(),
                 status  = status,
                 messages = messages,
                 meta    = meta)
-    ## present iff prior weights were actually used
+    ## only when prior weights were given
     if (!is.null(weights)) out$weights <- weights
     validate_coloc_result(structure(out, class = "coloc_result"))
 }

@@ -1,14 +1,10 @@
 ## ---------------------------------------------------------------------------
 ## The prior and control objects.
 ##
-## This is where prior drift stops. In 6.0.3 the same three probabilities are
-## re-declared in every entry point signature and then diverge: coloc.abf()
-## defaults p12 to 1e-5, coloc.bf_bf() to 5e-6, and coloc.susie_bf() declares
-## p1/p2/p12 and never forwards them. The bounds check and the region-size
-## guard exist in only some of those places.
-##
-## One object, checked when it is made, and again by coloc() and
-## coloc.bf_bf(), which can be given a plain list or an edited one.
+## coloc_prior() holds p1, p2, p12 and any prior weights, and is the one place
+## their defaults are written. A prior is checked when it is made, and again
+## by coloc() and coloc.bf_bf(), as they can be given a plain list, or a
+## prior edited with $<-, which keeps its class.
 ## ---------------------------------------------------------------------------
 
 new_coloc_prior <- function(p1, p2, p12, weights1, weights2) {
@@ -19,20 +15,16 @@ new_coloc_prior <- function(p1, p2, p12, weights1, weights2) {
 }
 
 validate_coloc_prior <- function(x) {
-    ## before the bounds, whose any() and pmin() would let a vector through;
-    ## weights1 and weights2 are how the prior varies across snps
+    ## first, as the bounds below, with any() and pmin(), would pass a vector
     for (nm in c("p1", "p2", "p12"))
         if (length(x[[nm]]) != 1)
             stop("p1, p2 and p12 must each be a scalar; ",
                  "to vary the prior across SNPs, use weights1/weights2")
-    ## The bounds are inclusive, and a product can round past one: 0.2 * 0.2 is
-    ## 0.04000000000000001, so p12 = 0.04 would fail without the allowance
+    ## p12 may equal either bound, but p1 * p2 can round above it: 0.2 * 0.2 is
+    ## 0.04000000000000001, so eps lets p12 = 0.04 pass
     eps <- sqrt(.Machine$double.eps)
     if (any(x$p12 < x$p1 * x$p2 * (1 - eps)) || any(x$p12 > pmin(x$p1, x$p2) * (1 + eps)))
         stop("p12 must lie in [p1*p2, min(p1, p2)]")
-    ## No region-size guard here (prior * nsnps must stay below 1): it needs
-    ## each trait's number of snps, known only once coloc() has adapted the
-    ## inputs, so coloc() applies it then, with coloc.abf()'s adjust_prior().
     for (w in list(x$weights1, x$weights2))
         if (!is.null(w) && any(is.na(w) | w <= 0))
             stop("prior weights must be non-NA and positive")
@@ -67,8 +59,7 @@ validate_coloc_prior <- function(x) {
 coloc_prior <- function(p1 = 1e-4, p2 = 1e-4, p12 = 5e-6,
                         weights1 = NULL, weights2 = NULL) {
     prior <- new_coloc_prior(p1, p2, p12, weights1, weights2)
-    ## coloc.abf()'s advice (R/claudia.R:439-443), given here so it outlives
-    ## coloc.abf()
+    ## coloc.abf()'s advice on weights for both traits, so coloc() gives it too
     if (!is.null(weights1) && !is.null(weights2))
         warning("Prior weights specified for both traits.\n",
                 "  The two weight vectors should be derived from independent sources of\n",

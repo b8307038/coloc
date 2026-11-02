@@ -1,6 +1,6 @@
 ## The adapters, one at a time. Each hands the engine the log BFs that 6.0.3
-## computed on the code path it lifts: process.dataset() for .adapt_single(),
-## the credible-set rows of a SuSiE fit for .adapt_susie().
+## computed: process.dataset()'s for .adapt_single(), and the credible-set rows
+## of a SuSiE fit for .adapt_susie().
 
 snps <- paste0("s", 1:3)
 
@@ -21,7 +21,8 @@ test_that(".classify_input() tells the kind of input from its class", {
     ## kind only: an unnamed vector is still log BFs, for .adapt_bf() to reject
     expect_equal(.classify_input(1:3), "bf")
     expect_equal(.classify_input(setNames(letters[1:3], snps)), "bf")
-    ## anything else is a dataset, for the door to say what is wrong with it
+    ## anything else is a dataset, for .new_coloc_dataset() to say what is wrong
+    ## with it
     expect_equal(.classify_input(list(a = 1)), "dataset")
     expect_equal(.classify_input(NULL), "dataset")
     expect_equal(.classify_input(sum), "dataset")
@@ -161,9 +162,12 @@ test_that(".adapt_bf() takes a matrix with no rows, which coloc() reports as no 
 
 test_that(".adapt_bf() rejects what are not log BFs, naming the trait", {
     good <- matrix(c(0, 8, 2), nrow = 1, dimnames = list("sig1", snps))
-    na <- good; na[1, 2] <- NA
-    inf <- good; inf[1, 2] <- Inf
-    dup <- good; colnames(dup)[2] <- "s1"
+    na <- good
+    na[1, 2] <- NA
+    inf <- good
+    inf[1, 2] <- Inf
+    dup <- good
+    colnames(dup)[2] <- "s1"
     expect_error(.adapt_bf(c(1, 2, 3), 2),
                  "trait 2: a log-BF vector must be named by snp", fixed = TRUE)
     expect_error(.adapt_bf(matrix(0, 2, 2), 2),

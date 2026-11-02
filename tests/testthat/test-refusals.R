@@ -226,7 +226,8 @@ test_that("sdY must be a single finite number above 0 where it is read, where 6.
 
 test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numeric matrix", {
     above_one <- D3
-    above_one$LD[1, 2] <- above_one$LD[2, 1] <- 1.5
+    above_one$LD[1, 2] <- 1.5
+    above_one$LD[2, 1] <- 1.5
     covariance <- D3
     covariance$LD <- D3$LD * 0.5
     asymmetric <- D3
@@ -264,9 +265,11 @@ test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numer
     for (v in c("beta", "varbeta", "snp", "position", "MAF"))
         fewer[[v]] <- fewer[[v]][-(1:10)]
     outside <- fewer
-    outside$LD[1, 2] <- outside$LD[2, 1] <- 1.5
+    outside$LD[1, 2] <- 1.5
+    outside$LD[2, 1] <- 1.5
     inside <- fewer
-    inside$LD[11, 12] <- inside$LD[12, 11] <- 1.5
+    inside$LD[11, 12] <- 1.5
+    inside$LD[12, 11] <- 1.5
     expect_null(susie_check(outside))
     expect_error(susie_check(inside),
                  "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal",

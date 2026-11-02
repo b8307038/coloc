@@ -28,9 +28,11 @@ test_that("mistakes are refused when the dataset is made", {
     expect_error(coloc_dataset(snp = small$snp, type = "quant", beta = small$beta, sdY = 1),
                  "require p values and MAF if beta, varbeta are unavailable",
                  fixed = TRUE)
-    bad <- small; bad$beta[2] <- NA
+    bad <- small
+    bad$beta[2] <- NA
     expect_error(as_coloc_dataset(bad), "beta contains missing values", fixed = TRUE)
-    bad <- small; bad$type <- "binary"
+    bad <- small
+    bad$type <- "binary"
     expect_error(as_coloc_dataset(bad), "type must be quant or cc", fixed = TRUE)
 })
 
@@ -58,7 +60,8 @@ test_that("as_coloc_dataset() keeps elements coloc does not use, and passes a co
 })
 
 test_that("the p value warning is given once, when the dataset is made", {
-    weak <- small; weak$beta <- rep(0.01, 5)
+    weak <- small
+    weak$beta <- rep(0.01, 5)
     expect_warning(D <- as_coloc_dataset(weak), class = "coloc_min_p")
     expect_no_warning(check_dataset(D))
     ## a plain list still warns every time, as before
@@ -136,7 +139,10 @@ test_that("print() summarises the dataset", {
     ## the per-snp elements, without snp
     expect_output(print(do.call(coloc_dataset, c(small, list(position = 1:5)))),
                   "per-snp: beta, varbeta, position", fixed = TRUE)
-    cc <- small; cc$type <- "cc"; cc$s <- 0.4; cc$sdY <- NULL
+    cc <- small
+    cc$type <- "cc"
+    cc$s <- 0.4
+    cc$sdY <- NULL
     expect_output(print(as_coloc_dataset(cc)), "coloc dataset: case-control trait, 5 snps", fixed = TRUE)
     ## the type is read by its label, as check_dataset() reads it: a factor, or
     ## a named type such as meta["type"] gives, is still case-control
@@ -145,7 +151,8 @@ test_that("print() summarises the dataset", {
         expect_output(print(as_coloc_dataset(cc)), "coloc dataset: case-control trait, 5 snps", fixed = TRUE)
     }
     ## LD only for an element of that name, not one like LD_ref
-    ref <- small; ref$LD_ref <- diag(3)
+    ref <- small
+    ref$LD_ref <- diag(3)
     expect_false(any(grepl("LD:", capture.output(print(as_coloc_dataset(ref))), fixed = TRUE)))
 })
 

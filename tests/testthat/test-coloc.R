@@ -1,17 +1,8 @@
-## coloc(), the entry point, tested through its own steps:
-## - which method each trait gets: "single" when none is given, and one
-##   method per trait when two are given;
-## - that each kind of input (a dataset, a SuSiE fit, log BFs) reaches the
-##   adapter for it;
-## - the checks made before the engine runs: a prior given as a plain list
-##   must hold scalar p1, p2 and p12, and any weights1 and weights2 must be
-##   positive and not NA (vectors, one per snp, as in coloc_prior()); every
-##   dataset is checked, with the trait's number and coloc()'s call, before
-##   either is fine-mapped; bad log BFs stop coloc() with the trait named;
-## - the region-size guard, which caps p1, p2 and p12 when a prior times its
-##   number of snps reaches 1, as coloc.abf() did.
-## Some tests compare with 6.0.3: get_match_6_0_3(), in helper-v603.R, runs a
-## call as 6.0.3 made it.
+## coloc(), the entry point: the method each trait gets; that each kind of
+## input reaches its adapter; the checks before the engine runs, on the prior,
+## on each dataset before either is fine-mapped, and on log BFs; and the cap on
+## a prior in a large region, as coloc.abf() has it. Some tests compare with
+## 6.0.3: get_match_6_0_3(), in helper-v603.R, runs a call as 6.0.3 made it.
 
 D1 <- plain_test_data$D1
 D2 <- plain_test_data$D2
@@ -57,7 +48,7 @@ test_that("every kind of input reaches its adapter", {
     fit4 <- suppressMessages(runsusie(D4))
     bf4 <- fit4$lbf_variable[fit4$sets$cs_index, , drop = FALSE]
     from_fit <- suppressMessages(coloc(D3, fit4, method = "susie"))
-    ## AL14: the method meant for D3 reaches the log BFs too, and warns
+    ## the method meant for D3 reaches the log BFs too, and warns
     expect_warning(from_bf <- suppressMessages(coloc(D3, bf4, method = "susie")),
                    "trait 2: method is inapplicable to precomputed log BFs",
                    fixed = TRUE, class = "coloc_method_ignored")
@@ -130,7 +121,10 @@ test_that("a bad dataset stops coloc() as it stopped 6.0.3's coloc.abf(), naming
     for (kind in names(kinds)) for (what in names(mistakes)) for (trait in 1:2) {
         d1 <- kinds[[kind]](D1)
         d2 <- kinds[[kind]](D2)
-        if (trait == 1) d1 <- mistakes[[what]](d1) else d2 <- mistakes[[what]](d2)
+        if (trait == 1)
+            d1 <- mistakes[[what]](d1)
+        else
+            d2 <- mistakes[[what]](d2)
         label <- paste(what, "in trait", trait, kind)
         expect_error(get_match_6_0_3(coloc.abf(d1, d2)), label = label)
         expect_error(coloc(d1, d2), paste0("dataset ", trait, ": ", refusals[[what]]),
@@ -166,7 +160,7 @@ test_that("bad log BFs stop coloc() with the trait named", {
                  "trait 1: a log-BF vector must be named by snp", fixed = TRUE)
 })
 
-## ---- the door: both datasets checked before either is fine-mapped -------
+## ---- both datasets are checked before either is fine-mapped ------------
 ## coloc() passes each dataset through .new_coloc_dataset(), as coloc_dataset()
 ## does, with the trait's number and what the method needs, before any adapter
 ## runs. Its errors begin with the trait's number, as "dataset 2: ", and show
@@ -289,8 +283,9 @@ test_that("the region-size guard caps a prior as 6.0.3's coloc.abf() did", {
     ## 500 snps at p1 = p2 = 0.01 imply five causal variants per trait
     old <- suppressWarnings(get_match_6_0_3(
         coloc.abf(D1, D2, p1 = 0.01, p2 = 0.01, p12 = 1e-4)))
-    w <- warnings_of(new <- coloc(D1, D2,
-                                  prior = coloc_prior(p1 = 0.01, p2 = 0.01, p12 = 1e-4)))
+    prior <- coloc_prior(p1 = 0.01, p2 = 0.01, p12 = 1e-4)
+    w <- warnings_of(coloc(D1, D2, prior = prior))
+    new <- suppressWarnings(coloc(D1, D2, prior = prior))
     ## one warning for p1 and one for p2
     expect_equal(w$message, c("p1 * nsnps >= 1, setting p1=1/(nsnps + 1)",
                               "p2 * nsnps >= 1, setting p2=1/(nsnps + 1)"))
@@ -302,8 +297,9 @@ test_that("the region-size guard caps a prior as 6.0.3's coloc.abf() did", {
 test_that("the region-size guard starts where nsnps * p reaches 1", {
     bf <- matrix(c(0, 0, 8, 2), nrow = 1, dimnames = list("sig1", paste0("s", 1:4)))
     ## 4 snps at 0.25 is exactly 1: capped at 1 / (4 + 1)
-    w <- warnings_of(res <- coloc(bf, bf, prior = coloc_prior(p1 = 0.25, p2 = 0.25,
-                                                               p12 = 0.0625)))
+    prior <- coloc_prior(p1 = 0.25, p2 = 0.25, p12 = 0.0625)
+    w <- warnings_of(coloc(bf, bf, prior = prior))
+    res <- suppressWarnings(coloc(bf, bf, prior = prior))
     expect_equal(w$message, c("p1 * nsnps >= 1, setting p1=1/(nsnps + 1)",
                               "p2 * nsnps >= 1, setting p2=1/(nsnps + 1)"))
     expect_equal(res$priors[["p1"]], 1 / 5)

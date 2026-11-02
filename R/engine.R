@@ -1,33 +1,13 @@
 ## ---------------------------------------------------------------------------
-## The colocalisation engine.
-##
-## coloc.bf_bf() reorganised around one idea: every degenerate case sets
-## $status instead of returning a differently shaped object. The arithmetic is
-## unchanged. combine.abf()'s five-hypothesis enumeration, the SNP.PP.H4
-## softmax and logsum/logdiff all carry over exactly as they are.
-##
-## The engine's contract is that bf1 and bf2 are the ONLY trait-specific
-## information it ever sees. It knows nothing about datasets, LD, susieR or
-## how the numbers were made, and that ignorance is what lets per-trait
-## methods mix freely.
-##
-## CITATIONS. A file:line reference in this branch's own code always means
-## 6.0.3, at the pinned commit 8f20f0b, which never moves and so can be cited
-## precisely forever. Live code in this tree is named by symbol instead, never
-## by line, because a line number against our own files rots the next time
-## anyone inserts above it.
+## The colocalisation engine. It takes two matrices of log Bayes factors, one
+## per trait, with signals in rows and snps in columns, compares each signal
+## of trait 1 with each of trait 2, and returns a coloc_result, whose $status
+## says what happened. It sees only the matrices, not how they were made, so
+## each trait's log Bayes factors can come from a different method.
 ## ---------------------------------------------------------------------------
 
-## The defaults live in ONE place: the constructors in R/prior.R. Re-declaring
-## them here is how 6.0.3 ended up with p12 = 1e-5 in coloc.abf() and 5e-6 in
-## coloc.bf_bf() (allowlist AL01), so the engine derives them instead.
-##
-## The OLD doors keep 6.0.3's literals where 6.0.3 had them, as its published
-## API, for as long as they exist: coloc.abf(), coloc.bf_bf() and
-## coloc.susie_bf() declare p1, p2 and p12 and pass them down explicitly.
-## coloc.susie() declares none, so it takes these defaults through
-## .prior_from_dots(), as coloc.susie_bf() takes its control through
-## .control_from_dots(); test-v603.R checks they equal 6.0.3's.
+## The defaults as plain lists, from coloc_prior() and coloc_control(), so
+## each default is written in one place
 .default_prior   <- function() unclass(coloc_prior())
 .default_control <- function() unclass(coloc_control())
 
@@ -36,10 +16,8 @@
                           control = .default_control()) {
 
     msgs <- character(0)
-    ## keep emitting warning() as well as recording $messages: users rely on
-    ## the warnings and the harness compares conditions, while the structured
-    ## copy lets someone running ten thousand pairs ask which were trimmed
-    ## without parsing console output
+    ## each note is a warning, and is kept in $messages too, so a loop over
+    ## many regions can read what happened without catching warnings
     note <- function(...) {
         m <- paste0(...)
         warning(m, call. = FALSE)
@@ -52,7 +30,7 @@
     w1 <- prior$weights1
     w2 <- prior$weights2
 
-    ## ---- 0. invariants the adapters are supposed to have established ------
+    ## ---- 0. two matrices with snp ids, and weights to match them ----------
     stopifnot(is.matrix(bf1), is.matrix(bf2),
               !is.null(colnames(bf1)), !is.null(colnames(bf2)))
     if (!is.null(w1) && ncol(bf1) != length(w1))
@@ -60,29 +38,28 @@
     if (!is.null(w2) && ncol(bf2) != length(w2))
         stop("Length of prior_weights2 must match size of dataset 2")
 
-    ## ---- 1. an adapter returned no signals --------------------------------
-    ## Newly reachable: 6.0.3 could not produce a zero-row matrix, and its
-    ## 1:nrow(bf1) would yield c(1, 0) and a bogus pair grid.
+    ## ---- 1. a trait with no signal, as when SuSiE finds no credible set ---
     if (nrow(bf1) == 0L || nrow(bf2) == 0L) {
         note("at least one trait has no signals, nothing to colocalise")
         return(new_coloc_result(status = "no_signal", messages = msgs, prior = prior))
     }
 
-    ## ---- 2. snp intersection ----------------------------------------------
+    ## ---- 2. the snps both traits have, leaving out the null column --------
     isnps <- setdiff(intersect(colnames(bf1), colnames(bf2)), "null")
     if (!length(isnps)) {
         note("no snps in common between the two traits")
         return(new_coloc_result(status = "no_overlap", messages = msgs, prior = prior))
     }
 
-    ## ---- 3. null column convention, tested per matrix ---------------------
+    ## ---- 3. the null column, where a matrix has one -----------------------
+    ## moved last, and subtracted from every column, so the null's log BF is 0
     nulllast <- function(m) m[, c(setdiff(colnames(m), "null"), "null"), drop = FALSE]
     if ("null" %in% colnames(bf1))
         bf1 <- nulllast(bf1) - matrix(bf1[, "null"], nrow(bf1), ncol(bf1))
     if ("null" %in% colnames(bf2))
         bf2 <- nulllast(bf2) - matrix(bf2[, "null"], nrow(bf2), ncol(bf2))
 
-    ## ---- 4. posteriors and coverage, on the UNRESTRICTED matrices ---------
+    ## ---- 4. how much of each signal's posterior is on the shared snps -----
     pp1 <- logbf_to_pp(bf1, p1, last_is_null = "null" %in% colnames(bf1))
     pp2 <- logbf_to_pp(bf2, p2, last_is_null = "null" %in% colnames(bf2))
     prop <- function(pp) rowSums(pp[, isnps, drop = FALSE]) /
@@ -90,7 +67,7 @@
     prop1 <- prop(pp1)
     prop2 <- prop(pp2)
 
-    ## ---- 5. the pair grid, and trimming -----------------------------------
+    ## ---- 5. every pair of signals, and those trimmed under overlap.min ----
     todo <- as.data.table(expand.grid(i = seq_len(nrow(bf1)), j = seq_len(nrow(bf2))))
     n_in <- nrow(todo)
     drop <- if (isTRUE(control$trim_by_posterior))
@@ -123,7 +100,7 @@
     if (any(drop))
         todo <- todo[!drop]
 
-    ## ---- 6. restrict to the intersection, carrying the weights ------------
+    ## ---- 6. each matrix and its weights, cut to the shared snps -----------
     restrict <- function(bf, w) {
         if (length(isnps) == ncol(bf)) return(list(bf = bf, w = w))
         keep <- match(isnps, colnames(bf))
@@ -136,16 +113,10 @@
     bf2 <- r2$bf
     w2 <- r2$w
 
-    ## Which combining function. combine_abf_weighted() reassociates the H3
-    ## term, so it is NOT bit-identical to combine.abf() on the unweighted
-    ## path even though it is algebraically equal. That path keeps the
-    ## function it has always used, so its results stay identical to 6.0.3's.
-    ##
-    ## p1, p2 and p12 are scalars here: coloc() and coloc.bf_bf()
-    ## reject a vector, and since R 4.2 coloc.abf() stops on one in
-    ## adjust_prior()'s if (). 6.0.3's coloc.bf_bf() passed a vector p1 to
-    ## combine.abf(), which is scalar only, and reported 33 hypotheses for 8
-    ## snps (allowlist AL10).
+    ## combine_abf_weighted() is used only with weights, as it works out H3 in
+    ## another order, which would change unweighted results in the last digits.
+    ## Both need single numbers for p1, p2 and p12. coloc() and coloc.bf_bf()
+    ## check that, and coloc.abf() stops on a vector in adjust_prior().
     user_weighted <- !is.null(w1) || !is.null(w2)
 
     ## ---- 7. one signal pair at a time -------------------------------------
@@ -170,10 +141,8 @@
                   combine.abf(l1, l2, p1, p2, p12, quiet = TRUE)
         h1[k] <- hit_of(bf1, todo$i[k])
         h2[k] <- hit_of(bf2, todo$j[k])
-        ## 6.0.3 rewrote these to certainties: an all-NA pair became
-        ## PP.H0 = 1, then immediately PP.H2 = 1 because which.max on an
-        ## all-NA row returns nothing. Under the governing rule, a posterior
-        ## that could not be computed is NA.
+        ## when a pair's posteriors can't be computed, as from an NA log BF,
+        ## they are NA, and the result's status is "degenerate"
         if (all(is.na(sp)) || is.na(h1[k]) || is.na(h2[k])) {
             degenerate <- TRUE
             sp <- rep(NA_real_, length(isnps))
@@ -183,7 +152,7 @@
         pps[k, ] <- unname(pp)
     }
 
-    ## ---- 8. one shape out --------------------------------------------------
+    ## ---- 8. the result ----------------------------------------------------
     skel <- data.table(nsnps = length(isnps), hit1 = h1, hit2 = h2,
                        PP.H0.abf = pps[, 1], PP.H1.abf = pps[, 2],
                        PP.H2.abf = pps[, 3], PP.H3.abf = pps[, 4],

@@ -51,8 +51,8 @@ abf_pairs <- list(quant = list(D1, D2),                            # beta and va
 ## Both sides run with their default priors unless a test says otherwise:
 ## p1 = p2 = 1e-4 and p12 = 5e-6, the same in coloc() and in 6.0.3's
 ## coloc.bf_bf(), coloc.susie() and coloc.susie_bf(), so each test also checks
-## that the defaults agree. coloc.abf()'s p12 default is 1e-5 (AL01), so its
-## tests give p12 = 1e-5.
+## that the defaults agree. coloc.abf()'s p12 default is 1e-5, so its tests
+## give p12 = 1e-5.
 
 test_that("coloc() matches 6.0.3's coloc.bf_bf(): two signals against one", {
     expected <- get_match_6_0_3(coloc.bf_bf(bf_a, bf_b))
@@ -108,7 +108,7 @@ test_that("coloc() matches 6.0.3's coloc.bf_bf(): p12 and prior weights", {
 
     w <- c(1, 1, 1, 1, 1, 1, 1, 100)
     expected <- get_match_6_0_3(coloc.bf_bf(bf_a, bf_b, prior_weights1 = w, prior_weights2 = w))
-    ## coloc_prior() warns when both traits have weights (AL15, below)
+    ## coloc_prior() warns when both traits have weights
     prior <- suppressWarnings(coloc_prior(weights1 = w, weights2 = w))
     got <- coloc(bf_a, bf_b, prior = prior)
     expect_equal(got$summary, expected$summary)
@@ -119,7 +119,7 @@ test_that("coloc() matches 6.0.3's coloc.abf()", {
     for (nm in names(abf_pairs)) {
         d1 <- abf_pairs[[nm]][[1]]
         d2 <- abf_pairs[[nm]][[2]]
-        ## p12 = 1e-5 is coloc.abf()'s default (AL01)
+        ## p12 = 1e-5 is coloc.abf()'s default
         expected <- get_match_6_0_3(coloc.abf(d1, d2))
         got <- coloc(d1, d2, prior = coloc_prior(p12 = 1e-5))
         ## as lists, so each posterior meets the tolerance on its own scale
@@ -132,7 +132,8 @@ test_that("coloc() matches 6.0.3's coloc.abf()", {
 test_that("coloc() matches 6.0.3's coloc.abf(): sdY estimated", {
     d1 <- D1
     d2 <- D2
-    d1$sdY <- d2$sdY <- NULL
+    d1$sdY <- NULL
+    d2$sdY <- NULL
     ## both estimate sdY, and say so
     expected <- suppressWarnings(get_match_6_0_3(coloc.abf(d1, d2)))
     got <- suppressWarnings(coloc(d1, d2, prior = coloc_prior(p12 = 1e-5)))
@@ -186,10 +187,10 @@ test_that("coloc() matches 6.0.3's coloc.susie_bf()", {
     expect_equal(got$priors, expected$priors)
 })
 
-## ---- today's versions of the changed functions, before and after ---------------
-## The old entry points, and process.dataset() and runsusie(), which the data
-## stage changes, against their 6.0.3 copies. The tests of coloc.abf(),
-## coloc.bf_bf(), coloc.susie() and coloc.susie_bf() go with those functions.
+## ---- the old functions against their 6.0.3 copies ------------------------------
+## coloc.abf(), coloc.bf_bf(), coloc.susie(), coloc.susie_bf(),
+## process.dataset() and runsusie(), each against its 6.0.3 copy. Each test
+## goes with the function it tests.
 
 test_that("coloc.abf() returns what 6.0.3's did", {
     for (nm in names(abf_pairs)) {
@@ -208,9 +209,9 @@ test_that("process.dataset() returns what 6.0.3's did, for every kind of dataset
     ## process.dataset() didn't warn about, as it never checked its dataset;
     ## and named vectors, which gave 6.0.3's result its row names. Then what
     ## those miss: a factor type, as a data frame column gives (with levels cc
-    ## and quant, or its own level alone); one snp, given as p-values (with
-    ## beta and varbeta it is AL21); no snps; and, unchecked, a type that is
-    ## neither quant nor cc, and a dataset with neither route
+    ## and quant, or its own level alone); one snp, given as p-values, as a test
+    ## below covers one snp with beta and varbeta; no snps; and, unchecked, a
+    ## type that is neither quant nor cc, and a dataset with neither route
     D1_no_sdY <- D1
     D1_no_sdY$sdY <- NULL
     weak <- D1
@@ -274,7 +275,7 @@ test_that("process.dataset() returns what 6.0.3's did, for every kind of dataset
     expect_error(process.dataset(no_route, suffix = "df1"),
                  "Must give, as a minimum, one of:\n(beta, varbeta, type, sdY)\n(beta, varbeta, type, MAF)\n(pvalues, MAF, N, type)",
                  fixed = TRUE)
-    ## ... is ignored, as it was (AL06)
+    ## ... is ignored, as in 6.0.3, so effect_priors changes nothing
     wide <- c(quant = 0.3, cc = 0.4)
     expect_identical(process.dataset(D1, suffix = "df1", effect_priors = wide),
                      get_match_6_0_3(process.dataset(D1, suffix = "df1", effect_priors = wide)))
@@ -323,10 +324,9 @@ test_that("coloc.susie() refuses a dataset without snp, as 6.0.3's did, naming i
 
 ## ---- the deliberate differences, one test each -------------------------------
 ## Each test shows the new answer and, for most, 6.0.3's value, or whether
-## 6.0.3 stopped or warned. The earlier tests carry the id of the difference in
-## the design notes' allowlist; the later ones say what changed instead.
+## 6.0.3 stopped or warned.
 
-test_that("AL01: coloc() defaults p12 to 5e-6, where coloc.abf() used 1e-5", {
+test_that("coloc() defaults p12 to 5e-6, where coloc.abf() used 1e-5", {
     expected <- get_match_6_0_3(coloc.abf(D1, D2))
     expect_equal(expected$priors[["p12"]], 1e-5)
     expect_equal(coloc(D1, D2)$priors[["p12"]], 5e-6)
@@ -334,19 +334,17 @@ test_that("AL01: coloc() defaults p12 to 5e-6, where coloc.abf() used 1e-5", {
                  as.list(expected$summary))
 })
 
-test_that("AL02: the priors given are used, which 6.0.3's coloc.susie_bf() ignored", {
+test_that("the priors given are used, which 6.0.3's coloc.susie_bf() ignored", {
     expected <- get_match_6_0_3(coloc.susie_bf(fit3, bf4, p12 = 1e-4))
     expect_equal(expected$priors[["p12"]], 5e-6)
     got <- coloc(fit3, bf4, prior = coloc_prior(p12 = 1e-4))
     expect_equal(got$priors[["p12"]], 1e-4)
 })
 
-test_that("AL03: coloc.susie() now applies the region-size guard, which 6.0.3's never did", {
-    ## Today's coloc.susie() runs through coloc(), which applies the region-size
-    ## guard; 6.0.3's ran through coloc.bf_bf(), which does not. With 500 SNPs,
-    ## p1 = p2 = 0.01 implies five causal variants in each trait, so coloc() caps
-    ## both at 1/501. coloc.susie_bf() also runs through coloc() now, but cannot
-    ## show this: 6.0.3's ignored the priors it was given (AL02).
+test_that("coloc.susie() now applies the region-size guard, which 6.0.3's never did", {
+    ## With 500 snps, p1 = p2 = 0.01 means five causal variants in each trait,
+    ## so coloc(), which coloc.susie() now runs through, caps both at 1/501.
+    ## 6.0.3's coloc.susie() ran through coloc.bf_bf(), which has no cap.
     expect_no_warning(expected <- get_match_6_0_3(
         coloc.susie(fit3, fit4, p1 = 0.01, p2 = 0.01, p12 = 1e-4)))
     expect_equal(expected$priors, c(p1 = 0.01, p2 = 0.01, p12 = 1e-4))
@@ -362,7 +360,7 @@ test_that("AL03: coloc.susie() now applies the region-size guard, which 6.0.3's 
     expect_equal(got$summary, capped$summary)
 })
 
-test_that("AL10: a vector p1 or p2 is rejected, where 6.0.3 allowed it, with extra hypotheses", {
+test_that("a vector p1 or p2 is rejected, where 6.0.3 allowed it, with extra hypotheses", {
     ## p1 and p2 of length 8, one per snp: 6.0.3 accepted them and reported
     ## 4 * 8 + 1 = 33 hypotheses in place of five; the count grows with the
     ## length of the vectors
@@ -391,7 +389,7 @@ test_that("the old functions refuse a p12 outside [p1 * p2, min(p1, p2)], which 
                  fixed = TRUE)
 })
 
-test_that("AL11: traits with no snps in common warn, where 6.0.3 returned nsnps = NA silently", {
+test_that("traits with no snps in common warn, where 6.0.3 returned nsnps = NA silently", {
     ## 6.0.3's coloc.bf_bf() returned early with data.table(nsnps = NA) and no warning;
     ## coloc() warns "no snps in common" and returns status "no_overlap"
     bf_x <- bf_b
@@ -403,7 +401,7 @@ test_that("AL11: traits with no snps in common warn, where 6.0.3 returned nsnps 
     expect_equal(got$status, "no_overlap")
 })
 
-test_that("AL12: an all-NA signal is rejected, where 6.0.3 reported PP.H2 = 1", {
+test_that("an all-NA signal is rejected, where 6.0.3 reported PP.H2 = 1", {
     bf_na <- bf_a
     bf_na[1, ] <- NA
     expected <- get_match_6_0_3(coloc.bf_bf(bf_na, bf_b, trim_by_posterior = FALSE))
@@ -413,14 +411,14 @@ test_that("AL12: an all-NA signal is rejected, where 6.0.3 reported PP.H2 = 1", 
                  "trait 1: log Bayes factors contain missing or infinite values", fixed = TRUE)
 })
 
-test_that("AL14: a dataset with a BF matrix warns that method cannot apply to the matrix", {
+test_that("coloc(), given a dataset and log BFs, warns that method does not apply to the log BFs", {
     expected <- suppressMessages(get_match_6_0_3(coloc.susie_bf(D3, bf4)))
     expect_warning(got <- suppressMessages(coloc(D3, bf4, method = "susie")),
                    class = "coloc_method_ignored")
     expect_equal(got$summary, expected$summary)
 })
 
-test_that("AL15: coloc_prior() warns when both traits have weights, as coloc.abf() did", {
+test_that("coloc_prior() warns when both traits have weights, as coloc.abf() did", {
     w <- c(1, 1, 1, 1, 1, 1, 1, 100)
     expect_silent(expected <- get_match_6_0_3(
         coloc.bf_bf(bf_a, bf_b, prior_weights1 = w, prior_weights2 = w)))
@@ -430,7 +428,7 @@ test_that("AL15: coloc_prior() warns when both traits have weights, as coloc.abf
     expect_equal(coloc(bf_a, bf_b, prior = prior)$summary, expected$summary)
 })
 
-test_that("AL16: a p-value above 1 is refused, which 6.0.3 accepted", {
+test_that("a p-value above 1 is refused, which 6.0.3 accepted", {
     above <- to_pvalues(D1)
     above$pvalues[5] <- 1.5
     expect_error(check_dataset(above, 1),
@@ -448,7 +446,7 @@ test_that("AL16: a p-value above 1 is refused, which 6.0.3 accepted", {
     expect_null(check_dataset(one, 1))
 })
 
-test_that("AL17: check_dataset() reports a dataset with no type, where 6.0.3 gave R's error", {
+test_that("check_dataset() reports a dataset with no type, where 6.0.3 gave R's error", {
     ## runsusie() leaves type out of req, so check_dataset() has to notice a
     ## dataset without one by itself
     d <- D3
@@ -461,7 +459,7 @@ test_that("AL17: check_dataset() reports a dataset with no type, where 6.0.3 gav
     expect_error(check_dataset(d, 1), "dataset 1: missing required element(s) type", fixed = TRUE)
 })
 
-test_that("AL18: a SuSiE fit with a duplicated snp id is refused, where 6.0.3 used the first", {
+test_that("a SuSiE fit with a duplicated snp id is refused, where 6.0.3 used the first", {
     ## today's coloc.susie() runs through coloc(), which checks a fit's log
     ## BFs as it checks log BFs given directly; 6.0.3's went to coloc.bf_bf()
     dup <- fit4
@@ -478,7 +476,7 @@ test_that("AL18: a SuSiE fit with a duplicated snp id is refused, where 6.0.3 us
                  "trait 2: log Bayes factors contain missing or infinite values", fixed = TRUE)
 })
 
-test_that("AL21: process.dataset() no longer names a one-snp result's row after its type", {
+test_that("process.dataset() no longer names a one-snp result's row after its type", {
     ## 6.0.3's approx.bf.estimates() took the prior as effect_priors["quant"],
     ## which keeps the name, so with one snp, and no names on beta or varbeta,
     ## data.frame() named the row "quant" or "cc". Its p-value route used an
@@ -543,8 +541,8 @@ test_that("check_dataset()'s errors and warnings hold the dataset's number, and 
 })
 
 test_that("check_dataset() doesn't repeat the minimum p-value warning for a coloc_dataset, where 6.0.3 did", {
-    ## PR #2: a coloc_dataset gave the warning when it was made; a plain list
-    ## still gives it each time, as test-dataset.R checks
+    ## a coloc_dataset gave the warning when it was made; a plain list still
+    ## gives it each time, as test-dataset.R checks
     weak <- D1
     weak$beta <- weak$beta / 100
     made <- suppressWarnings(as_coloc_dataset(weak))

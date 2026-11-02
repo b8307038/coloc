@@ -175,19 +175,17 @@ sdY.est <- function(vbeta, maf, n) {
 ##' data(coloc_test_data)
 ##' head(process.dataset(coloc_test_data$D1, suffix = "df1"))
 process.dataset <- function(d, suffix, ...) {
-    ## wakefield_bf()'s numbers in 6.0.3's columns: each named for its
-    ## dataset, so that coloc.abf() can merge two, and on the p-value route
-    ## the p-values, MAF and N as well. Unchecked, as process.dataset() never
-    ## checked its dataset; ... is ignored, as it was (AL06)
+    ## wakefield_bf()'s numbers, in columns named for the dataset so that
+    ## coloc.abf() can merge two, and on the p-value route the p-values, MAF
+    ## and N as well. The dataset isn't checked here; coloc.abf() and
+    ## finemap.abf() check it first.
     nd <- names(d)
     beta_route <- "beta" %in% nd && "varbeta" %in% nd
     if(!beta_route && !("pvalues" %in% nd && "MAF" %in% nd && "N" %in% nd))
         stop("Must give, as a minimum, one of:\n(beta, varbeta, type, sdY)\n(beta, varbeta, type, MAF)\n(pvalues, MAF, N, type)")
-    ## wakefield_bf()'s arithmetic, kept here so that process.dataset(), and
-    ## through it coloc.abf() and finemap.abf(), keep 6.0.3's answers for any
-    ## dataset, as wakefield_bf(), which coloc() uses, checks its input. It goes when
-    ## process.dataset() does. The priors are 6.0.3's, which process.dataset()
-    ## never let a caller change; a type other than quant gets cc's, as in 6.0.3
+    ## wakefield_bf()'s arithmetic, copied, as wakefield_bf() checks its
+    ## dataset and process.dataset() doesn't; it goes when process.dataset()
+    ## does. The priors are fixed, and a type other than quant gets cc's.
     sd_prior <- c(quant = 0.15, cc = 0.2)[[if (d$type == "quant") "quant" else "cc"]]
     if(beta_route) {
         z <- d$beta / sqrt(d$varbeta)
@@ -201,8 +199,7 @@ process.dataset <- function(d, suffix, ...) {
              else Var.data.cc(d$MAF, d$N, d$s)
     }
     ## names dropped, so the rows take their names only from beta's and
-    ## varbeta's, put back below. With one snp and neither named, 6.0.3 named
-    ## the row "quant" or "cc", after its prior; here it is "1" (AL21)
+    ## varbeta's, put back below
     r <- unname(sd_prior^2 / (sd_prior^2 + V))
     lABF <- unname(0.5 * (log(1 - r) + (r * z^2)))
     V <- unname(V)

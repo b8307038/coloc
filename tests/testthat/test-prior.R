@@ -6,7 +6,7 @@ test_that("coloc_prior() holds the defaults, declared once", {
     expect_equal(c(p$p1, p$p2, p$p12), c(1e-4, 1e-4, 5e-6))
     expect_null(p$weights1)
     ## every path takes its defaults from here; 6.0.3 declared them once per
-    ## entry point, which is how p12 came to differ (AL01)
+    ## entry point, which is how p12 came to differ
     expect_equal(.default_prior(), unclass(coloc_prior()))
     expect_equal(.default_control(), unclass(coloc_control()))
 })
@@ -55,9 +55,8 @@ test_that("prior weights must be positive and not NA", {
 test_that("weights for both traits warn, as coloc.abf() did", {
     ## coloc.abf() warned that the two traits' weights should come from
     ## independent sources. coloc_prior() now gives that warning when the prior
-    ## is made, so coloc() given one warns (AL15 in test-v603.R); coloc.abf()
-    ## still warns from its own copy, and the other old entry points, which
-    ## build plain lists, don't
+    ## is made, so coloc() given one warns; coloc.abf() still warns from its own
+    ## copy, and the other old functions, which build plain lists, don't
     expect_warning(coloc_prior(weights1 = c(1, 2), weights2 = c(1, 2)),
                    "Prior weights specified for both traits.\n  The two weight vectors should be derived from independent sources of\n  information, i.e. not computed using the same method.",
                    fixed = TRUE)

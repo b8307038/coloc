@@ -68,9 +68,8 @@ logbf_to_pp=function(bf,pi, last_is_null) {
 ##'   values for causal association with one trait (p1, p2) or both (p12) and
 ##'   and prior weights.
 coloc.susie=function(dataset1, dataset2, back_calculate_lbf=FALSE, susie.args=list(), ...) {
-  ## One implementation from here: the susie fitting, the credible-set row
-  ## selection and the arithmetic all come from the adapters and the engine
-  ## by way of coloc(). What stays is the old return shape.
+  ## coloc() does the work; this keeps the old function's arguments and the
+  ## shape of its result
   dots <- list(...)
   .coloc_result_as_6_0_3(
       .as_old_function(
@@ -119,9 +118,7 @@ coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=lis
     stop("bf2 must be log Bayes factors: a named numeric vector or a matrix")
   dots <- list(...)
   prior <- .prior_from_dots(dots)
-  ## AL02: 6.0.3 declared p1/p2/p12 here and forwarded none of them, so a
-  ## caller's values were silently discarded and the hardcoded defaults of
-  ## coloc.bf_bf() were used instead. They are forwarded now.
+  ## the caller's p1, p2 and p12, from the signature
   if (is.null(dots$p1))  prior$p1  <- p1
   if (is.null(dots$p2))  prior$p2  <- p2
   if (is.null(dots$p12)) prior$p12 <- p12
@@ -225,12 +222,8 @@ finemap.bf=function(bf1, p1=1e-4) {
 coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
                      trim_by_posterior=TRUE, prior_weights1 = NULL, prior_weights2 = NULL) {
 
-  ## A thin wrapper over .coloc_engine(). The arithmetic moved to R/engine.R;
-  ## what stays here is the prior check, 6.0.3's vector promotion
-  ## and the translation of coloc_result back into the five return shapes
-  ## callers still expect. That translation is temporary: it keeps the old
-  ## entry points' 6.0.3 return shapes, which test-v603.R compares, and lives
-  ## as long as the old entry points do.
+  ## the engine does the work; this checks the prior and the log BFs, and
+  ## returns the result in the old function's shapes
 
   prior <- list(p1 = p1, p2 = p2, p12 = p12,
                 weights1 = prior_weights1, weights2 = prior_weights2)
@@ -256,19 +249,18 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
   .coloc_result_as_6_0_3(res)
 }
 
-## Turn a coloc_result, the one shape coloc() returns, back into the five
-## shapes the old functions returned in 6.0.3. Deliberately lossy: $status,
-## $messages and $meta have nowhere to go in the old shapes, which is the
-## whole argument for replacing them.
+## Puts a coloc_result in the shapes the old functions return: a data.table
+## with nsnps = NA when no pair was formed, the summary alone when every pair
+## was trimmed, and otherwise the summary, results and priors. $status,
+## $messages and $meta are dropped.
 .coloc_result_as_6_0_3 <- function(res) {
   if (res$status %in% c("no_overlap", "no_signal"))
     return(data.table(nsnps = NA))
 
   s <- data.table::copy(res$summary)
   if (res$status == "all_trimmed") {
-    ## 6.0.3 writes a bare NA into this branch, which makes the columns
-    ## logical rather than numeric. A coloc_result's $summary columns are
-    ## always numeric, so the old type is restored here, not in the engine.
+    ## in the old shape, PP.H1.abf to PP.H4.abf are logical when every pair is
+    ## trimmed
     for (col in paste0("PP.H", 1:4, ".abf"))
       data.table::set(s, j = col, value = as.logical(s[[col]]))
     return(list(summary = s))

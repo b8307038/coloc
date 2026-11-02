@@ -116,9 +116,8 @@ test_that("a trimmed row names a snp, never the null column", {
 })
 
 test_that("an all-NA signal changes only its own pair, which 6.0.3 rewrote to a certainty", {
-    ## 6.0.3 reported an all-NA signal as PP.H2 = 1 (AL12 in test-v603.R).
-    ## coloc() and coloc.bf_bf() both refuse the NA, so this gives it to the
-    ## engine directly
+    ## 6.0.3 reported an all-NA signal as PP.H2 = 1. coloc() and coloc.bf_bf()
+    ## both refuse the NA, so this gives it to the engine directly
     x <- rbind(a, matrix(c(0, 0, 0, 0, 0, 7, 1, 0), nrow = 1, dimnames = list("sig2", snps)))
     x[1, ] <- NA
     expected <- get_match_6_0_3(coloc.bf_bf(x, b, trim_by_posterior = FALSE))
@@ -175,6 +174,6 @@ test_that("the engine counts the signal pairs in $meta, and leaves the method to
     expect_equal(res$meta$n_pairs_kept, 2L)
     expect_equal(res$meta$schema, 2L)
     ## the engine sees only log BF matrices, not which adapter made them, so
-    ## coloc() records the method after it returns (R/coloc.R:171)
+    ## coloc() records the method after it returns
     expect_null(res$meta$method)
 })

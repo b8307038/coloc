@@ -24,37 +24,51 @@ test_that("validate_coloc_result() refuses a result of the wrong shape, as a bug
                      "This is a bug in coloc; please report it", fixed = TRUE)
     }
     expect_bug(unclass(ok))
-    bad <- ok; bad$priors <- NULL
+    bad <- ok
+    bad$priors <- NULL
     expect_bug(bad)
     ## $summary's columns: one too many, one missing, or out of order
-    bad <- ok; bad$summary$extra <- integer(0)
+    bad <- ok
+    bad$summary$extra <- integer(0)
     expect_bug(bad)
-    bad <- ok; bad$summary$idx2 <- NULL
+    bad <- ok
+    bad$summary$idx2 <- NULL
     expect_bug(bad)
-    bad <- ok; bad$summary <- data.table::copy(ok$summary)
+    bad <- ok
+    bad$summary <- data.table::copy(ok$summary)
     data.table::setcolorder(bad$summary, c("hit1", "nsnps"))
     expect_bug(bad)
-    bad <- ok; bad$status <- "fine"
+    bad <- ok
+    bad$status <- "fine"
     expect_bug(bad)
-    bad <- ok; bad$meta$schema <- NULL
+    bad <- ok
+    bad$meta$schema <- NULL
     expect_bug(bad)
-    bad <- ok; bad$meta$schema <- "2"
+    bad <- ok
+    bad$meta$schema <- "2"
     expect_bug(bad)
     ## rows against status
-    bad <- coloc(bf, bf); bad$status <- "no_overlap"
+    bad <- coloc(bf, bf)
+    bad$status <- "no_overlap"
     expect_bug(bad)
-    bad <- ok; bad$status <- "all_trimmed"
+    bad <- ok
+    bad$status <- "all_trimmed"
     expect_bug(bad)
-    bad <- coloc(bf, bf); bad$summary$PP.H4.abf <- NA_real_
+    bad <- coloc(bf, bf)
+    bad$summary$PP.H4.abf <- NA_real_
     expect_bug(bad)
     ## $bf, when present
-    bad <- ok; bad$bf <- list(bf1 = "x", bf2 = "y")
+    bad <- ok
+    bad$bf <- list(bf1 = "x", bf2 = "y")
     expect_bug(bad)
-    bad <- ok; bad$bf <- list(bf1 = bf, bf2 = unname(bf))
+    bad <- ok
+    bad$bf <- list(bf1 = bf, bf2 = unname(bf))
     expect_bug(bad)
-    bad <- ok; bad$bf <- list(a = bf, b = bf)
+    bad <- ok
+    bad$bf <- list(a = bf, b = bf)
     expect_bug(bad)
-    bad <- ok; bad$bf <- bf
+    bad <- ok
+    bad$bf <- bf
     expect_bug(bad)
 })
 
@@ -87,7 +101,7 @@ test_that("pp(), is_ok() and n_signals() answer for a result with no rows", {
 
 test_that("is_ok() is TRUE only when the posteriors were computed", {
     expect_true(is_ok(coloc(bf, bf)))
-    ## every pair trimmed: rows kept, PP.H1 to PP.H4 NA
+    ## every pair trimmed: rows kept, PP.H0 to PP.H4 NA
     far <- matrix(c(10, 0, 0, 0, 0, 0), nrow = 1, dimnames = list("sig1", paste0("s", 5:10)))
     expect_false(is_ok(suppressWarnings(coloc(cbind(bf, far), bf))))
     expect_equal(n_signals(coloc(rbind(bf, bf), bf)), 2L)

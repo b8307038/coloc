@@ -34,19 +34,22 @@ test_that("null_weight=0 and null_weight=NULL are equivalent", {
 test_that("coloc.bf_bf is order invariant",{
     a <- rnorm(10)
     b <- rnorm(10)
-    names(a) <- names(b) <- paste0("s",1:10)
+    names(a) <- paste0("s",1:10)
+    names(b) <- paste0("s",1:10)
     expect_equal(coloc.bf_bf(a,b), coloc.bf_bf(a,rev(b)))
 })
 
 test_that("order invariance, with coloc() in place of coloc.bf_bf()",{
     a <- rnorm(10)
     b <- rnorm(10)
-    names(a) <- names(b) <- paste0("s",1:10)
+    names(a) <- paste0("s",1:10)
+    names(b) <- paste0("s",1:10)
     ## $bf keeps each input as it was given, so it is the one field that
     ## follows the order: the same values, reordered
     ab <- coloc(a,b)
     ba <- coloc(a,rev(b))
     expect_equal(log_bf(ba, 2)[, names(b), drop = FALSE], log_bf(ab, 2))
-    ab$bf <- ba$bf <- NULL
+    ab$bf <- NULL
+    ba$bf <- NULL
     expect_equal(ab, ba)
 })

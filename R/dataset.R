@@ -125,13 +125,11 @@ as_coloc_dataset <- function(x, warn.minp = 1e-6) {
     .new_coloc_dataset(x, warn.minp = warn.minp)
 }
 
-## The one place a dataset gets the coloc_dataset class, so every
-## coloc_dataset has been checked: when coloc_dataset() or as_coloc_dataset()
-## makes it, and each time coloc() is given it. coloc() also gives the trait's
-## number, which its messages begin with as "dataset N: ", and its method,
-## which says what the dataset needs. A coloc_dataset keeps its class through
-## the check, so it doesn't get the minimum p-value warning again: that was
-## given when it was made.
+## Checks d and gives it the coloc_dataset class, the one place the class is
+## given, so every coloc_dataset has been checked. coloc() calls it for each
+## dataset, with the trait's number, which messages begin with, and the
+## method, which says what the dataset needs. A coloc_dataset keeps its class
+## through the check, so it doesn't get the minimum p-value warning again.
 .new_coloc_dataset <- function(d, warn.minp = 1e-6, trait = NULL, use = "single") {
     ## a data.frame and a susie fit are lists too, but neither is a dataset
     if (!is.list(d) || is.data.frame(d) || inherits(d, "susie"))
