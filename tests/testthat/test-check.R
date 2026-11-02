@@ -159,7 +159,7 @@ cases <- list(
         list(d = local({ d <- D1; d$LD <- NULL; d })),
     "an element check_dataset() doesn't know may hold missing values" =
         list(d = local({ d <- D1; d$extra <- NA; d })),
-    ## the checks, in the order the function makes them
+    ## a dataset for each check
     "the dataset is a list" =
         list(d = 1:3,
              error = "dataset 1: is not a list"),
@@ -231,7 +231,7 @@ cases <- list(
              error = "dataset 1: sample size N <=0 or not set"),
     "a trait given as p-values has N above 0" =
         list(d = local({ d <- pv1; d$N <- 0; d }),
-             error = "dataset 1: sample size N <=0 or not set"),
+             error = "dataset 1: N must be a finite number above 0"),
     "beta and varbeta are finite" =
         list(d = local({ d <- D1; d$beta[1] <- Inf; d }),
              error = "dataset 1: Infinite values in beta and/or varbeta"),
@@ -275,11 +275,10 @@ cases <- list(
         list(d = local({ d <- D1; d$beta <- NULL; d$varbeta <- NULL
                          d$type <- "cc"; d$s <- 1.5; d }),
              error = "dataset 1: s must be between 0 and 1"),
-    "the p-value warning comes before the LD checks" =
+    "a bad LD stops a weak dataset before the p-value warning" =
         list(d = local({ d <- D1; d$beta <- d$beta / 100
                          d$LD <- d$LD[, -1]; d }),
-             error = "dataset 1: LD not square",
-             warning = "dataset 1: minimum p value is: 0.93383"))
+             error = "dataset 1: LD not square"))
 
 for (what in names(cases)) {
     test_that(paste0("check_dataset(): ", what), {

@@ -90,7 +90,7 @@ test_that("beta, varbeta and p-values must be numeric where they are read, where
     ## with a zero varbeta as well
     zero_too <- chr_beta
     zero_too$varbeta[1] <- 0
-    at_each_door(zero_too, error = "beta must be numeric")
+    at_each_door(zero_too, error = "Zero values in varbeta")
 })
 
 test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
@@ -177,7 +177,7 @@ test_that("N must be a finite number above 0 wherever it is given, where 6.0.3 t
     ## 6.0.3 took
     p_zero <- to_pvalues(D1)
     p_zero$N <- 0
-    at_each_door(p_zero, error = "sample size N <=0 or not set")
+    at_each_door(p_zero, error = "N must be a finite number above 0")
     p_inf <- to_pvalues(D1)
     p_inf$N <- Inf
     at_each_door(p_inf, error = "N must be a finite number above 0")

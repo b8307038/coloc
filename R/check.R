@@ -104,8 +104,11 @@ check_dataset <- function(d,
     p_route <- !("beta" %in% nd && "varbeta" %in% nd)  # p-values unless both are given
     susie <- "LD" %in% req                             # SuSiE reads LD, N and z, not sdY
 
-    ## The checks stop at the first problem, so their order decides which
-    ## message a dataset with two problems gets.
+    ## The checks stop at the first problem, in three blocks: what each element
+    ## must be wherever it is given, then what each route reads, then what
+    ## SuSiE reads. So an element's shape is checked before a route reads it.
+
+    ## 1. Each element, wherever it is given
     if (length(setdiff(req, nd)))
         fail("missing required element(s) ", paste(setdiff(req, nd), collapse = ", "))
     ## no missing values - make people clean their own data rather than make
@@ -114,11 +117,17 @@ check_dataset <- function(d,
     for (v in setdiff(nd, "z"))
         if (any(is.na(d[[v]])))
             fail(v, " contains missing values")
-    if ("type" %in% nd) {
-        if (length(d$type) != 1L)
-            fail("type must be a single value, quant or cc")
-        if (!(d$type %in% c("quant", "cc")))
-            fail("type must be quant or cc")
+    if (!("type" %in% nd))
+        fail("variable type not set")
+    if (length(d$type) != 1L)
+        fail("type must be a single value, quant or cc")
+    if (!(d$type %in% c("quant", "cc")))
+        fail("type must be quant or cc")
+    if ("s" %in% nd) {
+        if (length(d$s) != 1L)
+            fail("s must be a single number between 0 and 1")
+        if (!is.numeric(d$s) || d$s <= 0 || d$s >= 1)
+            fail("s must be between 0 and 1")
     }
     if ("snp" %in% nd && any(duplicated(d$snp)))
         fail("duplicated snps found")
@@ -135,56 +144,17 @@ check_dataset <- function(d,
         if (length(d[[v]]) != length(d[[ref]]))
             fail(ref, " has ", length(d[[ref]]), if (length(d[[ref]]) == 1L) " value" else " values",
                  " but ", v, " has ", length(d[[v]]))
-    if ("N" %in% nd && (!is.numeric(d$N) || length(d$N) != 1L))
-        fail("N must be a single number; coloc does not take per-snp sample sizes")
-    if (!("type" %in% nd))
-        fail("variable type not set")
-    if ("s" %in% nd) {
-        if (length(d$s) != 1L)
-            fail("s must be a single number between 0 and 1")
-        if (!is.numeric(d$s) || d$s <= 0 || d$s >= 1)
-            fail("s must be between 0 and 1")
-    }
-
-    ## without beta and varbeta, coloc works from p-values, MAF and N
-    if (p_route) {
-        if (!("pvalues" %in% nd && "MAF" %in% nd))
-            fail("require p values and MAF if beta, varbeta are unavailable")
-        ## p-values that aren't numbers would be compared as strings here;
-        ## they are refused below
-        if (is.numeric(d$pvalues) && any(d$pvalues <= 0 | d$pvalues > 1))
-            fail("pvalues must be above 0 and at most 1")
-        if (d$type == "cc" && !("s" %in% nd))
-            fail("require, s, proportion of samples who are cases, if beta, varbeta are unavailable")
-        if (!("N" %in% nd) || is.null(d$N) || any(d$N <= 0))
-            fail("sample size N <=0 or not set")
-        if (!is.numeric(d$pvalues))
-            fail("pvalues must be numeric")
-    } else {
-        for (v in c("beta", "varbeta"))
-            if (!is.numeric(d[[v]]))
-                fail(v, " must be numeric")
+    if ("N" %in% nd) {
+        if (!is.numeric(d$N) || length(d$N) != 1L)
+            fail("N must be a single number; coloc does not take per-snp sample sizes")
+        if (!is.finite(d$N) || d$N <= 0)
+            fail("N must be a finite number above 0")
     }
     if (any(is.infinite(d$beta) | is.infinite(d$varbeta)))
         fail("Infinite values in beta and/or varbeta")
-    if (any(d$varbeta == 0))
+    ## a varbeta that isn't a number is refused where it is read, below
+    if (is.numeric(d$varbeta) && any(d$varbeta == 0))
         fail("Zero values in varbeta")
-    if (!p_route && any(d$varbeta < 0))
-        fail("varbeta must be positive")
-
-    ## a warning when no p-value is below warn.minp; a coloc_dataset had it
-    ## when it was made
-    if (!inherits(d, "coloc_dataset")) {
-        p <- min(if (p_route) d$pvalues else pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2)
-        if (p > warn.minp)
-            warning(warningCondition(
-                paste0(prefix, "minimum p value is: ", format.pval(p),
-                       "\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette."),
-                class = "coloc_min_p", call = NULL))
-    }
-
-    if (d$type == "quant" && !("sdY" %in% nd) && !("MAF" %in% nd && "N" %in% nd))
-        fail("must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
     if ("LD" %in% nd) {
         if (length(dim(d$LD)) < 2L)
             fail("LD must be a matrix")
@@ -197,12 +167,43 @@ check_dataset <- function(d,
         if (length(dim(d$LD)) > 2L)
             fail("LD must be a matrix")
     }
-    if ("N" %in% nd && (!is.finite(d$N) || d$N <= 0))
-        fail("N must be a finite number above 0")
-    ## sdY is read for a quantitative trait on the beta route, and not by SuSiE
-    if ("sdY" %in% nd && !p_route && d$type == "quant" && !susie &&
-        (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
-        fail("sdY must be a single finite number above 0")
+
+    ## 2. What each route reads
+    if (p_route) {
+        ## without beta and varbeta, coloc works from p-values, MAF and N
+        if (!("pvalues" %in% nd && "MAF" %in% nd))
+            fail("require p values and MAF if beta, varbeta are unavailable")
+        if (!is.numeric(d$pvalues))
+            fail("pvalues must be numeric")
+        if (any(d$pvalues <= 0 | d$pvalues > 1))
+            fail("pvalues must be above 0 and at most 1")
+        if (d$type == "cc" && !("s" %in% nd))
+            fail("require, s, proportion of samples who are cases, if beta, varbeta are unavailable")
+        if (!("N" %in% nd))
+            fail("sample size N <=0 or not set")
+    } else {
+        for (v in c("beta", "varbeta"))
+            if (!is.numeric(d[[v]]))
+                fail(v, " must be numeric")
+        if (any(d$varbeta < 0))
+            fail("varbeta must be positive")
+        if (d$type == "quant" && !("sdY" %in% nd) && !("MAF" %in% nd && "N" %in% nd))
+            fail("must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
+        ## sdY is read for a quantitative trait, but not by SuSiE
+        if ("sdY" %in% nd && d$type == "quant" && !susie &&
+            (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
+            fail("sdY must be a single finite number above 0")
+    }
+    ## a warning when no p-value is below warn.minp; a coloc_dataset had it
+    ## when it was made
+    if (!inherits(d, "coloc_dataset")) {
+        p <- min(if (p_route) d$pvalues else pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2)
+        if (p > warn.minp)
+            warning(warningCondition(
+                paste0(prefix, "minimum p value is: ", format.pval(p),
+                       "\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette."),
+                class = "coloc_min_p", call = NULL))
+    }
     ## Where sdY is read and MAF and N are given, an sdY more than twice or
     ## under half its estimate from varbeta, MAF and N gets a warning, as when
     ## varbeta holds standard errors. It doesn't stop, as covariates or a mixed
@@ -218,10 +219,15 @@ check_dataset <- function(d,
                 class = "coloc_sdY", call = NULL))
     }
 
-    ## what SuSiE reads; LD is given, as req names it
+    ## 3. What SuSiE reads; LD is given, as req names it
     if (susie) {
         if (!(is.matrix(d$LD) && is.numeric(d$LD)))
             fail("LD must be a numeric matrix")
+        ## only the dataset's snps, which are all SuSiE uses, copied out only
+        ## when LD covers more; with as many, they are the same snps
+        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
+        if (!.is_correlation(LD))
+            fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
         if ("N" %in% nd && d$N <= 1)
             fail("N must be above 1 for SuSiE")
         if ("z" %in% nd) {
@@ -235,11 +241,6 @@ check_dataset <- function(d,
             if (any(is.infinite(d$z)))
                 fail("Infinite values in z")
         }
-        ## only the dataset's snps, which are all SuSiE uses, copied out only
-        ## when LD covers more; with as many, they are the same snps
-        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
-        if (!.is_correlation(LD))
-            fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
     }
     NULL
 }
