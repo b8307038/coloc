@@ -72,12 +72,11 @@ coloc.susie=function(dataset1, dataset2, back_calculate_lbf=FALSE, susie.args=li
   ## selection and the arithmetic all come from the adapters and the engine
   ## by way of coloc(). What stays is the old return shape.
   dots <- list(...)
-  ## through coloc()'s body, keeping 6.0.3's word, "dataset N: ", and showing
-  ## this function's own call in an error
+  ## through coloc()'s body
   .coloc_result_as_6_0_3(
       .coloc(dataset1, dataset2, method = "susie", supplied = TRUE,
              susie.args = susie.args, prior = .prior_from_dots(dots),
-             control = .control_from_dots(dots), word = "dataset", call = sys.call()))
+             control = .control_from_dots(dots)))
 }
 
 finemap.susie=function(dataset1, susie.args=list(),  ...) {
@@ -133,8 +132,7 @@ coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=lis
       .without_method_warning(
           .coloc(dataset1, bf2, method = "susie", supplied = TRUE,
                  susie.args = susie.args, prior = prior,
-                 control = .control_from_dots(dots), word = "dataset",
-                 call = sys.call())))
+                 control = .control_from_dots(dots))))
 }
 
 ##' Finemap one dataset represented by Bayes factors
@@ -323,7 +321,6 @@ runsusie=function(d,suffix=1,
                   maxit=100,repeat_until_convergence=TRUE,
                   s_init=NULL, ...) {
   check_dataset(d,suffix,req=.dataset_uses$susie)
-  check_ld(d,d$LD)
   ##make copies of z and LD so we can subset if needed
   if(!("z" %in% names(d)))
     z=d$beta/sqrt(d$varbeta)

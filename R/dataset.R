@@ -1,7 +1,7 @@
 ## A coloc dataset constructor
 
-## The elements with one value per snp, in the order the lengths rule compares
-## them and print() lists them
+## The elements with one value per snp, in the order check_dataset() compares
+## their lengths and print() lists them
 .per_snp_items <- c("beta", "varbeta", "pvalues", "MAF", "snp", "position", "z")
 
 ## The elements a coloc dataset may have. check_dataset() checks these and
@@ -33,9 +33,9 @@
 ## the plain-list note from fn, naming the traits given as plain lists, if any
 .plain_list_note <- function(fn, traits = NULL) {
     given <- if (length(traits) > 1L)
-                 paste("plain lists for traits", paste(traits, collapse = " and "),
+                 paste("plain lists for datasets", paste(traits, collapse = " and "),
                        "and converted them")
-             else paste0("a plain list", if (length(traits)) paste(" for trait", traits),
+             else paste0("a plain list", if (length(traits)) paste(" for dataset", traits),
                          " and converted it")
     paste0(fn, "() was given ", given, " with as_coloc_dataset().\n",
            "Make datasets with coloc_dataset() or as_coloc_dataset().\n",
@@ -114,7 +114,7 @@ coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
               snp = snp, position = position,
               N = N, type = type, s = s, sdY = sdY, LD = LD, z = z)
     d <- d[!sapply(d, is.null)]
-    .new_coloc_dataset(d, warn.minp = warn.minp, call = sys.call())
+    .new_coloc_dataset(d, warn.minp = warn.minp)
 }
 
 ##' @rdname coloc_dataset
@@ -122,29 +122,25 @@ coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
 ##' @export
 as_coloc_dataset <- function(x, warn.minp = 1e-6) {
     if (inherits(x, "coloc_dataset")) return(x)
-    .new_coloc_dataset(x, warn.minp = warn.minp, call = sys.call())
+    .new_coloc_dataset(x, warn.minp = warn.minp)
 }
 
 ## The one place a dataset gets the coloc_dataset class, so every
 ## coloc_dataset has been checked: when coloc_dataset() or as_coloc_dataset()
-## makes it, and each time coloc() is given it. `call` is the call R shows in
-## an error or warning: coloc_dataset(...), as_coloc_dataset(x) or coloc(...)
-## as the user typed it, or as_coloc_dataset(d) when wakefield_bf() converts a
-## list for them. coloc() also gives the trait's number, which its messages
-## begin with as "trait N: ", and its method, which says what the dataset
-## needs. A coloc_dataset keeps its class through the check, so it doesn't get
-## the minimum p-value warning again: that was given when it was made.
-.new_coloc_dataset <- function(d, warn.minp = 1e-6, call, trait = NULL,
-                               use = "single", word = "trait") {
+## makes it, and each time coloc() is given it. coloc() also gives the trait's
+## number, which its messages begin with as "dataset N: ", and its method,
+## which says what the dataset needs. A coloc_dataset keeps its class through
+## the check, so it doesn't get the minimum p-value warning again: that was
+## given when it was made.
+.new_coloc_dataset <- function(d, warn.minp = 1e-6, trait = NULL, use = "single") {
     ## a data.frame and a susie fit are lists too, but neither is a dataset
     if (!is.list(d) || is.data.frame(d) || inherits(d, "susie"))
-        stop(simpleError(paste0(.prefix(trait, word),
-                                "expected a coloc dataset: a list, or the result of coloc_dataset(), not a ",
-                                class(d)[1]), call))
+        stop(if (!is.null(trait)) paste0("dataset ", trait, ": "),
+             "expected a coloc dataset: a list, or the result of coloc_dataset(), not a ",
+             class(d)[1], call. = FALSE)
     if (!inherits(d, "coloc_dataset"))
         d <- unclass(d)
-    .gate(d, suffix = trait, req = .dataset_uses[[use]], warn.minp = warn.minp,
-          call = call, word = word)
+    check_dataset(d, suffix = trait, req = .dataset_uses[[use]], warn.minp = warn.minp)
     ## read by its label everywhere, so a factor or a name only gets in the way
     if (!is.null(d[["type"]]))
         d[["type"]] <- as.character(d[["type"]])

@@ -65,32 +65,27 @@ test_that("the p value warning is given once, when the dataset is made", {
     expect_warning(check_dataset(weak), class = "coloc_min_p")
 })
 
-test_that("a mistake when a dataset is made shows the constructor's call, and no trait", {
+test_that("a mistake when a dataset is made shows no call, and no dataset", {
     bad <- small
     bad$beta[2] <- NA
-    expect_identical(call_of(as_coloc_dataset(bad)), quote(as_coloc_dataset(bad)))
-    expect_error(as_coloc_dataset(bad), "beta contains missing values", fixed = TRUE)
-    expect_identical(call_of(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
-                                           varbeta = bad$varbeta, sdY = 1)),
-                     quote(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
-                                         varbeta = bad$varbeta, sdY = 1)))
-    ## and so does the minimum p-value warning
+    e <- expect_error(as_coloc_dataset(bad), "beta contains missing values", fixed = TRUE)
+    expect_null(conditionCall(e))
+    e <- expect_error(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
+                                    varbeta = bad$varbeta, sdY = 1),
+                      "beta contains missing values", fixed = TRUE)
+    expect_null(conditionCall(e))
+    ## nor does the minimum p-value warning
     weak <- small
     weak$beta <- rep(0.01, 5)
-    expect_identical(call_of(as_coloc_dataset(weak)), quote(as_coloc_dataset(weak)))
-    expect_warning(as_coloc_dataset(weak),
-                   "minimum p value is: 0.92034",
-                   fixed = TRUE, class = "coloc_min_p")
+    w <- expect_warning(as_coloc_dataset(weak), class = "coloc_min_p")
+    expect_null(conditionCall(w))
 })
 
-test_that("coloc_dataset() refuses a negative varbeta with its own call", {
-    expect_identical(call_of(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
-                                           varbeta = -D1$varbeta, sdY = 1)),
-                     quote(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
-                                         varbeta = -D1$varbeta, sdY = 1)))
-    expect_error(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
-                               varbeta = -D1$varbeta, sdY = 1),
-                 "varbeta must be positive", fixed = TRUE)
+test_that("coloc_dataset() refuses a negative varbeta, with no call", {
+    e <- expect_error(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
+                                    varbeta = -D1$varbeta, sdY = 1),
+                      "varbeta must be positive", fixed = TRUE)
+    expect_null(conditionCall(e))
 })
 
 test_that("as_coloc_dataset() returns a coloc_dataset as it is, even one changed since it was made", {
@@ -105,7 +100,7 @@ test_that("a dataset changed after it was made is checked again when used", {
     D <- as_coloc_dataset(D1)
     D$beta[1] <- NA
     expect_s3_class(D, "coloc_dataset") # $<- keeps the class, so the class alone cannot be trusted
-    expect_error(coloc(D, D2), "trait 1: beta contains missing values", fixed = TRUE)
+    expect_error(coloc(D, D2), "dataset 1: beta contains missing values", fixed = TRUE)
 })
 
 test_that("a coloc_dataset gives the same results as the plain list", {

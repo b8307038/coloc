@@ -19,13 +19,12 @@ fit3 <- suppressMessages(runsusie(D3))
 
 at_each_door <- function(d, error, other = D1, susie = FALSE) {
     ## each door, and the dataset number its error begins with: 2 where d is the
-    ## second of two datasets, 1 for runsusie(), none where d is checked alone;
-    ## coloc() says "trait" where the others say "dataset"
+    ## second of two datasets, 1 for runsusie(), none where d is checked alone
     doors <- list(list(call = quote(check_dataset(d, 2)), dataset = 2),
                   list(call = quote(coloc.abf(other, d)), dataset = 2),
                   list(call = quote(finemap.abf(d)), dataset = NULL),
                   list(call = quote(as_coloc_dataset(d)), dataset = NULL),
-                  list(call = quote(coloc(other, d)), dataset = 2, word = "trait"),
+                  list(call = quote(coloc(other, d)), dataset = 2),
                   list(call = quote(wakefield_bf(d)), dataset = NULL))
     if (susie)
         doors <- c(doors, list(list(call = quote(runsusie(d)), dataset = 1)))
@@ -33,9 +32,8 @@ at_each_door <- function(d, error, other = D1, susie = FALSE) {
     ## !! puts the door's call in the message of a failed expectation
     for (door in doors) {
         if (!is.null(error)) {
-            word <- if (is.null(door$word)) "dataset" else door$word
             expected <- if (is.null(door$dataset)) error
-                        else paste0(word, " ", door$dataset, ": ", error)
+                        else paste0("dataset ", door$dataset, ": ", error)
             expect_error(quietly(!!door$call), expected, fixed = TRUE)
         } else {
             expect_no_error(quietly(!!door$call))
@@ -111,7 +109,7 @@ test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
     ## p-value comparison is skipped
     made <- as_coloc_dataset(D1)
     made$varbeta[5] <- -made$varbeta[5]
-    expect_error(coloc(made, D2), "trait 1: varbeta must be positive", fixed = TRUE)
+    expect_error(coloc(made, D2), "dataset 1: varbeta must be positive", fixed = TRUE)
     expect_error(coloc.abf(made, D2), "dataset 1: varbeta must be positive", fixed = TRUE)
     expect_error(wakefield_bf(made), "varbeta must be positive", fixed = TRUE)
 })
@@ -158,7 +156,7 @@ test_that("LD must be a matrix, and for SuSiE a numeric one, where 6.0.3 failed 
     for (d in list(df_ld3, chr_ld3)) {
         expect_error(runsusie(d), "dataset 1: LD must be a numeric matrix", fixed = TRUE)
         refused_before_susie(coloc(D4, d, method = "susie"),
-                             "trait 2: LD must be a numeric matrix")
+                             "dataset 2: LD must be a numeric matrix")
     }
 })
 
@@ -188,7 +186,7 @@ test_that("N must be a finite number above 0 wherever it is given, where 6.0.3 t
     zero4 <- D4
     zero4$N <- 0
     expect_error(suppressMessages(get_match_6_0_3(runsusie(zero4))))
-    refused_before_susie(coloc(D3, zero4, method = "susie"), "trait 2: N must be a finite number above 0")
+    refused_before_susie(coloc(D3, zero4, method = "susie"), "dataset 2: N must be a finite number above 0")
     ## and above 1, as susieR needs, which 6.0.3 also left to susieR. On the
     ## Wakefield route an N of 1 gives 6.0.3's answer
     for (n in c(1, 0.5)) {
@@ -196,7 +194,7 @@ test_that("N must be a finite number above 0 wherever it is given, where 6.0.3 t
         small4$N <- n
         expect_error(suppressMessages(get_match_6_0_3(runsusie(small4))))
         refused_before_susie(coloc(D3, small4, method = "susie"),
-                             "trait 2: N must be above 1 for SuSiE")
+                             "dataset 2: N must be above 1 for SuSiE")
     }
     one <- D1
     one$N <- 1
@@ -239,7 +237,7 @@ test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numer
         refused_before_susie(runsusie(d),
                              "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
         refused_before_susie(coloc(D4, d, method = "susie"),
-                             "trait 2: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
+                             "dataset 2: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
         ## where LD isn't required it isn't tested, and the answer is 6.0.3's
         expect_null(check_dataset(d, 2))
         expect_equal(abf_summary(D4, d), get_match_6_0_3(coloc.abf(D4, d))$summary)
@@ -315,7 +313,7 @@ test_that("for SuSiE z must have a finite number for each snp, where 6.0.3 faile
         }, error = function(e) TRUE)
         expect_identical(failed, b$failed, label = what)
         expect_error(runsusie(d), paste0("dataset 1: ", errors[[what]]), fixed = TRUE)
-        refused_before_susie(coloc(D4, d, method = "susie"), paste0("trait 2: ", errors[[what]]))
+        refused_before_susie(coloc(D4, d, method = "susie"), paste0("dataset 2: ", errors[[what]]))
         ## where nothing reads z it passes, with 6.0.3's answer
         d1 <- D1
         d1$z <- b$z

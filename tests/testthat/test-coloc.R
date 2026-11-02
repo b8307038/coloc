@@ -44,7 +44,7 @@ test_that("method is per trait: a trait without LD can stay single", {
     D1_noLD$LD <- NULL
     ## SuSiE needs LD, so "susie" for both cannot run
     expect_error(suppressMessages(coloc(D1_noLD, D3, method = "susie")),
-                 "trait 1: missing required element(s) LD", fixed = TRUE)
+                 "dataset 1: missing required element(s) LD", fixed = TRUE)
     mixed <- suppressMessages(coloc(D1_noLD, D3, method = c("single", "susie")))
     expect_equal(mixed$meta$method, c("single", "susie"))
     expect_equal(n_signals(mixed), 2L)
@@ -110,7 +110,7 @@ mistakes <- list(
     "mismatched lengths" = function(d) { d$beta <- d$beta[-1]; d },
     "a zero varbeta" = function(d) { d$varbeta[5] <- 0; d })
 
-## the error each mistake gets, after its "trait 1: " label. The SuSiE route
+## the error each mistake gets, after its "dataset 1: " label. The SuSiE route
 ## doesn't require type, so a missing one gets the check on type's message
 refusals <- c("no type" = "missing required element(s) type",
               "a wrong type" = "type must be quant or cc",
@@ -133,7 +133,7 @@ test_that("a bad dataset stops coloc() as it stopped 6.0.3's coloc.abf(), naming
         if (trait == 1) d1 <- mistakes[[what]](d1) else d2 <- mistakes[[what]](d2)
         label <- paste(what, "in trait", trait, kind)
         expect_error(get_match_6_0_3(coloc.abf(d1, d2)), label = label)
-        expect_error(coloc(d1, d2), paste0("trait ", trait, ": ", refusals[[what]]),
+        expect_error(coloc(d1, d2), paste0("dataset ", trait, ": ", refusals[[what]]),
                      fixed = TRUE, label = label)
     }
 })
@@ -146,10 +146,10 @@ test_that("on the SuSiE route a bad dataset is reported with its own trait numbe
         d3 <- mistakes[[what]](kinds[[kind]](D3))
         d4 <- mistakes[[what]](kinds[[kind]](D4))
         expect_error(suppressMessages(coloc(d3, fit4, method = "susie")),
-                     paste0("trait 1: ", susie_refusals[[what]]),
+                     paste0("dataset 1: ", susie_refusals[[what]]),
                      fixed = TRUE, label = paste(what, "in trait 1", kind))
         expect_error(suppressMessages(coloc(fit3, d4, method = "susie")),
-                     paste0("trait 2: ", susie_refusals[[what]]),
+                     paste0("dataset 2: ", susie_refusals[[what]]),
                      fixed = TRUE, label = paste(what, "in trait 2", kind))
     }
 })
@@ -169,31 +169,31 @@ test_that("bad log BFs stop coloc() with the trait named", {
 ## ---- the door: both datasets checked before either is fine-mapped -------
 ## coloc() passes each dataset through .new_coloc_dataset(), as coloc_dataset()
 ## does, with the trait's number and what the method needs, before any adapter
-## runs. Its errors begin with the trait's number, as "trait 2: ", and show
-## coloc()'s call.
+## runs. Its errors begin with the trait's number, as "dataset 2: ", and show
+## no call.
 
-test_that("a mistake in a dataset names the trait and coloc()'s call", {
+test_that("a mistake in a dataset names the dataset, and shows no call", {
     bad <- D2
     bad$beta[1] <- NA
-    err <- expect_error(coloc(D1, bad), "trait 2: beta contains missing values", fixed = TRUE)
-    expect_identical(conditionCall(err), quote(coloc(D1, bad)))
+    err <- expect_error(coloc(D1, bad), "dataset 2: beta contains missing values", fixed = TRUE)
+    expect_null(conditionCall(err))
     ## two of the refusals that named no dataset in 6.0.3
     per_snp_N <- D2
     per_snp_N$N <- rep(D2$N, length(D2$snp))
     expect_error(coloc(D1, per_snp_N),
-                 "trait 2: N must be a single number; coloc does not take per-snp sample sizes",
+                 "dataset 2: N must be a single number; coloc does not take per-snp sample sizes",
                  fixed = TRUE)
     not_square <- D2
     not_square$LD <- not_square$LD[, -1]
     expect_error(coloc(D1, not_square),
-                 "trait 2: LD not square", fixed = TRUE)
+                 "dataset 2: LD not square", fixed = TRUE)
 })
 
 test_that("a coloc_dataset changed after it was made is checked again", {
     made <- as_coloc_dataset(D2)
     made$beta[1] <- NA                  # still a coloc_dataset: $<- keeps the class
     expect_error(coloc(as_coloc_dataset(D1), made),
-                 "trait 2: beta contains missing values", fixed = TRUE)
+                 "dataset 2: beta contains missing values", fixed = TRUE)
 })
 
 test_that("both datasets are checked before either is fine-mapped", {
@@ -208,7 +208,7 @@ test_that("both datasets are checked before either is fine-mapped", {
             said <<- c(said, conditionMessage(m))
             invokeRestart("muffleMessage")
         })
-    expect_identical(conditionMessage(err), "trait 2: missing required element(s) LD")
+    expect_identical(conditionMessage(err), "dataset 2: missing required element(s) LD")
     expect_length(said, 0)
 })
 
@@ -220,25 +220,25 @@ test_that("a weak dataset gives one minimum p-value warning, on either route", {
     ## the first line of each minimum p-value warning
     minp <- function(w) sub("\n.*", "", w$message[w$class == "coloc_min_p"])
     expect_equal(minp(warnings_of(coloc(weak(D1), weak(D2)))),
-                 c("trait 1: minimum p value is: 0.93383",
-                   "trait 2: minimum p value is: 0.93863"))
+                 c("dataset 1: minimum p value is: 0.93383",
+                   "dataset 2: minimum p value is: 0.93863"))
     skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
     w <- warnings_of(suppressMessages(coloc(weak(D3), weak(D4), method = "susie")))
     expect_equal(minp(w),
-                 c("trait 1: minimum p value is: 0.91098",
-                   "trait 2: minimum p value is: 0.94878"))
+                 c("dataset 1: minimum p value is: 0.91098",
+                   "dataset 2: minimum p value is: 0.94878"))
 })
 
-test_that("coloc.susie() and coloc.susie_bf() name the dataset and show their own call", {
+test_that("coloc.susie() and coloc.susie_bf() name the dataset, and show no call", {
     bad3 <- D3
     bad3$beta[1] <- NA
     err <- expect_error(coloc.susie(bad3, D4),
                         "dataset 1: beta contains missing values", fixed = TRUE)
-    expect_identical(conditionCall(err), quote(coloc.susie(bad3, D4)))
+    expect_null(conditionCall(err))
     bf4 <- setNames(rep(0, length(D4$snp)), D4$snp)
     err <- expect_error(coloc.susie_bf(bad3, bf4),
                         "dataset 1: beta contains missing values", fixed = TRUE)
-    expect_identical(conditionCall(err), quote(coloc.susie_bf(bad3, bf4)))
+    expect_null(conditionCall(err))
 })
 
 test_that("a factor or named type comes back as a string once checked", {
@@ -262,22 +262,22 @@ test_that("a factor or named type comes back as a string once checked", {
 test_that("a data frame given as a dataset is refused, naming the trait", {
     df <- as.data.frame(D1[c("snp", "beta", "varbeta")])
     expect_error(coloc(df, D2),
-                 "trait 1: expected a coloc dataset: a list, or the result of coloc_dataset(), not a data.frame",
+                 "dataset 1: expected a coloc dataset: a list, or the result of coloc_dataset(), not a data.frame",
                  fixed = TRUE)
 })
 
 test_that("what is neither a fit nor log BFs is checked as a dataset, naming the trait", {
     no_snp <- D1
     no_snp$snp <- NULL
-    expect_error(coloc(no_snp, D2), "trait 1: missing required element(s) snp", fixed = TRUE)
-    expect_error(coloc(D1, no_snp), "trait 2: missing required element(s) snp", fixed = TRUE)
+    expect_error(coloc(no_snp, D2), "dataset 1: missing required element(s) snp", fixed = TRUE)
+    expect_error(coloc(D1, no_snp), "dataset 2: missing required element(s) snp", fixed = TRUE)
     ## NULL is refused the same way whatever the version of R, where
     ## is.atomic(NULL) changed
     expect_error(coloc(NULL, D2),
-                 "trait 1: expected a coloc dataset: a list, or the result of coloc_dataset(), not a NULL",
+                 "dataset 1: expected a coloc dataset: a list, or the result of coloc_dataset(), not a NULL",
                  fixed = TRUE)
     expect_error(coloc(D1, sum),
-                 "trait 2: expected a coloc dataset: a list, or the result of coloc_dataset(), not a function",
+                 "dataset 2: expected a coloc dataset: a list, or the result of coloc_dataset(), not a function",
                  fixed = TRUE)
 })
 

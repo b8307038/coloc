@@ -127,8 +127,7 @@ coloc <- function(x1, x2,
     ## per-trait request. Per-trait scope and match.arg-style defaults do not
     ## compose, so .coloc() collapses the default explicitly.
     res <- .coloc(x1, x2, method = method, supplied = !missing(method), prior = prior,
-                  control = control, susie.args = susie.args, word = "trait",
-                  call = sys.call())
+                  control = control, susie.args = susie.args)
     ## a plain list that got this far passed its checks and was converted
     plain <- which(vapply(list(x1, x2), .is_plain_list, NA))
     if (length(plain))
@@ -140,11 +139,8 @@ coloc <- function(x1, x2,
 .is_plain_list <- function(x)
     is.list(x) && !inherits(x, c("coloc_dataset", "susie"))
 
-## coloc()'s body, which coloc.susie() and coloc.susie_bf() run too. A
-## dataset's messages begin with `word` and the trait's number, and show
-## `call`: "trait" and coloc()'s call for coloc(), "dataset" and their own call
-## for the two old functions, which keep 6.0.3's word.
-.coloc <- function(x1, x2, method, supplied, prior, control, susie.args, word, call) {
+## coloc()'s body, which coloc.susie() and coloc.susie_bf() run too
+.coloc <- function(x1, x2, method, supplied, prior, control, susie.args) {
     if (!supplied) method <- "single"
 
     ## a coloc_prior too, as one edited with $<- keeps its class
@@ -160,8 +156,7 @@ coloc <- function(x1, x2,
     xs <- list(x1, x2)
     for (i in 1:2)
         if (kinds[i] == "dataset")
-            xs[[i]] <- .new_coloc_dataset(xs[[i]], call = call, trait = i,
-                                          use = method[i], word = word)
+            xs[[i]] <- .new_coloc_dataset(xs[[i]], trait = i, use = method[i])
 
     ## the adapters check what only they can: a fit's or log BFs' values
     adapt <- function(x, kind, m, trait) switch(kind,

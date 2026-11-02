@@ -90,10 +90,157 @@ check_dataset <- function(d,
                           suffix="",
                           req=c("type","snp"),
                           warn.minp=1e-6) {
-    ## the rules are .dataset_rules, below; the call is passed on so that an
-    ## error still shows this call, not .gate()'s
-    .gate(d, suffix, req, warn.minp, call = sys.call())
-    ## if we reach here, no badness detected
+    ## A label, such as 1 or 2, starts each message as "dataset 1: "; "", NULL,
+    ## NA or more than one value is no label. No call is shown, as the message
+    ## names the dataset.
+    dataset <- if (length(suffix) == 1L && !is.na(suffix) && !identical(as.character(suffix), ""))
+                   suffix
+    prefix <- if (is.null(dataset)) "" else paste0("dataset ", dataset, ": ")
+    fail <- function(...) stop(prefix, ..., call. = FALSE)
+
+    if (!is.list(d))
+        fail(if (is.null(dataset)) "the dataset is not a list" else "is not a list")
+    nd <- intersect(names(d), .dataset_items)          # the elements coloc reads
+    p_route <- !("beta" %in% nd && "varbeta" %in% nd)  # p-values unless both are given
+    susie <- "LD" %in% req                             # SuSiE reads LD, N and z, not sdY
+
+    ## The checks stop at the first problem, so their order decides which
+    ## message a dataset with two problems gets.
+    if (length(setdiff(req, nd)))
+        fail("missing required element(s) ", paste(setdiff(req, nd), collapse = ", "))
+    ## no missing values - make people clean their own data rather than make
+    ## assumptions here for datasets I don't know. z is checked where SuSiE
+    ## reads it, below
+    for (v in setdiff(nd, "z"))
+        if (any(is.na(d[[v]])))
+            fail(v, " contains missing values")
+    if ("type" %in% nd) {
+        if (length(d$type) != 1L)
+            fail("type must be a single value, quant or cc")
+        if (!(d$type %in% c("quant", "cc")))
+            fail("type must be quant or cc")
+    }
+    if ("snp" %in% nd && any(duplicated(d$snp)))
+        fail("duplicated snps found")
+    if ("snp" %in% nd && is.factor(d$snp))
+        fail("snp should be a character vector but is a factor")
+    if ("MAF" %in% nd && (!is.numeric(d$MAF) || any(d$MAF <= 0 | d$MAF >= 1)))
+        fail("MAF should be a numeric, strictly >0 & <1")
+    ## each per-snp element but z has as many values as snp, or without snp as
+    ## the first of them, in .per_snp_items' order; z is compared with the
+    ## same element below
+    per_snp <- intersect(setdiff(.per_snp_items, "z"), nd)
+    ref <- if ("snp" %in% per_snp) "snp" else per_snp[1]
+    for (v in per_snp)
+        if (length(d[[v]]) != length(d[[ref]]))
+            fail(ref, " has ", length(d[[ref]]), if (length(d[[ref]]) == 1L) " value" else " values",
+                 " but ", v, " has ", length(d[[v]]))
+    if ("N" %in% nd && (!is.numeric(d$N) || length(d$N) != 1L))
+        fail("N must be a single number; coloc does not take per-snp sample sizes")
+    if (!("type" %in% nd))
+        fail("variable type not set")
+    if ("s" %in% nd) {
+        if (length(d$s) != 1L)
+            fail("s must be a single number between 0 and 1")
+        if (!is.numeric(d$s) || d$s <= 0 || d$s >= 1)
+            fail("s must be between 0 and 1")
+    }
+
+    ## without beta and varbeta, coloc works from p-values, MAF and N
+    if (p_route) {
+        if (!("pvalues" %in% nd && "MAF" %in% nd))
+            fail("require p values and MAF if beta, varbeta are unavailable")
+        ## p-values that aren't numbers would be compared as strings here;
+        ## they are refused below
+        if (is.numeric(d$pvalues) && any(d$pvalues <= 0 | d$pvalues > 1))
+            fail("pvalues must be above 0 and at most 1")
+        if (d$type == "cc" && !("s" %in% nd))
+            fail("require, s, proportion of samples who are cases, if beta, varbeta are unavailable")
+        if (!("N" %in% nd) || is.null(d$N) || any(d$N <= 0))
+            fail("sample size N <=0 or not set")
+        if (!is.numeric(d$pvalues))
+            fail("pvalues must be numeric")
+    } else {
+        for (v in c("beta", "varbeta"))
+            if (!is.numeric(d[[v]]))
+                fail(v, " must be numeric")
+    }
+    if (any(is.infinite(d$beta) | is.infinite(d$varbeta)))
+        fail("Infinite values in beta and/or varbeta")
+    if (any(d$varbeta == 0))
+        fail("Zero values in varbeta")
+    if (!p_route && any(d$varbeta < 0))
+        fail("varbeta must be positive")
+
+    ## a warning when no p-value is below warn.minp; a coloc_dataset had it
+    ## when it was made
+    if (!inherits(d, "coloc_dataset")) {
+        p <- min(if (p_route) d$pvalues else pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2)
+        if (p > warn.minp)
+            warning(warningCondition(
+                paste0(prefix, "minimum p value is: ", format.pval(p),
+                       "\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette."),
+                class = "coloc_min_p", call = NULL))
+    }
+
+    if (d$type == "quant" && !("sdY" %in% nd) && !("MAF" %in% nd && "N" %in% nd))
+        fail("must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
+    if ("LD" %in% nd) {
+        if (length(dim(d$LD)) < 2L)
+            fail("LD must be a matrix")
+        if (nrow(d$LD) != ncol(d$LD))
+            fail("LD not square")
+        if (!identical(colnames(d$LD), rownames(d$LD)))
+            fail("LD rownames != colnames")
+        if (length(setdiff(d$snp, colnames(d$LD))))
+            fail("colnames in LD do not contain all SNPs")
+        if (length(dim(d$LD)) > 2L)
+            fail("LD must be a matrix")
+    }
+    if ("N" %in% nd && (!is.finite(d$N) || d$N <= 0))
+        fail("N must be a finite number above 0")
+    ## sdY is read for a quantitative trait on the beta route, and not by SuSiE
+    if ("sdY" %in% nd && !p_route && d$type == "quant" && !susie &&
+        (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
+        fail("sdY must be a single finite number above 0")
+    ## Where sdY is read and MAF and N are given, an sdY more than twice or
+    ## under half its estimate from varbeta, MAF and N gets a warning, as when
+    ## varbeta holds standard errors. It doesn't stop, as covariates or a mixed
+    ## model can move a correct sdY away from the estimate. A coloc_dataset
+    ## gets it too, as it may have been edited since it was made.
+    if (all(c("sdY", "MAF", "N") %in% nd) && !p_route && d$type == "quant" && !susie &&
+        length(d$varbeta)) {
+        fit <- .sdY_fit(d$varbeta, d$MAF, d$N)
+        if (is.finite(fit) && fit > 0 && max(d$sdY / sqrt(fit), sqrt(fit) / d$sdY) > 2)
+            warning(warningCondition(
+                paste0(prefix, sprintf("sdY is %.3g, but varbeta, MAF and N suggest %.3g: does varbeta hold variances?",
+                                       d$sdY, sqrt(fit))),
+                class = "coloc_sdY", call = NULL))
+    }
+
+    ## what SuSiE reads; LD is given, as req names it
+    if (susie) {
+        if (!(is.matrix(d$LD) && is.numeric(d$LD)))
+            fail("LD must be a numeric matrix")
+        if ("N" %in% nd && d$N <= 1)
+            fail("N must be above 1 for SuSiE")
+        if ("z" %in% nd) {
+            if (any(is.na(d$z)))
+                fail("z contains missing values")
+            if (length(d$z) != length(d[[ref]]))
+                fail(ref, " has ", length(d[[ref]]), if (length(d[[ref]]) == 1L) " value" else " values",
+                     " but z has ", length(d$z))
+            if (!is.numeric(d$z))
+                fail("z must be numeric")
+            if (any(is.infinite(d$z)))
+                fail("Infinite values in z")
+        }
+        ## only the dataset's snps, which are all SuSiE uses, copied out only
+        ## when LD covers more; with as many, they are the same snps
+        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
+        if (!.is_correlation(LD))
+            fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
+    }
     NULL
 }
 
@@ -106,53 +253,17 @@ check.dataset=function(...) {
 }
 
 
-## ---- check_dataset()'s rules ------------------------------------------------
-## One entry of .dataset_rules per rule, in the order check_dataset() checks
-## them: the order decides which message a dataset with two mistakes gets, and
-## test-check.R pins it against 6.0.3's. 6.0.3's conditions are kept, some
-## with a test in front for input they failed on with R's error, so a dataset
-## 6.0.3 refused gets its message. A rule added since goes where 6.0.3 failed
-## with R's error on what it refuses, or after 6.0.3's rules if 6.0.3 took it,
-## so it doesn't take over one of 6.0.3's messages; test-check.R adds each new
-## mistake to its cases to check that.
-
-## One rule. check is function(d, ctx): NULL when the dataset passes, else the
-## message without its prefix, which .gate() adds. about names the elements
-## the rule reads, so check_ld() can pick out the LD rules. A rule of level
-## "warning" warns, with the class given, and .gate() goes on
-.rule <- function(id, check, about = character(0), level = c("error", "warning"),
-                  class = paste0("coloc_", id))
-    list(id = id, check = check, about = about, level = match.arg(level), class = class)
-
-## the p-value route: no beta, or no varbeta
-.p_route <- function(ctx) !("beta" %in% ctx$nd) || !("varbeta" %in% ctx$nd)
-
-## the SuSiE route: a req naming LD, as .dataset_uses$susie does. SuSiE reads
-## LD, N and z, and not sdY
-.susie_route <- function(ctx) "LD" %in% ctx$req
-
-## The message for per-snp elements v whose lengths differ, NULL if none: each
-## against snp, or without snp against the first, in .per_snp_items' order, so
-## the message names the same elements however the list was built
-.lengths_differ <- function(d, v) {
-    if (length(v) < 2L)
-        return(NULL)
-    n <- lengths(d[v])
-    ref <- if ("snp" %in% v) "snp" else v[1]
-    bad <- v[n != n[[ref]]]
-    if (length(bad))
-        paste(ref, "has", n[[ref]], if (n[[ref]] == 1L) "value" else "values",
-              "but", bad[1], "has", n[[bad[1]]])
-}
-
 ## LD as a correlation matrix: values in [-1, 1], 1 on the diagonal, and equal
-## to its transpose, each to within tol. Any LD worked out in 64-bit arithmetic
-## passes with room to spare, and so does one stored as 32-bit floats. Only one
-## worked out in 32-bit arithmetic by rescaling each snp to sd 1 first can miss
-## by more, about 2e-5 at 1,000 people, and is refused. A covariance matrix or a
-## value of 1.5 is far outside it. The transpose is compared in blocks of 500
-## columns, so a large LD isn't copied whole.
+## to its transpose, each to within tol, with no missing values. Any LD worked
+## out in 64-bit arithmetic passes with room to spare, and so does one stored
+## as 32-bit floats. Only one worked out in 32-bit arithmetic by rescaling each
+## snp to sd 1 first can miss by more, about 2e-5 at 1,000 people, and is
+## refused. A covariance matrix or a value of 1.5 is far outside it. The
+## transpose is compared in blocks of 500 columns, so a large LD isn't copied
+## whole.
 .is_correlation <- function(LD, tol = 1e-6) {
+    if (anyNA(LD))
+        return(FALSE)
     r <- range(LD)
     if (r[1] < -1 - tol || r[2] > 1 + tol)
         return(FALSE)
@@ -164,259 +275,6 @@ check.dataset=function(...) {
     TRUE
 }
 
-## Where each element is read, which decides where a rule added since 6.0.3
-## refuses a value coloc can't use: refusing it where nothing reads it would
-## stop a dataset whose answer is right. Wakefield's beta route (beta and
-## varbeta both given) reads beta, varbeta, and for a quantitative trait sdY,
-## or MAF and N to estimate it. Its p-value route reads pvalues, MAF, N, and s
-## for a case-control trait. SuSiE, the use whose req names LD, reads beta,
-## varbeta, LD and N, and z when given, and not sdY. N is refused wherever it
-## is given, as no sample size is 0 or below, and so is an LD with more than
-## two dimensions, which no LD matrix has.
-
-## ctx is list(nd, req, warn.minp), nd being the elements of d coloc knows
-.dataset_rules <- list(
-    .rule("required", function(d, ctx)
-        if (length(setdiff(ctx$req, ctx$nd)))
-            paste0("missing required element(s) ",
-                   paste(setdiff(ctx$req, ctx$nd), collapse = ", "))),
-    ## no missing values - make people clean their own data rather than make
-    ## assumptions here for datasets I don't know. z, which 6.0.3 didn't know,
-    ## is checked by z_valid below, after 6.0.3's rules
-    .rule("no_na", function(d, ctx) {
-        for (v in setdiff(ctx$nd, "z"))
-            if (any(is.na(d[[v]])))
-                return(paste0(v, " contains missing values"))
-        NULL
-    }),
-    ## guarded, so a dataset with no type reaches "variable type not set"
-    ## below, as runsusie() leaves type out of req. A type of any length but
-    ## one failed here with R's error, and gets its own sentence
-    .rule("type_valid", about = "type", function(d, ctx)
-        if ("type" %in% ctx$nd) {
-            if (length(d$type) != 1L)
-                "type must be a single value, quant or cc"
-            else if (!(d$type %in% c("quant", "cc")))
-                "type must be quant or cc"
-        }),
-    .rule("snp_unique", about = "snp", function(d, ctx)
-        if ("snp" %in% ctx$nd && any(duplicated(d$snp)))
-            "duplicated snps found"),
-    .rule("snp_character", about = "snp", function(d, ctx)
-        if ("snp" %in% ctx$nd && is.factor(d$snp))
-            "snp should be a character vector but is a factor"),
-    .rule("maf_range", about = "MAF", function(d, ctx)
-        if ("MAF" %in% ctx$nd && (!is.numeric(d$MAF) || any(is.na(d$MAF)) ||
-                                  any(d$MAF <= 0) || any(d$MAF >= 1)))
-            "MAF should be a numeric, strictly >0 & <1"),
-    ## the per-snp elements (.per_snp_items, in R/dataset.R) but z, which
-    ## z_valid checks
-    .rule("lengths", function(d, ctx)
-        .lengths_differ(d, intersect(setdiff(.per_snp_items, "z"), ctx$nd))),
-    .rule("N_single", about = "N", function(d, ctx)
-        if ("N" %in% ctx$nd && (!is.numeric(d[["N"]]) || length(d[["N"]]) != 1))
-            "N must be a single number; coloc does not take per-snp sample sizes"),
-    .rule("type_set", function(d, ctx)
-        if (!("type" %in% ctx$nd))
-            "variable type not set"),
-    ## an s of any length but one failed here with R's error, as type did
-    .rule("s_range", about = "s", function(d, ctx)
-        if ("s" %in% ctx$nd) {
-            if (length(d$s) != 1L)
-                "s must be a single number between 0 and 1"
-            else if (!is.numeric(d$s) || d$s <= 0 || d$s >= 1)
-                "s must be between 0 and 1"
-        }),
-    ## the p-value route: beta and varbeta are needed to estimate var(Y) without them
-    .rule("route", function(d, ctx)
-        if (.p_route(ctx) && (!("pvalues" %in% ctx$nd) || !("MAF" %in% ctx$nd)))
-            "require p values and MAF if beta, varbeta are unavailable"),
-    ## character p-values are left to the numeric rule below: here they would
-    ## be compared as strings
-    .rule("p_range", about = "pvalues", function(d, ctx)
-        if (.p_route(ctx) && is.numeric(d$pvalues) && any(d$pvalues <= 0 | d$pvalues > 1))
-            "pvalues must be above 0 and at most 1"),
-    .rule("s_needed", function(d, ctx)
-        if (.p_route(ctx) && d$type == "cc" && !("s" %in% ctx$nd))
-            "require, s, proportion of samples who are cases, if beta, varbeta are unavailable"),
-    .rule("N_p_route", function(d, ctx)
-        if (.p_route(ctx) && (!("N" %in% ctx$nd) || is.null(d$N) || any(d$N <= 0)))
-            "sample size N <=0 or not set"),
-    ## the values the route computes with, here where 6.0.3 worked out the
-    ## p-values from beta and varbeta and failed on a character one with R's
-    ## error. On the p-value route, route has made sure the p-values are there
-    .rule("numeric", about = c("beta", "varbeta", "pvalues"), function(d, ctx) {
-        for (v in if (.p_route(ctx)) "pvalues" else c("beta", "varbeta"))
-            if (!is.numeric(d[[v]]))
-                return(paste(v, "must be numeric"))
-        NULL
-    }),
-    .rule("finite", function(d, ctx)
-        if (any(is.infinite(d$beta) | is.infinite(d$varbeta)))
-            "Infinite values in beta and/or varbeta"),
-    .rule("zero_varbeta", function(d, ctx)
-        if (any(d$varbeta == 0))
-            "Zero values in varbeta"),
-    ## after zero_varbeta, so a zero keeps its message. 6.0.3 failed on a
-    ## negative one at the minimum p-value step, comparing a NaN, and a
-    ## coloc_dataset, which skips that comparison, got NA posteriors
-    .rule("varbeta_positive", about = "varbeta", function(d, ctx)
-        if (!.p_route(ctx) && any(d$varbeta < 0))
-            "varbeta must be positive"),
-    ## A coloc_dataset gave this warning when it was made, so it is not
-    ## repeated each time the dataset is used, and its p-values aren't worked
-    ## out
-    .rule("min_p", level = "warning", function(d, ctx) {
-        if (inherits(d, "coloc_dataset"))
-            return(NULL)
-        p <- min(if (.p_route(ctx)) d$pvalues else pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2)
-        if (p > ctx$warn.minp)
-            paste0("minimum p value is: ", format.pval(p),
-                   "\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette.")
-    }),
-    .rule("sdY", function(d, ctx)
-        if (d$type == "quant" && !("sdY" %in% ctx$nd))
-            if (!("MAF" %in% ctx$nd && "N" %in% ctx$nd))
-                "must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
-    ## the rules below need two dimensions. A vector failed in LD_square with
-    ## R's error; a data frame has two, and passes where LD isn't required,
-    ## as in 6.0.3. More than two is LD_array's, below
-    .rule("LD_dims", about = "LD", function(d, ctx)
-        if ("LD" %in% ctx$nd && length(dim(d$LD)) < 2L)
-            "LD must be a matrix"),
-    .rule("LD_square", about = "LD", function(d, ctx)
-        if ("LD" %in% ctx$nd && nrow(d$LD) != ncol(d$LD))
-            "LD not square"),
-    .rule("LD_dimnames", about = "LD", function(d, ctx)
-        if ("LD" %in% ctx$nd && !identical(colnames(d$LD), rownames(d$LD)))
-            "LD rownames != colnames"),
-    .rule("LD_covers", about = "LD", function(d, ctx)
-        if ("LD" %in% ctx$nd && length(setdiff(d$snp, colnames(d$LD))))
-            "colnames in LD do not contain all SNPs"),
-    ## an LD of three or more dimensions, wherever given. After 6.0.3's LD
-    ## rules, which read its first two and took it, so a dataset 6.0.3
-    ## refused keeps its message
-    .rule("LD_array", about = "LD", function(d, ctx)
-        if ("LD" %in% ctx$nd && length(dim(d$LD)) > 2L)
-            "LD must be a matrix"),
-    ## on the SuSiE route, which reads LD. After 6.0.3's rules, as its
-    ## check_ld() refused an LD that wasn't a matrix after check_dataset();
-    ## check_ld() keeps that test itself, as it runs these rules with no req
-    .rule("LD_numeric", about = "LD", function(d, ctx)
-        if ("LD" %in% ctx$nd && .susie_route(ctx) &&
-            !(is.matrix(d$LD) && is.numeric(d$LD)))
-            "LD must be a numeric matrix"),
-    ## wherever N is given, and above 1 on the SuSiE route, as susieR needs,
-    ## so the dataset is refused before either trait is fine-mapped. After
-    ## 6.0.3's rules, which took any N beside beta, so a dataset 6.0.3 refused
-    ## keeps its message, and a dataset given as p-values "sample size N <=0
-    ## or not set"
-    .rule("N_positive", about = "N", function(d, ctx) {
-        if (!("N" %in% ctx$nd))
-            return(NULL)
-        if (!is.finite(d$N) || d$N <= 0)
-            "N must be a finite number above 0"
-        else if (.susie_route(ctx) && d$N <= 1)
-            "N must be above 1 for SuSiE"
-    }),
-    ## where sdY is read: a quantitative trait on the beta route, and not for
-    ## SuSiE. After 6.0.3's rules, which took any sdY
-    .rule("sdY_valid", about = "sdY", function(d, ctx)
-        if ("sdY" %in% ctx$nd && !.p_route(ctx) && d$type == "quant" &&
-            !.susie_route(ctx) &&
-            (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
-            "sdY must be a single finite number above 0"),
-    ## where sdY_valid checks sdY, with MAF and N given: sdY more than twice or
-    ## under half its estimate from varbeta, MAF and N, as when varbeta holds
-    ## standard errors. A warning, as covariates or a mixed model can move a
-    ## correct sdY away from the estimate. Given for a coloc_dataset too, which
-    ## may have been edited since it was made
-    .rule("sdY_plausible", level = "warning", class = "coloc_sdY", function(d, ctx) {
-        if (d$type != "quant" || .p_route(ctx) || .susie_route(ctx) ||
-            !all(c("sdY", "MAF", "N") %in% ctx$nd) || !length(d$varbeta))
-            return(NULL)
-        fit <- .sdY_fit(d$varbeta, d$MAF, d$N)
-        if (!is.finite(fit) || fit <= 0)
-            return(NULL)
-        estimate <- sqrt(fit)
-        if (max(d$sdY / estimate, estimate / d$sdY) > 2)
-            sprintf("sdY is %.3g, but varbeta, MAF and N suggest %.3g: does varbeta hold variances?",
-                    d$sdY, estimate)
-    }),
-    ## where z is read: SuSiE fine-maps from it in place of beta /
-    ## sqrt(varbeta). After 6.0.3's rules, which didn't know z, so no_na and
-    ## lengths leave it here
-    .rule("z_valid", about = "z", function(d, ctx) {
-        if (!("z" %in% ctx$nd && .susie_route(ctx)))
-            return(NULL)
-        if (any(is.na(d$z)))
-            return("z contains missing values")
-        ## z against snp, or the first other per-snp element without snp
-        others <- setdiff(intersect(.per_snp_items, ctx$nd), "z")
-        problem <- .lengths_differ(d, intersect(c(if ("snp" %in% others) "snp" else others[1], "z"),
-                                                ctx$nd))
-        if (!is.null(problem))
-            return(problem)
-        if (!is.numeric(d$z))
-            return("z must be numeric")
-        if (any(is.infinite(d$z)))
-            "Infinite values in z"
-    }),
-    ## on the SuSiE route, which reads LD: coloc.abf() never reads it, and the
-    ## test takes about 2 s at 10,000 snps. Last, after LD_numeric, which it
-    ## needs. Only the dataset's snps, the part runsusie() uses, copied out
-    ## only when LD covers more; with as many, LD_covers and LD_dimnames make
-    ## them the same snps, and their order doesn't matter
-    .rule("LD_correlation", about = "LD", function(d, ctx) {
-        if (!("LD" %in% ctx$nd && .susie_route(ctx)))
-            return(NULL)
-        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
-        if (!.is_correlation(LD))
-            "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"
-    })
-)
-names(.dataset_rules) <- vapply(.dataset_rules, `[[`, "", "id")
-
-## the rules that read one element, in list order
-.rules_about <- function(element)
-    Filter(function(rule) element %in% rule$about, .dataset_rules)
-
-## "dataset {suffix}: " for a dataset checked with a label, such as 1 or 2 from
-## coloc.abf() or a user's "eQTL"; nothing for one checked on its own (suffix
-## "", NULL, NA or more than one value), as when a dataset is made. coloc()
-## passes the word "trait", so its messages begin "trait {suffix}: "
-.prefix <- function(suffix, word = "dataset") {
-    if (length(suffix) != 1L || is.na(suffix) || identical(as.character(suffix), ""))
-        return("")
-    paste0(word, " ", suffix, ": ")
-}
-
-## Run the rules in order and stop at the first that fails. Every message, the
-## warning's too, starts with .prefix(suffix, word), and carries `call`, the
-## call of the function the user called. Returns invisible NULL.
-.gate <- function(d, suffix = "", req = character(0), warn.minp = 1e-6,
-                  call = NULL, rules = .dataset_rules, word = "dataset") {
-    prefix <- .prefix(suffix, word)
-    ## without a prefix, the one message with no subject gains one
-    if (!is.list(d))
-        stop(simpleError(if (nzchar(prefix)) paste0(prefix, "is not a list")
-                         else "the dataset is not a list", call))
-    ctx <- list(nd = intersect(names(d), .dataset_items), # defined in R/dataset.R
-                req = req, warn.minp = warn.minp)
-    for (rule in rules) {
-        problem <- rule$check(d, ctx)
-        if (is.null(problem))
-            next
-        if (rule$level == "warning") {
-            warning(warningCondition(paste0(prefix, problem), class = rule$class,
-                                     call = call))
-            next
-        }
-        stop(simpleError(paste0(prefix, problem), call))
-    }
-    invisible(NULL)
-}
-
 check_ld <- function(D,LD) {
     if(is.null(LD))
       stop("LD required")
@@ -424,8 +282,19 @@ check_ld <- function(D,LD) {
       stop("LD must be of class matrix")
     ## if(any(LD[upper.tri(LD)]==1))
     ##   stop("LD includes SNPs in perfect LD")
-    ## the rest are check_dataset()'s LD rules
-    .gate(list(snp = D$snp, LD = LD), call = sys.call(), rules = .rules_about("LD"))
+    if(nrow(LD)!=ncol(LD))
+        stop("LD not square")
+    if(!identical(colnames(LD),rownames(LD)))
+      stop("LD rownames != colnames")
+    if(length(setdiff(D$snp,colnames(LD))))
+        stop("colnames in LD do not contain all SNPs")
+    ## finemap.signals() and coloc.signals() compute with LD, so it must be a
+    ## numeric correlation matrix, as for SuSiE. Only D's snps are checked, or
+    ## all of LD when D names none
+    if(!is.numeric(LD))
+        stop("LD must be a numeric matrix")
+    if(!.is_correlation(if(length(D$snp) && ncol(LD) > length(D$snp)) LD[D$snp,D$snp] else LD))
+        stop("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
 }
 
 ##' check alignment between beta and LD

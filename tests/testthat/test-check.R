@@ -67,7 +67,7 @@ test_that("issue 79, with coloc() in place of coloc.abf()", {
           type="quant",
           MAF=rep(0.5,5))
   expect_error(coloc(d1, d2),
-               "trait 2: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated",
+               "dataset 2: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated",
                fixed = TRUE)
 })
 
@@ -107,7 +107,7 @@ test_that("issue 160, with coloc() in place of coloc.abf()", {
           type="quant",
           MAF=rep(0.5,5))
   expect_error(coloc(d1, d2),
-               "trait 2: N must be a single number; coloc does not take per-snp sample sizes",
+               "dataset 2: N must be a single number; coloc does not take per-snp sample sizes",
                fixed = TRUE)
 })
 
@@ -131,10 +131,10 @@ test_that("Infinite values in beta/varbeta triggers specific error", {
                fixed = TRUE)
 })
 
-## ---- check_dataset(), one test per rule ------------------------------------
-## Each rule of check_dataset() has a case for each thing it tests: a dataset
-## that breaks it, which check_dataset() refuses. Other cases are valid
-## datasets, datasets that break two rules, and the arguments req and
+## ---- check_dataset(), one test per check -----------------------------------
+## Each check of check_dataset() has a case for each thing it tests: a dataset
+## that fails it, which check_dataset() refuses. Other cases are valid
+## datasets, datasets that fail two checks, and the arguments req and
 ## warn.minp. Each case runs with the label 1, as coloc() checks a dataset, and
 ## with none, as a dataset is made. A refused case holds the message
 ## check_dataset() stops with, as coloc() shows it with the label 1, so the
@@ -159,7 +159,7 @@ cases <- list(
         list(d = local({ d <- D1; d$LD <- NULL; d })),
     "an element check_dataset() doesn't know may hold missing values" =
         list(d = local({ d <- D1; d$extra <- NA; d })),
-    ## the rules, in the order the function checks them
+    ## the checks, in the order the function makes them
     "the dataset is a list" =
         list(d = 1:3,
              error = "dataset 1: is not a list"),
@@ -266,7 +266,7 @@ cases <- list(
     "req sets the required elements" =
         list(d = D1, args = list(req = c("snp", "pvalues")),
              error = "dataset 1: missing required element(s) pvalues"),
-    ## datasets that break two rules
+    ## datasets that fail two checks
     "a wrong type and duplicated snps" =
         list(d = local({ d <- D1; d$type <- "binary"
                          d$snp[2] <- d$snp[1]; d }),
@@ -332,23 +332,35 @@ test_that("an sdY far from its estimate from varbeta, MAF and N gets a warning, 
 })
 
 ## ---- what else check_dataset() and check_ld() must keep -----------------------
-## The rules run in .gate() (R/check.R), but an error or warning shows the call
-## the user made, as 6.0.3's did (call_of() is in helper-datasets.R)
+## check_dataset()'s errors and warnings show no call, as the message names the
+## dataset; check_ld()'s show its own (call_of() is in helper-datasets.R)
 
-test_that("check_dataset() errors and warns with its own call", {
+test_that("check_dataset()'s errors and warnings show no call", {
     dup <- D1
     dup$snp[2] <- dup$snp[1]
     weak <- D1
     weak$beta <- weak$beta / 100
     per_snp_N <- D1
     per_snp_N$N <- rep(D1$N, length(D1$snp))
-    expect_identical(call_of(check_dataset(dup, 1)), quote(check_dataset(dup, 1)))
-    expect_identical(call_of(check_dataset(weak, 1)), quote(check_dataset(weak, 1)))
-    expect_identical(call_of(check_dataset(1:3, 1)), quote(check_dataset(1:3, 1)))
-    expect_identical(call_of(check_dataset(per_snp_N, 1)), quote(check_dataset(per_snp_N, 1)))
+    e <- expect_error(check_dataset(dup, 1), "dataset 1: duplicated snps found",
+                      fixed = TRUE)
+    expect_null(conditionCall(e))
+    w <- expect_warning(check_dataset(weak, 1),
+                        "dataset 1: minimum p value is: 0.93383",
+                        fixed = TRUE, class = "coloc_min_p")
+    expect_null(conditionCall(w))
+    e <- expect_error(check_dataset(1:3, 1),
+                      "dataset 1: is not a list",
+                      fixed = TRUE)
+    expect_null(conditionCall(e))
+    e <- expect_error(check_dataset(per_snp_N, 1),
+                      "dataset 1: N must be a single number; coloc does not take per-snp sample sizes",
+                      fixed = TRUE)
+    expect_null(conditionCall(e))
     ## and through a function that calls it
-    expect_identical(call_of(suppressMessages(coloc.abf(dup, D1))),
-                     quote(check_dataset(d = dataset1, 1)))
+    e <- expect_error(suppressMessages(coloc.abf(dup, D1)), "dataset 1: duplicated snps found",
+                      fixed = TRUE)
+    expect_null(conditionCall(e))
 })
 
 test_that("check_ld() takes a valid LD, and refuses the others with its own call", {
@@ -366,5 +378,32 @@ test_that("check_ld() takes a valid LD, and refuses the others with its own call
         expect_error(check_ld(D3, LD), lds[[nm]]$error, fixed = TRUE,
                      label = nm)
         expect_identical(call_of(check_ld(D3, LD)), quote(check_ld(D3, LD)), label = nm)
+    }
+})
+
+test_that("check_ld(), and so finemap.signals() and coloc.signals(), refuse an LD that isn't a numeric correlation matrix", {
+    character_ld <- D3$LD
+    storage.mode(character_ld) <- "character"
+    ## 1.5 times too large off the diagonal
+    too_large <- D3$LD * 1.5
+    diag(too_large) <- 1
+    with_na <- D3$LD
+    with_na[1, 2] <- with_na[2, 1] <- NA
+    lds <- list(character = list(LD = character_ld, error = "LD must be a numeric matrix"),
+                too_large = list(LD = too_large,
+                                 error = "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"),
+                with_na = list(LD = with_na, error = "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"))
+    for (nm in names(lds)) {
+        expect_error(check_ld(D3, lds[[nm]]$LD), lds[[nm]]$error, fixed = TRUE,
+                     label = nm)
+        expect_error(finemap.signals(D3, lds[[nm]]$LD, method = "cond"), lds[[nm]]$error,
+                     fixed = TRUE, label = nm)
+    }
+    ## coloc.signals() takes LD from the dataset, whose own check refuses the NA
+    for (nm in c("character", "too_large")) {
+        d <- D3
+        d$LD <- lds[[nm]]$LD
+        expect_error(coloc.signals(d, plain_test_data$D4, method = "cond", p12 = 1e-5),
+                     lds[[nm]]$error, fixed = TRUE, label = nm)
     }
 })

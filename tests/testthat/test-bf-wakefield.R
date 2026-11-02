@@ -101,15 +101,14 @@ test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_datas
         invokeRestart("muffleWarning")
     })
     expect_equal(minp, 1)
-    ## an error shows the call of the check inside, as_coloc_dataset()'s
-    ## for a list and check_dataset()'s for a coloc_dataset; pinned, so that a
-    ## change to it is made on purpose
+    ## an error from the check inside shows no call, for a list or a
+    ## coloc_dataset
     bad <- D1
     bad$beta[1] <- NA
-    expect_identical(tryCatch(wakefield_bf(bad), error = conditionCall),
-                     quote(as_coloc_dataset(d)))
-    expect_identical(tryCatch(wakefield_bf(changed), error = conditionCall),
-                     quote(check_dataset(d)))
+    e <- expect_error(wakefield_bf(bad), "beta contains missing values", fixed = TRUE)
+    expect_null(conditionCall(e))
+    e <- expect_error(wakefield_bf(changed), "beta contains missing values", fixed = TRUE)
+    expect_null(conditionCall(e))
 })
 
 test_that("wakefield_bf() refuses effect_priors without a positive number for each type", {

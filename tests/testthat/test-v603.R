@@ -144,7 +144,7 @@ test_that("coloc() stops on a bad dataset, as 6.0.3's coloc.abf() did, naming th
     bad <- D2
     bad$beta[1] <- NA
     expect_error(get_match_6_0_3(coloc.abf(D1, bad)))
-    expect_error(coloc(D1, bad), "trait 2: beta contains missing values", fixed = TRUE)
+    expect_error(coloc(D1, bad), "dataset 2: beta contains missing values", fixed = TRUE)
 })
 
 test_that("SuSiE fits each test dataset the same way every time", {
@@ -435,7 +435,7 @@ test_that("AL16: a p-value above 1 is refused, which 6.0.3 accepted", {
     above$pvalues[5] <- 1.5
     expect_error(check_dataset(above, 1),
                  "dataset 1: pvalues must be above 0 and at most 1", fixed = TRUE)
-    expect_error(coloc(above, D2), "trait 1: pvalues must be above 0 and at most 1", fixed = TRUE)
+    expect_error(coloc(above, D2), "dataset 1: pvalues must be above 0 and at most 1", fixed = TRUE)
     expect_error(finemap.abf(above), "pvalues must be above 0 and at most 1", fixed = TRUE)
     ## 0 and below were refused already
     zero <- to_pvalues(D1)

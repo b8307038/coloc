@@ -81,7 +81,7 @@ test_that("a broken plain list gets only its error, and the note is still to com
     bad$beta[1] <- NA
     forgetting_notes({
         expect_no_warning(expect_error(coloc(bad, D2),
-                                       "trait 1: beta contains missing values", fixed = TRUE))
+                                       "dataset 1: beta contains missing values", fixed = TRUE))
         then_good <- warning_classes(coloc(L1, D2))
     })
     expect_identical(then_good, "coloc_plain_list")
