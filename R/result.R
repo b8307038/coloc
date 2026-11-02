@@ -211,10 +211,10 @@ validate_coloc_result <- function(x) {
 }
 
 ## Every exit from the engine goes through here, and validates on the way out.
-.new_coloc_result <- function(summary = .empty_summary(),
-                              results = data.table(snp = character(0)),
-                              prior, weights = NULL, status = "ok",
-                              messages = character(0), meta = list()) {
+new_coloc_result <- function(summary = .empty_summary(),
+                             results = data.table(snp = character(0)),
+                             prior, weights = NULL, status = "ok",
+                             messages = character(0), meta = list()) {
     ## 2 from when coloc() kept each trait's log BFs in $bf; a result saved
     ## at schema 1 has none
     meta$schema <- 2L

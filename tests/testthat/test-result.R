@@ -5,7 +5,7 @@ bf_x <- bf
 colnames(bf_x) <- paste0("x", 1:4)            # no snps in common with bf
 
 test_that("validate_coloc_result() accepts a result of the right shape", {
-    ok <- .new_coloc_result(prior = .default_prior(), status = "no_signal")
+    ok <- new_coloc_result(prior = .default_prior(), status = "no_signal")
     expect_s3_class(ok, "coloc_result")
     expect_silent(validate_coloc_result(ok))
     expect_equal(ok$meta$schema, 2L)
@@ -16,7 +16,7 @@ test_that("validate_coloc_result() accepts a result of the right shape", {
 })
 
 test_that("validate_coloc_result() refuses a result of the wrong shape, as a bug in coloc", {
-    ok <- .new_coloc_result(prior = .default_prior(), status = "no_signal")
+    ok <- new_coloc_result(prior = .default_prior(), status = "no_signal")
     ## a malformed result is coloc's bug, not the user's mistake, and its error
     ## says so
     expect_bug <- function(x) {

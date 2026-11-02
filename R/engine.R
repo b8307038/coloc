@@ -65,14 +65,14 @@
     ## 1:nrow(bf1) would yield c(1, 0) and a bogus pair grid.
     if (nrow(bf1) == 0L || nrow(bf2) == 0L) {
         note("at least one trait has no signals, nothing to colocalise")
-        return(.new_coloc_result(status = "no_signal", messages = msgs, prior = prior))
+        return(new_coloc_result(status = "no_signal", messages = msgs, prior = prior))
     }
 
     ## ---- 2. snp intersection ----------------------------------------------
     isnps <- setdiff(intersect(colnames(bf1), colnames(bf2)), "null")
     if (!length(isnps)) {
         note("no snps in common between the two traits")
-        return(.new_coloc_result(status = "no_overlap", messages = msgs, prior = prior))
+        return(new_coloc_result(status = "no_overlap", messages = msgs, prior = prior))
     }
 
     ## ---- 3. null column convention, tested per matrix ---------------------
@@ -115,10 +115,10 @@
                            PP.H1.abf = NA_real_, PP.H2.abf = NA_real_,
                            PP.H3.abf = NA_real_, PP.H4.abf = NA_real_,
                            idx1 = todo$i, idx2 = todo$j)
-        return(.new_coloc_result(summary = skel, status = "all_trimmed",
-                                 messages = msgs, prior = prior,
-                                 meta = list(n_pairs_in = n_in, n_pairs_kept = 0L,
-                                             dropped = "overlap.min")))
+        return(new_coloc_result(summary = skel, status = "all_trimmed",
+                                messages = msgs, prior = prior,
+                                meta = list(n_pairs_in = n_in, n_pairs_kept = 0L,
+                                            dropped = "overlap.min")))
     }
     if (any(drop))
         todo <- todo[!drop]
@@ -193,12 +193,12 @@
     colnames(PP) <- if (ncol(PP) > 1) paste0("SNP.PP.H4.row", seq_len(ncol(PP)))
                     else "SNP.PP.H4.abf"
 
-    .new_coloc_result(summary = skel,
-                      results = cbind(data.table(snp = isnps), PP),
-                      prior = prior,
-                      weights = if (user_weighted) list(w1 = w1, w2 = w2),
-                      status = if (degenerate) "degenerate" else "ok",
-                      messages = msgs,
-                      meta = list(n_pairs_in = n_in, n_pairs_kept = nrow(todo),
-                                  dropped = if (any(drop)) "overlap.min" else character(0)))
+    new_coloc_result(summary = skel,
+                     results = cbind(data.table(snp = isnps), PP),
+                     prior = prior,
+                     weights = if (user_weighted) list(w1 = w1, w2 = w2),
+                     status = if (degenerate) "degenerate" else "ok",
+                     messages = msgs,
+                     meta = list(n_pairs_in = n_in, n_pairs_kept = nrow(todo),
+                                 dropped = if (any(drop)) "overlap.min" else character(0)))
 }

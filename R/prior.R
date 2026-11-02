@@ -12,9 +12,10 @@
 ## ---------------------------------------------------------------------------
 
 new_coloc_prior <- function(p1, p2, p12, weights1, weights2) {
-    structure(list(p1 = p1, p2 = p2, p12 = p12,
-                   weights1 = weights1, weights2 = weights2),
-              class = "coloc_prior")
+    x <- structure(list(p1 = p1, p2 = p2, p12 = p12,
+                        weights1 = weights1, weights2 = weights2),
+                   class = "coloc_prior")
+    validate_coloc_prior(x)
 }
 
 validate_coloc_prior <- function(x) {
@@ -65,7 +66,7 @@ validate_coloc_prior <- function(x) {
 ##' coloc_prior(weights1 = c(1, 1, 10, 1, 1))
 coloc_prior <- function(p1 = 1e-4, p2 = 1e-4, p12 = 5e-6,
                         weights1 = NULL, weights2 = NULL) {
-    prior <- validate_coloc_prior(new_coloc_prior(p1, p2, p12, weights1, weights2))
+    prior <- new_coloc_prior(p1, p2, p12, weights1, weights2)
     ## coloc.abf()'s advice (R/claudia.R:439-443), given here so it outlives
     ## coloc.abf()
     if (!is.null(weights1) && !is.null(weights2))
