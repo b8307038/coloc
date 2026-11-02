@@ -231,7 +231,7 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
                      trim_by_posterior=TRUE, prior_weights1 = NULL, prior_weights2 = NULL) {
 
   ## A thin wrapper over .coloc_engine(). The arithmetic moved to R/engine.R;
-  ## what stays here is 6.0.3's user-facing validation, its vector promotion
+  ## what stays here is the prior check, 6.0.3's vector promotion
   ## and the translation of coloc_result back into the five return shapes
   ## callers still expect. That translation is temporary: it keeps the old
   ## entry points' 6.0.3 return shapes, which test-v603.R compares, and lives
@@ -239,9 +239,7 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
 
   prior <- list(p1 = p1, p2 = p2, p12 = p12,
                 weights1 = prior_weights1, weights2 = prior_weights2)
-  .check_prior_weights(prior)
-  ## 6.0.3 accepted a vector p1/p2 here (allowlist AL10); the engine does not
-  .check_scalar_prior(prior)
+  validate_coloc_prior(prior)
 
   ## a named vector is one signal: make it a one-row matrix here, as
   ## coloc() does in .adapt_bf(), which coloc.bf_bf() does not call

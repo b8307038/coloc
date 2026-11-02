@@ -389,6 +389,15 @@ test_that("AL10: a vector p1 or p2 is rejected, where 6.0.3 allowed it, with ext
     expect_error(coloc.bf_bf(bf_a, bf_b, p1 = rep(1e-4, 8)), "must each be a scalar")
 })
 
+test_that("the old functions refuse a p12 outside [p1 * p2, min(p1, p2)], which 6.0.3 took", {
+    ## p12 = 1e-3 is above p1 = 1e-4, outside the range sensitivity() sweeps
+    expect_no_error(get_match_6_0_3(coloc.bf_bf(bf_a, bf_b, p12 = 1e-3)))
+    expect_no_error(get_match_6_0_3(coloc.susie(fit3, fit4, p12 = 1e-3)))
+    expect_error(coloc.bf_bf(bf_a, bf_b, p12 = 1e-3), "p12 must lie")
+    expect_error(coloc.susie(fit3, fit4, p12 = 1e-3), "p12 must lie")
+    expect_error(coloc.susie_bf(fit3, bf4, p12 = 1e-3), "p12 must lie")
+})
+
 test_that("AL11: traits with no snps in common warn, where 6.0.3 returned nsnps = NA silently", {
     ## 6.0.3's coloc.bf_bf() returned early with data.table(nsnps = NA) and no warning;
     ## coloc() warns "no snps in common" and returns status "no_overlap"

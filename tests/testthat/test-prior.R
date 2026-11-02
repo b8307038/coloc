@@ -20,9 +20,10 @@ test_that("p1, p2 and p12 must each be a scalar", {
     }
     ## checked before the bounds, which would accept a vector
     expect_error(coloc_prior(p1 = c(1e-4, 1e-4), weights1 = c(1, 1)), "must each be a scalar")
-    expect_error(.check_scalar_prior(list(p1 = 1e-4, p2 = c(1e-4, 1e-4), p12 = 5e-6)),
+    ## and in a plain list, as coloc() and coloc.bf_bf() check it
+    expect_error(validate_coloc_prior(list(p1 = 1e-4, p2 = c(1e-4, 1e-4), p12 = 5e-6)),
                  "must each be a scalar")
-    expect_silent(.check_scalar_prior(.default_prior()))
+    expect_silent(validate_coloc_prior(.default_prior()))
 })
 
 test_that("p12 may sit exactly on its bounds", {

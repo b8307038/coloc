@@ -147,10 +147,8 @@ coloc <- function(x1, x2,
 .coloc <- function(x1, x2, method, supplied, prior, control, susie.args, word, call) {
     if (!supplied) method <- "single"
 
-    ## a coloc_prior has been checked already, but a plain list has not: it
-    ## gets the scalar check, and the weight checks the old doors make
-    .check_scalar_prior(prior)
-    .check_prior_weights(prior)
+    ## a coloc_prior too, as one edited with $<- keeps its class
+    validate_coloc_prior(prior)
 
     kinds  <- c(.classify_input(x1), .classify_input(x2))
     method <- .resolve_method(method, kinds, supplied = supplied)
@@ -349,9 +347,7 @@ print.coloc_result <- function(x, ...) {
 
 ## The old doors take priors and control as loose arguments in `...`. Collect
 ## them here, starting from the canonical defaults so the numbers stay in one
-## place. The RESULT is an unclassed list, and values the caller supplied are
-## not put through validate_coloc_prior(): the old doors keep the
-## permissiveness they have always had, and coloc() is the validating door.
+## place. The result is an unclassed list, which coloc() checks.
 .prior_from_dots <- function(dots) {
     out <- .default_prior()
     for (nm in c("p1", "p2", "p12"))
@@ -361,27 +357,7 @@ print.coloc_result <- function(x, ...) {
     ## .default_prior() is what stops the two drifting apart.
     out["weights1"] <- list(dots$prior_weights1)
     out["weights2"] <- list(dots$prior_weights2)
-    .check_prior_weights(out)
     out
-}
-
-## The BF-route weight rules, in one place. coloc.susie() and
-## coloc.susie_bf() used to inherit these by calling coloc.bf_bf(); they now
-## call coloc(), so without this a negative weight would reach log() and
-## produce NaN rather than a clean error.
-##
-## coloc.abf() deliberately does NOT use this: its own check permits a zero
-## weight, where the BF route rejects one. That asymmetry is 6.0.3's, not a
-## new one, and it disappears when the old doors do.
-.check_prior_weights <- function(prior) {
-    if ((length(prior$p1) != 1 || length(prior$p2) != 1 || length(prior$p12) != 1) &&
-        (!is.null(prior$weights1) || !is.null(prior$weights2)))
-        stop("Prior weights can only be used with single values of the prior parameters.")
-    if (!is.null(prior$weights1) && any(is.na(prior$weights1) | (prior$weights1 <= 0)))
-        stop("prior_weights1 must contain non-NA/non-negative weights.")
-    if (!is.null(prior$weights2) && any(is.na(prior$weights2) | (prior$weights2 <= 0)))
-        stop("prior_weights2 must contain non-NA/non-negative weights.")
-    invisible(prior)
 }
 
 .control_from_dots <- function(dots) {

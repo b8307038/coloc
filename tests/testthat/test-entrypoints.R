@@ -105,9 +105,9 @@ test_that("the old doors reject a vector prior, as coloc_prior() does", {
                      class = "susie")
     expect_error(coloc.susie(fit, fit, p1 = vec), msg, fixed = TRUE)
     expect_error(coloc.susie_bf(fit, bf, p2 = vec), msg, fixed = TRUE)
-    ## with weights too, 6.0.3's own message comes first
+    ## with weights too
     expect_error(coloc.bf_bf(bf, bf, p1 = vec, prior_weights1 = rep(1, 8)),
-                 "only be used with single values")
+                 "must each be a scalar")
     ## coloc.abf() stops earlier, in adjust_prior(), with R's own message
     abf <- tryCatch(coloc.abf(D1, D2, p1 = rep(1e-4, 500)), error = conditionMessage)
     expect_false(grepl("must each be a scalar", abf))

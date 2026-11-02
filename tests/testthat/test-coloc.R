@@ -76,7 +76,15 @@ test_that("a prior given as a plain list is checked for scalars and weights", {
     ## error that blames coloc
     expect_error(coloc(bf, bf, prior = list(p1 = 1e-4, p2 = 1e-4, p12 = 5e-6,
                                             weights1 = c(1, -1, 5, 1))),
-                 "prior_weights1 must contain non-NA/non-negative weights")
+                 "non-NA and positive")
+})
+
+test_that("coloc() checks p12's bounds in a plain list, and in a coloc_prior edited after it was made", {
+    bf <- matrix(c(0, 0, 8, 2), nrow = 1, dimnames = list("sig1", paste0("s", 1:4)))
+    expect_error(coloc(bf, bf, prior = list(p1 = 1e-4, p2 = 1e-4, p12 = 1e-3)), "p12 must lie")
+    edited <- coloc_prior()
+    edited$p12 <- 1e-3
+    expect_error(coloc(bf, bf, prior = edited), "p12 must lie")
 })
 
 ## one mistake each, made to a copy of a good dataset
