@@ -19,7 +19,7 @@
 * `coloc.bf_bf()`, `coloc.susie()` and `coloc.susie_bf()` refuse a `p12` outside [p1 * p2, min(p1, p2)], as `coloc()` does, where 6.0.3 took it
 * `coloc.bf_bf()` stops on a missing or `+Inf` log Bayes factor in either matrix, as `coloc()` does, where 6.0.3 failed with R's error or, with `trim_by_posterior = FALSE`, reported a certainty; `-Inf` is still taken
 * when every signal pair is left out under `overlap.min`, `PP.H0.abf` is NA, like `PP.H1.abf` to `PP.H4.abf`, as the hypotheses are weighed on the snps the traits share; 6.0.3 reported a number for it. Each row names each trait's own top snp, where 6.0.3 could name the null column
-* `check_ld()`, and so `finemap.signals(method = "cond")` and `coloc.signals()`, refuse an `LD` that isn't a numeric correlation matrix or has missing values, where 6.0.3 computed with it or failed with R's error
+* `check_ld()` refuses an `LD` that isn't a numeric correlation matrix or has missing values, where 6.0.3 computed with it or failed with R's error. `finemap.signals()` and `coloc.signals()` run it on a dataset they fine-map by conditioning, with `method = "cond"`
 * `sensitivity()` refuses an `obj` that isn't the result of one of the functions it reads, with coloc's error, where it failed with R's
 
 # coloc 6.0.3

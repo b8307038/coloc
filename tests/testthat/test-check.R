@@ -133,9 +133,9 @@ test_that("Infinite values in beta/varbeta triggers specific error", {
 })
 
 ## ---- check_dataset(), one test per check -----------------------------------
-## Each check of check_dataset() has a case for each thing it tests: a dataset
-## that fails it, which check_dataset() refuses. Other cases are valid
-## datasets, datasets that fail two checks, and the arguments req and
+## Most of check_dataset()'s checks have a case here: a dataset that fails it,
+## which check_dataset() refuses; test-refusals.R tests the others. Other cases
+## are valid datasets, datasets that fail two checks, and the arguments req and
 ## warn.minp. Each case runs with the label 1, as coloc() checks a dataset, and
 ## with none, as a dataset is made. A refused case holds the message
 ## check_dataset() stops with, as coloc() shows it with the label 1, so the
