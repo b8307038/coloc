@@ -125,22 +125,8 @@ coloc <- function(x1, x2,
     ## `method` is a match.arg default VECTOR, so an unsupplied method arrives
     ## as c("single", "susie") and is indistinguishable from a deliberate
     ## per-trait request. Per-trait scope and match.arg-style defaults do not
-    ## compose, so .coloc() collapses the default explicitly.
-    res <- .coloc(x1, x2, method = method, supplied = !missing(method), prior = prior,
-                  control = control, susie.args = susie.args)
-    ## a plain list that got this far passed its checks and was converted
-    plain <- which(vapply(list(x1, x2), .is_plain_list, NA))
-    if (length(plain))
-        .note_once("plain_list", .plain_list_note("coloc", plain))
-    res
-}
-
-## a list given as a dataset that isn't a coloc_dataset; a SuSiE fit is a list too
-.is_plain_list <- function(x)
-    is.list(x) && !inherits(x, c("coloc_dataset", "susie"))
-
-## coloc()'s body, which coloc.susie() and coloc.susie_bf() run too
-.coloc <- function(x1, x2, method, supplied, prior, control, susie.args) {
+    ## compose, so the default is collapsed explicitly.
+    supplied <- !missing(method)
     if (!supplied) method <- "single"
 
     ## a coloc_prior too, as one edited with $<- keeps its class
@@ -201,7 +187,17 @@ coloc <- function(x1, x2,
     ## the engine, which has five exits and would need it at each.
     res$bf <- list(bf1 = a1$bf, bf2 = a2$bf)
     validate_coloc_result(res)
+
+    ## a plain list that got this far passed its checks and was converted
+    plain <- which(vapply(list(x1, x2), .is_plain_list, NA))
+    if (length(plain))
+        .note_once("plain_list", .plain_list_note("coloc", plain))
+    res
 }
+
+## a list given as a dataset that isn't a coloc_dataset; a SuSiE fit is a list too
+.is_plain_list <- function(x)
+    is.list(x) && !inherits(x, c("coloc_dataset", "susie"))
 
 ## ---- accessors, so nobody reaches into internals to ask -------------------
 
@@ -362,10 +358,14 @@ print.coloc_result <- function(x, ...) {
     out
 }
 
-## coloc() warns that `method` is inapplicable to a precomputed BF input, which
-## is right for someone calling coloc() directly. coloc.susie_bf()'s entire
-## signature is "one dataset, one BF matrix", so there the warning is noise
-## about a choice the caller was never offered.
-.without_method_warning <- function(expr) {
-    withCallingHandlers(expr, coloc_method_ignored = function(w) invokeRestart("muffleWarning"))
+## coloc()'s note on a plain list, and its warning that method doesn't apply to
+## log BFs, are about choices the old functions' callers were never offered.
+## The note's key is put back, so a user's own coloc() on a plain list later in
+## the session still gets the note.
+.as_old_function <- function(expr) {
+    noted <- .coloc_state$noted
+    on.exit(.coloc_state$noted <- noted)
+    withCallingHandlers(expr,
+                        coloc_plain_list = function(w) invokeRestart("muffleWarning"),
+                        coloc_method_ignored = function(w) invokeRestart("muffleWarning"))
 }

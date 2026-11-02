@@ -102,3 +102,25 @@ test_that("the note counts as given when its warning stops the call, as under op
     expect_s3_class(stopped, "coloc_plain_list")
     expect_identical(again, character(0))
 })
+
+test_that("coloc.susie() and coloc.susie_bf() warn once per weak dataset, and leave the note to the user's own coloc()", {
+    skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
+    weak <- function(d) {
+        d$beta <- d$beta / 100
+        d
+    }
+    w3 <- weak(plain_test_data$D3)
+    w4 <- weak(plain_test_data$D4)
+    fit4 <- suppressMessages(runsusie(plain_test_data$D4))
+    bf4 <- fit4$lbf_variable[fit4$sets$cs_index, , drop = FALSE]
+    forgetting_notes({
+        got <- warning_classes(suppressMessages(coloc.susie(w3, w4)))
+        expect_equal(sum(got == "coloc_min_p"), 2)
+        expect_false("coloc_plain_list" %in% got)
+        got <- warning_classes(suppressMessages(coloc.susie_bf(w3, bf4)))
+        expect_equal(sum(got == "coloc_min_p"), 1)
+        expect_false(any(c("coloc_plain_list", "coloc_method_ignored") %in% got))
+        ## the old functions didn't use up the note
+        expect_true("coloc_plain_list" %in% warning_classes(coloc(L1, L2)))
+    })
+})
