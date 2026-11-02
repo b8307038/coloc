@@ -489,6 +489,15 @@ test_that("an sdY far from its estimate from varbeta, MAF and N gets a warning, 
     expect_warning(no_min_p(utils::capture.output(coloc.abf(plain_test_data$D2, se))),
                    "dataset 2: sdY is 1.1, but varbeta, MAF and N suggest 4.55; check that varbeta holds variances, not standard errors, and that sdY is on the scale of beta",
                    fixed = TRUE, class = "coloc_sdY")
+    ## coloc() gives it once, with the dataset's number, though wakefield_bf()
+    ## checks the dataset again
+    classes <- character(0)
+    withCallingHandlers(coloc(made, as_coloc_dataset(plain_test_data$D2)),
+                        warning = function(w) {
+                            classes <<- c(classes, class(w)[1])
+                            invokeRestart("muffleWarning")
+                        })
+    expect_equal(sum(classes == "coloc_sdY"), 1)
     ## not where sdY isn't read
     expect_no_warning(no_min_p(check_dataset(se, 1, req = .dataset_uses$susie)), class = "coloc_sdY")
     expect_no_warning(no_min_p(check_dataset(to_pvalues(se), 1)), class = "coloc_sdY")
