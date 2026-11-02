@@ -247,6 +247,13 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
     bf1=matrix(bf1,nrow=1,dimnames=list(NULL,names(bf1)))
   if(is.vector(bf2))
     bf2=matrix(bf2,nrow=1,dimnames=list(NULL,names(bf2)))
+  ## a missing or +Inf log BF leaves its signal's posteriors undefined; -Inf,
+  ## a snp with no support, is fine
+  bad <- function(bf) anyNA(bf) || any(bf == Inf)
+  if(bad(bf1))
+    stop("bf1 contains missing or infinite log Bayes factors")
+  if(bad(bf2))
+    stop("bf2 contains missing or infinite log Bayes factors")
 
   res <- .coloc_engine(bf1, bf2, prior = prior,
                        control = list(overlap.min = overlap.min,

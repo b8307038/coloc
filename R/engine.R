@@ -96,16 +96,8 @@
     drop <- if (isTRUE(control$trim_by_posterior))
                 prop1[todo$i] < control$overlap.min | prop2[todo$j] < control$overlap.min
             else rep(FALSE, n_in)
-    ## Coverage is unassessable when prop is NA, and that takes only ONE NA
-    ## anywhere in a bf row, because prop is a ratio of rowSums. Let the loop
-    ## mark such a pair degenerate rather than trying to trim on it.
-    ##
-    ## 6.0.3 has no such line and errors on ANY NA in drop, via whichever of
-    ## its two guards catches it: all() short-circuits on FALSE and any() on
-    ## TRUE, so a lone NA trips if(all(drop)) at R/susie.R:285 while
-    ## c(NA, FALSE) gets past that one and trips if(any(drop)) at :297.
-    ## Either way its own all-NA branch at :350 is unreachable under the
-    ## default trim_by_posterior = TRUE.
+    ## a share is NaN when every snp posterior of a signal underflows to 0,
+    ## from complete input; keep such a pair rather than trim on it
     drop[is.na(drop)] <- FALSE
 
     if (all(drop)) {

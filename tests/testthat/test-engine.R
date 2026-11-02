@@ -122,8 +122,8 @@ test_that("trimmed pairs report PP.H0 as the product of each trait's", {
 
 test_that("an all-NA signal changes only its own pair, which 6.0.3 rewrote to a certainty", {
     ## 6.0.3 reported an all-NA signal as PP.H2 = 1 (AL12 in test-v603.R).
-    ## coloc() rejects the NA, but today's coloc.bf_bf() still brings it to the
-    ## engine
+    ## coloc() and coloc.bf_bf() both refuse the NA, so this gives it to the
+    ## engine directly
     x <- rbind(a, matrix(c(0, 0, 0, 0, 0, 7, 1, 0), nrow = 1, dimnames = list("sig2", snps)))
     x[1, ] <- NA
     expected <- get_match_6_0_3(coloc.bf_bf(x, b, trim_by_posterior = FALSE))
@@ -145,6 +145,30 @@ test_that("one NA in a row marks that row's pairs, without trimming", {
     expect_equal(nrow(res$summary), 2L)
     expect_true(is.na(res$summary$PP.H4.abf[res$summary$idx1 == 1]))
     expect_false(is.na(res$summary$PP.H4.abf[res$summary$idx1 == 2]))
+})
+
+test_that("coloc.bf_bf() stops on a missing or +Inf log BF in either matrix, and takes -Inf", {
+    for (value in c(NA, NaN, Inf)) {
+        x <- a
+        x[1, 2] <- value
+        expect_error(coloc.bf_bf(x, b),
+                     "bf1 contains missing or infinite log Bayes factors", fixed = TRUE)
+        expect_error(coloc.bf_bf(b, x),
+                     "bf2 contains missing or infinite log Bayes factors", fixed = TRUE)
+    }
+    x <- a
+    x[1, 2] <- -Inf
+    expect_no_error(suppressWarnings(coloc.bf_bf(x, b)))
+})
+
+test_that("the engine keeps a pair whose share on the shared snps is 0/0, from complete input", {
+    ## every snp far below the null: the snp posteriors underflow to 0, so the
+    ## signal's share on the shared snps is NaN, with no NA in the input
+    far <- cbind(matrix(-800, 1, 5, dimnames = list("sig1", snps[1:5])), null = 0)
+    near <- matrix(c(4, 2, 0, 0, 0), nrow = 1, dimnames = list("sigA", snps[1:5]))
+    res <- .coloc_engine(far, near)
+    expect_equal(res$status, "ok")
+    expect_equal(nrow(res$summary), 1L)
 })
 
 test_that("the engine counts the signal pairs in $meta, and leaves the method to coloc()", {
