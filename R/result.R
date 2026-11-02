@@ -76,10 +76,10 @@
 ##'   \item{`"no_overlap"`}{the two traits share no SNPs. `summary` has no
 ##'     rows.}
 ##'   \item{`"all_trimmed"`}{every pair was left out under `overlap.min`.
-##'     `summary` keeps a row for each, with `PP.H1.abf` to `PP.H4.abf` `NA`,
-##'     because telling those apart needs the shared SNPs; `PP.H0.abf` is the
-##'     probability that neither trait has a causal variant, from each
-##'     trait's own SNPs.}
+##'     `summary` keeps a row for each, with `PP.H0.abf` to `PP.H4.abf` `NA`,
+##'     because the hypotheses are weighed on the shared SNPs, and too little
+##'     of a signal falls on them. `hit1` and `hit2` are each trait's own top
+##'     SNP, shared or not.}
 ##'   \item{`"degenerate"`}{the posteriors of some pair could not be
 ##'     computed. That pair's posteriors are `NA`. [coloc()] checks its
 ##'     inputs to prevent this, so it should not be seen.}

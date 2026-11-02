@@ -5,15 +5,6 @@
 ## test-v603.R compares its answers, through coloc(), with 6.0.3's;
 ## get_match_6_0_3(), in helper-v603.R, runs a call as 6.0.3 made it.
 
-## P(no causal variant) for each row of a log BF matrix, with the null at log
-## BF 0 and prior p for each snp. Written out, not taken from logbf_to_pp(),
-## so the tests below do not lean on the code they check.
-p0 <- function(bf, p) {
-    bf <- bf[, setdiff(colnames(bf), "null"), drop = FALSE]
-    n <- ncol(bf)
-    unname((1 - n * p) / ((1 - n * p) + p * rowSums(exp(bf))))
-}
-
 snps <- paste0("s", 1:8)
 a <- matrix(c(0, 0, 8, 2, 0, 0, 0, 0), nrow = 1, dimnames = list("sig1", snps))
 b <- matrix(c(0, 0, 7, 3, 0, 0, 0, 0), nrow = 1, dimnames = list("sigA", snps))
@@ -99,25 +90,29 @@ test_that("prior weights move the posteriors, and are kept for the shared snps",
                  "Length of prior_weights1 must match size of dataset 1", fixed = TRUE)
 })
 
-test_that("a trimmed pair with no evidence reports the prior, not a certainty", {
-    ## Neither trait has any evidence (every log BF 0). 3 of 8 snps shared puts
-    ## 0.375 of each posterior on them, under overlap.min, so the pair is
-    ## trimmed. 6.0.3 then reported PP.H0 as rounding noise (AL08) and took the
-    ## smaller of the traits' values (AL13); both are in test-v603.R
-    x <- matrix(0, 1, 8, dimnames = list("sig1", paste0("s", 1:8)))
-    y <- matrix(0, 1, 8, dimnames = list("sigA", paste0("s", 6:13)))
+test_that("a trimmed pair has no posteriors, and names each trait's own top snp", {
+    ## 3 of 8 snps shared, and each top snp outside them: too little of either
+    ## posterior falls on the shared snps, so the pair is trimmed
+    x <- matrix(c(0, 5, 0, 0, 0, 0, 0, 0), 1, dimnames = list("sig1", paste0("s", 1:8)))
+    y <- matrix(c(0, 0, 0, 0, 0, 0, 5, 0), 1, dimnames = list("sigA", paste0("s", 6:13)))
     res <- suppressWarnings(.coloc_engine(x, y))
     expect_equal(res$status, "all_trimmed")
-    ## each trait's P(no causal variant) is its prior, 1 - 8p; H0 is the joint
-    expect_equal(p0(x, 1e-4), 1 - 8 * 1e-4)
-    expect_equal(res$summary$PP.H0.abf, (1 - 8 * 1e-4)^2)
-    ## 6.0.3's 1 - rowSums() of a row that already sums to 1 left noise
-    expect_lt(abs(1 - sum(logbf_to_pp(x, 1e-4, last_is_null = FALSE))), 1e-12)
+    expect_true(all(is.na(unlist(res$summary[, paste0("PP.H", 0:4, ".abf"), with = FALSE]))))
+    expect_equal(res$summary$hit1, "s2")
+    expect_equal(res$summary$hit2, "s12")
 })
 
-test_that("trimmed pairs report PP.H0 as the product of each trait's", {
-    res <- suppressWarnings(.coloc_engine(a[, 5:8, drop = FALSE], b))
-    expect_equal(res$summary$PP.H0.abf, p0(a[, 5:8, drop = FALSE], 1e-4) * p0(b, 1e-4))
+test_that("a trimmed row names a snp, never the null column", {
+    ## no snp is far enough above the null for its posterior to beat the
+    ## null's, but the hit is still the top snp
+    x <- cbind(matrix(c(0, 2, 0, 0, 0, 0, 0, 0), 1, dimnames = list("sig1", paste0("s", 1:8))),
+               null = 0)
+    y <- cbind(matrix(c(0, 0, 0, 0, 0, 0, 3, 0), 1, dimnames = list("sigA", paste0("s", 6:13))),
+               null = 0)
+    res <- suppressWarnings(.coloc_engine(x, y))
+    expect_equal(res$status, "all_trimmed")
+    expect_equal(res$summary$hit1, "s2")
+    expect_equal(res$summary$hit2, "s12")
 })
 
 test_that("an all-NA signal changes only its own pair, which 6.0.3 rewrote to a certainty", {

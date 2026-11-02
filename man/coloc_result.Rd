@@ -66,10 +66,10 @@ because SuSiE found no credible set. \code{summary} has no rows.}
 \item{\code{"no_overlap"}}{the two traits share no SNPs. \code{summary} has no
 rows.}
 \item{\code{"all_trimmed"}}{every pair was left out under \code{overlap.min}.
-\code{summary} keeps a row for each, with \code{PP.H1.abf} to \code{PP.H4.abf} \code{NA},
-because telling those apart needs the shared SNPs; \code{PP.H0.abf} is the
-probability that neither trait has a causal variant, from each
-trait's own SNPs.}
+\code{summary} keeps a row for each, with \code{PP.H0.abf} to \code{PP.H4.abf} \code{NA},
+because the hypotheses are weighed on the shared SNPs, and too little
+of a signal falls on them. \code{hit1} and \code{hit2} are each trait's own top
+SNP, shared or not.}
 \item{\code{"degenerate"}}{the posteriors of some pair could not be
 computed. That pair's posteriors are \code{NA}. \code{\link[=coloc]{coloc()}} checks its
 inputs to prevent this, so it should not be seen.}

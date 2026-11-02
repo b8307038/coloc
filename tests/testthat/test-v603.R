@@ -47,14 +47,6 @@ abf_pairs <- list(quant = list(D1, D2),                            # beta and va
                   partial_overlap = list(D1_sub, D2_sub),          # 300 of 500 SNPs shared
                   reversed = list(D1, reverse(D2)))                # D2's SNPs in reverse order
 
-## P(no causal variant) for each row of a log BF matrix, with the null at log
-## BF 0 and prior p for each snp
-p0 <- function(bf, p = 1e-4) {
-    bf <- bf[, setdiff(colnames(bf), "null"), drop = FALSE]
-    n <- ncol(bf)
-    unname((1 - n * p) / ((1 - n * p) + p * rowSums(exp(bf))))
-}
-
 ## ---- coloc() gives 6.0.3's answers ---------------------------------------------
 ## Both sides run with their default priors unless a test says otherwise:
 ## p1 = p2 = 1e-4 and p12 = 5e-6, the same in coloc() and in 6.0.3's
@@ -301,7 +293,7 @@ test_that("coloc.bf_bf() returns what 6.0.3's did", {
 })
 
 test_that("coloc.bf_bf() with every pair trimmed returns 6.0.3's result, apart from PP.H0", {
-    ## PP.H0 is the one intended change here (AL08 and AL13, below)
+    ## PP.H0 is NA, where 6.0.3 gave a number
     far <- bf_a[, 5:8]
     expect_warning(got <- coloc.bf_bf(far, bf_b),
                    "snp overlap too small between datasets: too few snps with high posterior in one trait represented in other",
@@ -370,19 +362,6 @@ test_that("AL03: coloc.susie() now applies the region-size guard, which 6.0.3's 
     expect_equal(got$summary, capped$summary)
 })
 
-test_that("AL08: PP.H0 in a trimmed result is a probability, where 6.0.3 left rounding noise", {
-    far <- bf_a[, 5:8]
-    expect_warning(expected <- get_match_6_0_3(coloc.bf_bf(far, bf_b)))
-    expect_warning(got <- coloc(far, bf_b),
-                   "snp overlap too small between datasets: too few snps with high posterior in one trait represented in other",
-                   fixed = TRUE)
-    expect_true(all(abs(expected$summary$PP.H0.abf) < 1e-15))
-    expect_equal(got$summary$PP.H0.abf, p0(far) * p0(bf_b))
-    ## and nothing else moves
-    cols <- c("nsnps", "hit1", "hit2", "idx1", "idx2")
-    expect_equal(got$summary[, cols, with = FALSE], expected$summary[, cols, with = FALSE])
-})
-
 test_that("AL10: a vector p1 or p2 is rejected, where 6.0.3 allowed it, with extra hypotheses", {
     ## p1 and p2 of length 8, one per snp: 6.0.3 accepted them and reported
     ## 4 * 8 + 1 = 33 hypotheses in place of five; the count grows with the
@@ -432,19 +411,6 @@ test_that("AL12: an all-NA signal is rejected, where 6.0.3 reported PP.H2 = 1", 
     expect_equal(expected$summary$hit1[1], "-")
     expect_error(coloc(bf_na, bf_b),
                  "trait 1: log Bayes factors contain missing or infinite values", fixed = TRUE)
-})
-
-test_that("AL13: trimmed PP.H0 is the joint of the traits, where 6.0.3 took the smaller", {
-    far <- with_null(bf_a[, 5:8])
-    b <- with_null(bf_b)
-    expect_warning(expected <- get_match_6_0_3(coloc.bf_bf(far, b)))
-    expect_warning(got <- coloc(far, b),
-                   "snp overlap too small between datasets: too few snps with high posterior in one trait represented in other",
-                   fixed = TRUE)
-    expect_equal(expected$summary$PP.H0.abf, pmin(p0(far), p0(b)))
-    expect_equal(got$summary$PP.H0.abf, p0(far) * p0(b))
-    cols <- c("nsnps", "hit1", "hit2", "idx1", "idx2")
-    expect_equal(got$summary[, cols, with = FALSE], expected$summary[, cols, with = FALSE])
 })
 
 test_that("AL14: a dataset with a BF matrix warns that method cannot apply to the matrix", {

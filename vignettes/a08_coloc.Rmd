@@ -215,7 +215,7 @@ columns.
 | `"ok"` | the signal pairs were compared | a row per pair compared |
 | `"no_signal"` | a trait had no signal, for example SuSiE found no credible set | no rows |
 | `"no_overlap"` | the two traits share no SNPs | no rows |
-| `"all_trimmed"` | every pair was left out, because too little of a signal's posterior falls on SNPs the other trait has (`overlap.min` in `coloc_control()`) | a row per pair, with `PP.H1.abf` to `PP.H4.abf` `NA` |
+| `"all_trimmed"` | every pair was left out, because too little of a signal's posterior falls on SNPs the other trait has (`overlap.min` in `coloc_control()`) | a row per pair, with `PP.H0.abf` to `PP.H4.abf` `NA` |
 | `"degenerate"` | some pair's posteriors could not be computed; `coloc()` checks its inputs to prevent this, so it should not be seen | that pair's posteriors `NA` |
 
 Here are the first four: `"ok"` is `res_single` from above, and the other three
@@ -240,10 +240,10 @@ all_trimmed$messages
 all_trimmed$summary
 ```
 
-In the trimmed case, `PP.H0.abf` is still reported: it is the probability
-that neither trait has a causal variant, which each trait answers from its own
-SNPs. Telling H1 to H4 apart needs the SNPs the traits share, and here they
-do not share enough.
+In the trimmed case, every posterior is `NA`: the hypotheses are weighed on
+the SNPs the traits share, and in each pair too little of one signal falls
+on them. `hit1` and `hit2` name each trait's own top SNP, shared or not, which
+shows where its signal is.
 
 In a loop, check `is_ok()` before reading the posteriors:
 
