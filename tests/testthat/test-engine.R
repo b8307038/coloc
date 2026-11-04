@@ -162,6 +162,16 @@ test_that("a signal's share on the shared snps holds when its snps are far below
     expect_equal(trimmed$status, "all_trimmed")
 })
 
+test_that("a signal's share on the shared snps holds when its log BFs are very large", {
+    ## five equal snps at 1e16, three of them shared: the share is 3/5, so the
+    ## pair is kept at overlap.min 0.5 and trimmed at 0.7
+    big <- matrix(1e16, 1, 5, dimnames = list("sig1", snps[1:5]))
+    near <- matrix(c(4, 2, 0), nrow = 1, dimnames = list("sigA", snps[1:3]))
+    expect_equal(.coloc_engine(big, near)$status, "ok")
+    trimmed <- suppressWarnings(.coloc_engine(big, near, control = coloc_control(overlap.min = 0.7)))
+    expect_equal(trimmed$status, "all_trimmed")
+})
+
 test_that("the engine counts the signal pairs in $meta, and leaves the method to coloc()", {
     x <- a[, 1:4, drop = FALSE]
     y <- rbind(x, x)

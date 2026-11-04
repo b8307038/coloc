@@ -62,12 +62,14 @@
         bf2 <- nulllast(bf2) - matrix(bf2[, "null"], nrow(bf2), ncol(bf2))
 
     ## ---- 4. how much of each signal's posterior is on the shared snps -----
-    ## every snp has the same prior, so it cancels from the share; the sums are
-    ## taken on the log scale, so snps far below the null can't underflow to 0
+    ## every snp has the same prior, so it cancels from the share; taking each
+    ## signal's largest log BF off first keeps the sums from underflowing to 0
+    ## far below the null and from losing precision far above it
     prop <- function(bf) {
         snps <- setdiff(colnames(bf), "null")
-        exp(apply(bf[, isnps, drop = FALSE], 1, logsum) -
-            apply(bf[, snps, drop = FALSE], 1, logsum))
+        b <- bf[, snps, drop = FALSE]
+        e <- exp(b - apply(b, 1, max))
+        rowSums(e[, isnps, drop = FALSE]) / rowSums(e)
     }
     prop1 <- prop(bf1)
     prop2 <- prop(bf2)
