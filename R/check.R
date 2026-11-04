@@ -352,7 +352,7 @@ check_ld <- function(D,LD) {
 ##' ## close to 1 when beta and LD are aligned to the same alleles
 ##' check_alignment(coloc_test_data$D3, do_plot = FALSE)
 check_alignment <- function(D,thr=0.2,do_plot=TRUE) {
-  check_dataset(D)
+  check_dataset(D, req = c("type", "snp", "beta", "varbeta", "LD"))
   ## z_i * z_j / LD_ij for each pair of snps i < j with |LD_ij| above thr,
   ## positive when the two z-scores agree in sign with their LD. LD is matched
   ## to the snps by name, and read in blocks of 500 columns to bound the memory

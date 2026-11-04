@@ -360,3 +360,23 @@ test_that("N must be a single number, not one per snp", {
                      error = "N must be a single number; coloc does not take per-snp sample sizes")
     }
 })
+
+test_that("check_alignment() refuses a dataset without LD, beta or varbeta, or whose LD isn't a correlation matrix, where 6.0.3 failed with R's error or gave a share", {
+    no_ld <- D3
+    no_ld$LD <- NULL
+    p_only <- D3[c("snp", "position", "MAF", "N", "type", "LD")]
+    p_only$pvalues <- 2 * pnorm(-abs(D3$beta / sqrt(D3$varbeta)))
+    for (d in list(no_ld, p_only))
+        expect_error(get_match_6_0_3(check_alignment(d, do_plot = FALSE)))
+    expect_error(check_alignment(no_ld, do_plot = FALSE),
+                 "LD is missing, and coloc needs it here", fixed = TRUE)
+    expect_error(check_alignment(p_only, do_plot = FALSE),
+                 "beta and varbeta are missing, and coloc needs both here", fixed = TRUE)
+    scaled_ld <- D3
+    scaled_ld$LD <- 1.5 * D3$LD
+    expect_no_error(get_match_6_0_3(check_alignment(scaled_ld, do_plot = FALSE)))
+    expect_error(check_alignment(scaled_ld, do_plot = FALSE),
+                 "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal",
+                 fixed = TRUE)
+    expect_equal(check_alignment(D3, do_plot = FALSE), 0.997, tolerance = 1e-3)
+})
