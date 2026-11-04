@@ -152,14 +152,14 @@ test_that("coloc.bf_bf() stops on a missing or infinite log BF in either matrix"
     }
 })
 
-test_that("the engine keeps a pair whose share on the shared snps is 0/0, from complete input", {
-    ## every snp far below the null: the snp posteriors underflow to 0, so the
-    ## signal's share on the shared snps is NaN, with no NA in the input
+test_that("a signal's share on the shared snps holds when its snps are far below the null", {
+    ## five equal snps 800 below the null, three of them shared: the share is
+    ## 3/5, so the pair is kept at overlap.min 0.5 and trimmed at 0.7
     far <- cbind(matrix(-800, 1, 5, dimnames = list("sig1", snps[1:5])), null = 0)
-    near <- matrix(c(4, 2, 0, 0, 0), nrow = 1, dimnames = list("sigA", snps[1:5]))
-    res <- .coloc_engine(far, near)
-    expect_equal(res$status, "ok")
-    expect_equal(nrow(res$summary), 1L)
+    near <- matrix(c(4, 2, 0), nrow = 1, dimnames = list("sigA", snps[1:3]))
+    expect_equal(.coloc_engine(far, near)$status, "ok")
+    trimmed <- suppressWarnings(.coloc_engine(far, near, control = coloc_control(overlap.min = 0.7)))
+    expect_equal(trimmed$status, "all_trimmed")
 })
 
 test_that("the engine counts the signal pairs in $meta, and leaves the method to coloc()", {

@@ -62,12 +62,15 @@
         bf2 <- nulllast(bf2) - matrix(bf2[, "null"], nrow(bf2), ncol(bf2))
 
     ## ---- 4. how much of each signal's posterior is on the shared snps -----
-    pp1 <- logbf_to_pp(bf1, p1, last_is_null = "null" %in% colnames(bf1))
-    pp2 <- logbf_to_pp(bf2, p2, last_is_null = "null" %in% colnames(bf2))
-    prop <- function(pp) rowSums(pp[, isnps, drop = FALSE]) /
-                         rowSums(pp[, setdiff(colnames(pp), "null"), drop = FALSE])
-    prop1 <- prop(pp1)
-    prop2 <- prop(pp2)
+    ## every snp has the same prior, so it cancels from the share; the sums are
+    ## taken on the log scale, so snps far below the null can't underflow to 0
+    prop <- function(bf) {
+        snps <- setdiff(colnames(bf), "null")
+        exp(apply(bf[, isnps, drop = FALSE], 1, logsum) -
+            apply(bf[, snps, drop = FALSE], 1, logsum))
+    }
+    prop1 <- prop(bf1)
+    prop2 <- prop(bf2)
 
     ## ---- 5. every pair of signals, and those trimmed under overlap.min ----
     todo <- as.data.table(expand.grid(i = seq_len(nrow(bf1)), j = seq_len(nrow(bf2))))
@@ -75,8 +78,7 @@
     drop <- if (isTRUE(control$trim_by_posterior))
                 prop1[todo$i] < control$overlap.min | prop2[todo$j] < control$overlap.min
             else rep(FALSE, n_in)
-    ## a share is NaN when every snp posterior of a signal underflows to 0,
-    ## from complete input; keep such a pair rather than trim on it
+    ## an NA log BF gives an NA share; keep the pair, which comes out degenerate
     drop[is.na(drop)] <- FALSE
 
     if (all(drop)) {
