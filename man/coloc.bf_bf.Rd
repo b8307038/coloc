@@ -55,9 +55,9 @@ does. \code{\link[=coloc]{coloc()}} takes log Bayes factors too, and returns a
 \link{coloc_result}.
 }
 \details{
-A missing value or \code{+Inf} in \code{bf1} or \code{bf2} leaves its signal's posterior
-probabilities undefined, so \code{coloc.bf_bf()} stops on one, naming the
-matrix and a snp. \code{-Inf}, a snp with no support, is allowed.
+A missing or infinite value in \code{bf1} or \code{bf2} leaves its signal's
+posterior probabilities undefined, so \code{coloc.bf_bf()} stops on one,
+naming the matrix and a snp, as \code{\link[=coloc]{coloc()}} does.
 }
 \author{
 Chris Wallace

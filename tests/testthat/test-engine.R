@@ -141,18 +141,15 @@ test_that("one NA in a row marks that row's pairs, without trimming", {
     expect_false(is.na(res$summary$PP.H4.abf[res$summary$idx1 == 2]))
 })
 
-test_that("coloc.bf_bf() stops on a missing or +Inf log BF in either matrix, and takes -Inf", {
-    for (value in c(NA, NaN, Inf)) {
+test_that("coloc.bf_bf() stops on a missing or infinite log BF in either matrix", {
+    for (value in c(NA, NaN, Inf, -Inf)) {
         x <- a
         x[1, 2] <- value
         expect_error(coloc.bf_bf(x, b),
-                     "bf1 has missing or +Inf log Bayes factors, such as at s2", fixed = TRUE)
+                     "bf1 has missing or infinite log Bayes factors, such as at s2", fixed = TRUE)
         expect_error(coloc.bf_bf(b, x),
-                     "bf2 has missing or +Inf log Bayes factors, such as at s2", fixed = TRUE)
+                     "bf2 has missing or infinite log Bayes factors, such as at s2", fixed = TRUE)
     }
-    x <- a
-    x[1, 2] <- -Inf
-    expect_no_error(suppressWarnings(coloc.bf_bf(x, b)))
 })
 
 test_that("the engine keeps a pair whose share on the shared snps is 0/0, from complete input", {

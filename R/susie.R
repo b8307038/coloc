@@ -210,9 +210,9 @@ finemap.bf=function(bf1, p1=1e-4) {
 ##' does. [coloc()] takes log Bayes factors too, and returns a
 ##' [coloc_result].
 ##'
-##' A missing value or `+Inf` in `bf1` or `bf2` leaves its signal's posterior
-##' probabilities undefined, so `coloc.bf_bf()` stops on one, naming the
-##' matrix and a snp. `-Inf`, a snp with no support, is allowed.
+##' A missing or infinite value in `bf1` or `bf2` leaves its signal's
+##' posterior probabilities undefined, so `coloc.bf_bf()` stops on one,
+##' naming the matrix and a snp, as [coloc()] does.
 ##'
 ##' @inheritParams coloc.signals
 ##' @param bf1 trait 1's log Bayes factors, as a vector named by snp, for one
@@ -248,18 +248,17 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
     bf1=matrix(bf1,nrow=1,dimnames=list(NULL,names(bf1)))
   if(is.vector(bf2))
     bf2=matrix(bf2,nrow=1,dimnames=list(NULL,names(bf2)))
-  ## a missing or +Inf log BF leaves its signal's posteriors undefined; -Inf,
-  ## a snp with no support, is fine
-  bad <- function(bf) anyNA(bf) || any(bf == Inf)
+  ## a missing or infinite log BF leaves its signal's posteriors undefined
+  bad <- function(bf) is.numeric(bf) && any(!is.finite(bf))
   ## the snp of the first such value, for the message
   first_bad <- function(bf) {
-    j <- which(is.na(bf) | bf == Inf, arr.ind = TRUE)[1, "col"]
+    j <- which(!is.finite(bf), arr.ind = TRUE)[1, "col"]
     if(is.null(colnames(bf))) paste("column", j) else colnames(bf)[j]
   }
   if(bad(bf1))
-    stop("bf1 has missing or +Inf log Bayes factors, such as at ", first_bad(bf1))
+    stop("bf1 has missing or infinite log Bayes factors, such as at ", first_bad(bf1))
   if(bad(bf2))
-    stop("bf2 has missing or +Inf log Bayes factors, such as at ", first_bad(bf2))
+    stop("bf2 has missing or infinite log Bayes factors, such as at ", first_bad(bf2))
 
   res <- .coloc_engine(bf1, bf2, prior = prior,
                        control = list(overlap.min = overlap.min,
