@@ -116,7 +116,7 @@ coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
               snp = snp, position = position,
               N = N, type = type, s = s, sdY = sdY, LD = LD, z = z)
     d <- d[!sapply(d, is.null)]
-    .new_coloc_dataset(d, warn.minp = warn.minp)
+    new_coloc_dataset(d, warn.minp = warn.minp)
 }
 
 ##' @rdname coloc_dataset
@@ -124,7 +124,7 @@ coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
 ##' @export
 as_coloc_dataset <- function(x, warn.minp = 1e-6) {
     if (inherits(x, "coloc_dataset")) return(x)
-    .new_coloc_dataset(x, warn.minp = warn.minp)
+    new_coloc_dataset(x, warn.minp = warn.minp)
 }
 
 ## Checks d and gives it the coloc_dataset class, the one place the class is
@@ -132,7 +132,7 @@ as_coloc_dataset <- function(x, warn.minp = 1e-6) {
 ## dataset, with the trait's number, which messages begin with, and the
 ## method, which says what the dataset needs. A coloc_dataset keeps its class
 ## through the check, so it doesn't get the minimum p-value warning again.
-.new_coloc_dataset <- function(d, warn.minp = 1e-6, trait = NULL, use = "single") {
+new_coloc_dataset <- function(d, warn.minp = 1e-6, trait = NULL, use = "single") {
     ## a data.frame and a susie fit are lists too, but neither is a dataset
     if (!is.list(d) || is.data.frame(d) || inherits(d, "susie"))
         .stop_not_a_dataset(d, trait)

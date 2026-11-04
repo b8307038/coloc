@@ -15,7 +15,7 @@
 ## ---- what kind of input each trait is -------------------------------------
 
 ## Tells the kind of input from its class alone. Whether its contents can be
-## used is checked later, by .new_coloc_dataset() for a dataset and by the
+## used is checked later, by new_coloc_dataset() for a dataset and by the
 ## adapter for log BFs, with messages that name the problem, so anything that
 ## is neither a SuSiE fit nor log BFs is taken as a dataset.
 .classify_input <- function(x) {

@@ -146,7 +146,7 @@ coloc <- function(x1, x2,
     xs <- list(x1, x2)
     for (i in 1:2)
         if (kinds[i] == "dataset")
-            xs[[i]] <- .new_coloc_dataset(xs[[i]], trait = i, use = method[i])
+            xs[[i]] <- new_coloc_dataset(xs[[i]], trait = i, use = method[i])
 
     ## the adapters check what only they can: a fit's or log BFs' values
     adapt <- function(x, kind, m, trait) switch(kind,

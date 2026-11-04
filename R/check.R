@@ -278,7 +278,7 @@ check.dataset=function(...) {
 
 
 ## The refusal of anything but a list of dataset elements, for check_dataset()
-## and .new_coloc_dataset(). With a label, such as 1, the message begins
+## and new_coloc_dataset(). With a label, such as 1, the message begins
 ## "dataset 1: ".
 .stop_not_a_dataset <- function(d, dataset = NULL)
     stop(if (is.null(dataset)) "the dataset" else paste0("dataset ", dataset, ": this"),

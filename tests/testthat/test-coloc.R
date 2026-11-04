@@ -161,7 +161,7 @@ test_that("bad log BFs stop coloc() with the trait named", {
 })
 
 ## ---- both datasets are checked before either is fine-mapped ------------
-## coloc() passes each dataset through .new_coloc_dataset(), as coloc_dataset()
+## coloc() passes each dataset through new_coloc_dataset(), as coloc_dataset()
 ## does, with the trait's number and what the method needs, before any adapter
 ## runs. Its errors begin with the trait's number, as "dataset 2: ", and show
 ## no call.
