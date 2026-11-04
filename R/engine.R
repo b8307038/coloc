@@ -78,7 +78,9 @@
     drop <- if (isTRUE(control$trim_by_posterior))
                 prop1[todo$i] < control$overlap.min | prop2[todo$j] < control$overlap.min
             else rep(FALSE, n_in)
-    ## an NA log BF gives an NA share; keep the pair, which comes out degenerate
+    ## a NaN log BF from a dataset, or log BFs near R's limit that overflow
+    ## when the null is subtracted, make a share NaN; keep the pair, which
+    ## comes out degenerate
     drop[is.na(drop)] <- FALSE
 
     if (all(drop)) {
