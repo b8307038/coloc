@@ -113,9 +113,9 @@ test_that("the old doors reject a vector prior, as coloc_prior() does", {
     expect_error(coloc.bf_bf(bf, bf, p1 = vec, prior_weights1 = rep(1, 8)),
                  "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
                  fixed = TRUE)
-    ## coloc.abf() stops earlier, in adjust_prior(), with R's own error
     expect_error(coloc.abf(D1, D2, p1 = rep(1e-4, 500)),
-                 "the condition has length > 1", fixed = TRUE)
+                 "p1, p2 and p12 must each be a scalar; to vary the prior across SNPs, use weights1/weights2",
+                 fixed = TRUE)
 })
 
 test_that("coloc.bf_bf() still fails as 6.0.3 did on a character matrix", {

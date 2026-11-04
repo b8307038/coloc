@@ -29,7 +29,7 @@ variants are causal.
 
 To provide variant-specific information to coloc use the `prior_weights1` 
 or `prior_weights2` arguments for `coloc.abf()`, `coloc.susie()` or `coloc.bf()`. 
-The arguments specify non-negative weights that encode the 'weight' (proportional
+The arguments specify positive weights that encode the 'weight' (proportional
 to the probability of a variant being causal). Specifying weights 
 for either or both of the traits will automatically change the prior 
 probability of a variant being causal for *both* traits.

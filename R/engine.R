@@ -117,8 +117,8 @@
 
     ## combine_abf_weighted() is used only with weights, as it works out H3 in
     ## another order, which would change unweighted results in the last digits.
-    ## Both need single numbers for p1, p2 and p12. coloc() and coloc.bf_bf()
-    ## check that, and coloc.abf() stops on a vector in adjust_prior().
+    ## Both need single numbers for p1, p2 and p12. validate_coloc_prior()
+    ## checks that for coloc(), coloc.bf_bf() and coloc.abf().
     user_weighted <- !is.null(w1) || !is.null(w2)
 
     ## ---- 7. one signal pair at a time -------------------------------------

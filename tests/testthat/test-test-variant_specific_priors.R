@@ -76,11 +76,11 @@ test_that("Negative prior weights cause errors (coloc.abf())", {
 
   expect_error(
     coloc.abf(D1, D2, prior_weights1 = c(-1, rep(1, 499)), prior_weights2 = rep(1, 500)),
-    "prior_weights1 must contain non-negative weights.", fixed = TRUE
+    "weights1 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
   expect_error(
     coloc.abf(D1, D2, prior_weights1 = rep(1, 500), prior_weights2 = c(-1, rep(1, 499))),
-    "prior_weights2 must contain non-negative weights.", fixed = TRUE
+    "weights2 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
 
 })
@@ -98,10 +98,21 @@ test_that("Negative prior weights cause errors, with coloc() in place of coloc.a
 
 })
 
+test_that("A prior weight of 0 causes errors (coloc.abf()), where 6.0.3 took it", {
+  one_zero <- c(0, rep(1, 499))
+  expect_no_error(utils::capture.output(res <- get_match_6_0_3(coloc.abf(D1, D2, prior_weights1 = one_zero))))
+  expect_error(coloc.abf(D1, D2, prior_weights1 = one_zero),
+               "weights1 must be above 0 with no missing values; weight 1 is 0", fixed = TRUE)
+  expect_error(coloc.abf(D1, D2, prior_weights2 = one_zero),
+               "weights2 must be above 0 with no missing values; weight 1 is 0", fixed = TRUE)
+  expect_error(coloc.abf(D1, D2, prior_weights1 = rep(0, 500)),
+               "weights1 must be above 0 with no missing values; weight 1 is 0", fixed = TRUE)
+})
+
 test_that("NA prior weights cause errors (coloc.abf())", {
   expect_error(
     coloc.abf(D1, D2, prior_weights1 = rep(NA, 500)),
-    "prior_weights1 must contain non-negative weights.", fixed = TRUE
+    "weights1 must be above 0 with no missing values; weight 1 is NA", fixed = TRUE
   )
 })
 

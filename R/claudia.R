@@ -333,9 +333,9 @@ adjust_prior=function(p,nsnps,suffix="") {
 ##'     default 1e-4
 ##' @param p12 prior probability a SNP is associated with both traits,
 ##'     default 1e-5
-##' @param prior_weights1 Non-negative weights for the prior
+##' @param prior_weights1 Positive weights for the prior
 ##'     probability a SNP is associated with trait 1
-##' @param prior_weights2 Non-negative weights for the prior
+##' @param prior_weights2 Positive weights for the prior
 ##'     probability a SNP is asscoiated with trait 2
 ##' @param ... ignored
 ##' @return a list of two \code{data.frame}s: \itemize{ \item summary
@@ -354,6 +354,8 @@ adjust_prior=function(p,nsnps,suffix="") {
 coloc.abf <- function(dataset1, dataset2, MAF=NULL,
                       p1=1e-4, p2=1e-4, p12=1e-5,
                       prior_weights1 = NULL, prior_weights2 = NULL, ...) {
+    ## the same prior checks as coloc()
+    new_coloc_prior(p1, p2, p12, prior_weights1, prior_weights2)
     if(!("MAF" %in% names(dataset1)) & !is.null(MAF))
         dataset1$MAF <- MAF
     if(!("MAF" %in% names(dataset2)) & !is.null(MAF))
@@ -369,14 +371,6 @@ coloc.abf <- function(dataset1, dataset2, MAF=NULL,
     }
     if (!is.null(prior_weights2) && (nrow(df2) != length(prior_weights2))) {
       stop("Length of prior_weights2 must match size of dataset 2")
-    }
-
-    if (!is.null(prior_weights1) && any(is.na(prior_weights1) | (prior_weights1 < 0))) {
-      stop("prior_weights1 must contain non-negative weights.")
-    }
-
-    if (!is.null(prior_weights2) && any(is.na(prior_weights2) | (prior_weights2 < 0))) {
-      stop("prior_weights2 must contain non-negative weights.")
     }
 
     if (!is.null(prior_weights1) && !is.null(prior_weights2)) {

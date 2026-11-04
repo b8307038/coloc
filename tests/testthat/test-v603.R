@@ -387,6 +387,13 @@ test_that("the old functions refuse a p12 outside [p1 * p2, min(p1, p2)], which 
     expect_error(coloc.susie_bf(fit3, bf4, p12 = 1e-3),
                  "p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is 0.001",
                  fixed = TRUE)
+    ## and p12 = 1e-10, below p1 * p2, for coloc.abf()
+    for (p12 in c(1e-3, 1e-10)) {
+        expect_no_error(utils::capture.output(res <- get_match_6_0_3(coloc.abf(D1, D2, p12 = p12))))
+        expect_error(coloc.abf(D1, D2, p12 = p12),
+                     paste0("p12 must be at least p1 * p2 and at most the smaller of p1 and p2; it is ", p12),
+                     fixed = TRUE)
+    }
 })
 
 test_that("traits with no snps in common warn, where 6.0.3 returned nsnps = NA silently", {
