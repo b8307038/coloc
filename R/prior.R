@@ -39,9 +39,8 @@ validate_coloc_prior <- function(x) {
 ##'
 ##' `coloc_prior()` sets the prior probabilities for [coloc()], which say how
 ##' likely any one SNP is, before the data are seen, to be causal for one
-##' trait or for both. Give the result to [coloc()] as `prior`; without one,
-##' [coloc()] uses `coloc_prior()`'s defaults. To repeat an analysis made
-##' with [coloc.abf()], whose `p12` defaults to `1e-5`, give `p12 = 1e-5`.
+##' trait or for both. Change the defaults when you have a reason. Otherwise,
+##' [coloc()] uses `coloc_prior()`'s defaults.
 ##'
 ##' `p1` is the prior probability that any one SNP is causal for trait 1
 ##' only, `p2` for trait 2 only, and `p12` for both. Each is a single number,

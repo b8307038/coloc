@@ -32,9 +32,8 @@ an object of class coloc_prior
 \description{
 \code{coloc_prior()} sets the prior probabilities for \code{\link[=coloc]{coloc()}}, which say how
 likely any one SNP is, before the data are seen, to be causal for one
-trait or for both. Give the result to \code{\link[=coloc]{coloc()}} as \code{prior}; without one,
-\code{\link[=coloc]{coloc()}} uses \code{coloc_prior()}'s defaults. To repeat an analysis made
-with \code{\link[=coloc.abf]{coloc.abf()}}, whose \code{p12} defaults to \code{1e-5}, give \code{p12 = 1e-5}.
+trait or for both. Change the defaults when you have a reason. Otherwise,
+\code{\link[=coloc]{coloc()}} uses \code{coloc_prior()}'s defaults.
 }
 \details{
 \code{p1} is the prior probability that any one SNP is causal for trait 1
