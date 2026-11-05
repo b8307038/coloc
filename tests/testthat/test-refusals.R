@@ -90,7 +90,7 @@ test_that("beta, varbeta and p-values must be numeric where they are read, where
     ## with a zero varbeta as well
     zero_too <- chr_beta
     zero_too$varbeta[1] <- 0
-    at_each_door(zero_too, error = "varbeta has zeros, such as at s1; a variance must be above 0")
+    at_each_door(zero_too, error = "varbeta must be > 0")
 })
 
 test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
@@ -100,7 +100,7 @@ test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
     ## with a zero as well
     zero_too <- neg
     zero_too$varbeta[1] <- 0
-    at_each_door(zero_too, error = "varbeta has zeros, such as at s1; a variance must be above 0")
+    at_each_door(zero_too, error = "varbeta must be > 0")
     ## beside p-values varbeta isn't read, and passes as in 6.0.3
     beside_p <- to_pvalues(D1)
     beside_p$varbeta <- -D1$varbeta
@@ -165,28 +165,28 @@ test_that("N must be a finite number above 0 wherever it is given, where 6.0.3 t
     for (n in c(0, -5, Inf)) {
         d <- D1
         d$N <- n
-        at_each_door(d, error = "N must be a finite number above 0", susie = TRUE)
+        at_each_door(d, error = "N must be finite and > 0", susie = TRUE)
     }
     ## without sdY, which is estimated from N, 6.0.3 went on all the same
     no_sdY <- D1
     no_sdY$sdY <- NULL
     no_sdY$N <- 0
     expect_no_error(suppressWarnings(get_match_6_0_3(coloc.abf(D1, no_sdY))))
-    at_each_door(no_sdY, error = "N must be a finite number above 0")
+    at_each_door(no_sdY, error = "N must be finite and > 0")
     ## given as p-values, 0 is refused, as in 6.0.3, and so is Inf, which
     ## 6.0.3 took
     p_zero <- to_pvalues(D1)
     p_zero$N <- 0
-    at_each_door(p_zero, error = "N must be a finite number above 0")
+    at_each_door(p_zero, error = "N must be finite and > 0")
     p_inf <- to_pvalues(D1)
     p_inf$N <- Inf
-    at_each_door(p_inf, error = "N must be a finite number above 0")
+    at_each_door(p_inf, error = "N must be finite and > 0")
     ## for SuSiE, refused before either trait is fine-mapped; 6.0.3 left it to
     ## susieR, after the other trait was
     zero4 <- D4
     zero4$N <- 0
     expect_error(suppressMessages(get_match_6_0_3(runsusie(zero4))))
-    refused_before_susie(coloc(D3, zero4, method = "susie"), "dataset 2: N must be a finite number above 0")
+    refused_before_susie(coloc(D3, zero4, method = "susie"), "dataset 2: N must be finite and > 0")
     ## and above 1, as susieR needs, which 6.0.3 also left to susieR. On the
     ## Wakefield route an N of 1 gives 6.0.3's answer
     for (n in c(1, 0.5)) {
@@ -305,7 +305,7 @@ test_that("for SuSiE z must have a finite number for each snp, where 6.0.3 faile
                 "one value too many" = "snp has 500 values but z has 501",
                 "character" = "z must be numeric",
                 "logical" = "z must be numeric",
-                "an infinite value" = "z has infinite values, such as at s5")
+                "an infinite value" = "z has infinite values")
     for (what in names(broken)) {
         b <- broken[[what]]
         d <- D3
@@ -369,9 +369,9 @@ test_that("check_alignment() refuses a dataset without LD, beta or varbeta, or w
     for (d in list(no_ld, p_only))
         expect_error(get_match_6_0_3(check_alignment(d, do_plot = FALSE)))
     expect_error(check_alignment(no_ld, do_plot = FALSE),
-                 "LD is missing, and coloc needs it here", fixed = TRUE)
+                 "missing required element(s) LD", fixed = TRUE)
     expect_error(check_alignment(p_only, do_plot = FALSE),
-                 "beta and varbeta are missing, and coloc needs both here", fixed = TRUE)
+                 "missing required element(s) beta, varbeta", fixed = TRUE)
     scaled_ld <- D3
     scaled_ld$LD <- 1.5 * D3$LD
     expect_no_error(get_match_6_0_3(check_alignment(scaled_ld, do_plot = FALSE)))

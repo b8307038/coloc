@@ -105,13 +105,10 @@ check_dataset <- function(d,
     nd <- intersect(names(d), .dataset_items)          # the elements coloc reads
     p_route <- !("beta" %in% nd && "varbeta" %in% nd)  # p-values unless both are given
     susie <- "LD" %in% req                             # SuSiE reads LD, N and z, not sdY
-    ## for messages: "snp is missing", "type and snp are missing"
+    ## for messages: "pvalues is missing", "pvalues and MAF are missing"
     is_missing <- function(v)
         paste(if (length(v) < 2L) v else paste(paste(v[-length(v)], collapse = ", "), "and", v[length(v)]),
               ngettext(length(v), "is missing", "are missing"))
-    ## for messages: the snp of the ith value of a per-snp element, or its
-    ## number when the dataset has no snp
-    at <- function(i) if ("snp" %in% nd) d$snp[i] else paste("snp number", i)
 
     ## The checks stop at the first problem, in three blocks: what each element
     ## must be wherever it is given, then what each route reads, then what
@@ -120,9 +117,7 @@ check_dataset <- function(d,
     ## 1. Each element, wherever it is given
     absent <- setdiff(req, nd)
     if (length(absent))
-        fail(is_missing(absent), ", and coloc needs ",
-             if (length(absent) == 1L) "it" else if (length(absent) == 2L) "both" else "all of them",
-             " here")
+        fail("missing required element(s) ", paste(absent, collapse = ", "))
     ## no missing values - make people clean their own data rather than make
     ## assumptions here for datasets I don't know. z is checked where SuSiE
     ## reads it, below
@@ -142,7 +137,7 @@ check_dataset <- function(d,
             fail("s must be between 0 and 1")
     }
     if ("snp" %in% nd && any(duplicated(d$snp)))
-        fail("snp has duplicated ids, such as ", d$snp[duplicated(d$snp)][1], "; each snp must appear once")
+        fail("duplicated snps found")
     if ("snp" %in% nd && is.factor(d$snp))
         fail("snp should be a character vector but is a factor")
     if ("MAF" %in% nd && (!is.numeric(d$MAF) || any(d$MAF <= 0 | d$MAF >= 1)))
@@ -160,15 +155,15 @@ check_dataset <- function(d,
         if (!is.numeric(d$N) || length(d$N) != 1L)
             fail("N must be a single number; coloc does not take per-snp sample sizes")
         if (!is.finite(d$N) || d$N <= 0)
-            fail("N must be a finite number above 0")
+            fail("N must be finite and > 0")
     }
     if (any(is.infinite(d$beta) | is.infinite(d$varbeta))) {
         v <- if (any(is.infinite(d$beta))) "beta" else "varbeta"
-        fail(v, " has infinite values, such as at ", at(which(is.infinite(d[[v]]))[1]))
+        fail(v, " has infinite values")
     }
     ## a varbeta that isn't a number is refused where it is read, below
     if (is.numeric(d$varbeta) && any(d$varbeta == 0))
-        fail("varbeta has zeros, such as at ", at(which(d$varbeta == 0)[1]), "; a variance must be above 0")
+        fail("varbeta must be > 0")
     if ("LD" %in% nd) {
         if (length(dim(d$LD)) < 2L)
             fail("LD must be a matrix")
@@ -176,12 +171,9 @@ check_dataset <- function(d,
             fail("LD must be square, but it has ", nrow(d$LD), ngettext(nrow(d$LD), " row", " rows"),
                  " and ", ncol(d$LD), ngettext(ncol(d$LD), " column", " columns"))
         if (!identical(colnames(d$LD), rownames(d$LD)))
-            fail("LD's row names must match its column names, in the same order")
-        not_in_LD <- setdiff(d$snp, colnames(d$LD))
-        if (length(not_in_LD))
-            fail("LD has no row or column for ", length(not_in_LD),
-                 ngettext(length(not_in_LD), " snp", " snps"), ", such as ", not_in_LD[1],
-                 "; LD must cover every snp in snp")
+            fail("LD rownames != colnames")
+        if (length(setdiff(d$snp, colnames(d$LD))))
+            fail("LD must cover every snp")
         if (length(dim(d$LD)) > 2L)
             fail("LD must be a matrix")
     }
@@ -208,8 +200,7 @@ check_dataset <- function(d,
         if (any(d$varbeta < 0))
             fail("varbeta must be positive")
         if (d$type == "quant" && !("sdY" %in% nd) && !("MAF" %in% nd && "N" %in% nd))
-            fail("sdY is missing; a quantitative trait needs sdY, the trait's standard deviation, ",
-                 "or MAF and N so coloc can estimate sdY")
+            fail("must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
         ## sdY is read for a quantitative trait, but not by SuSiE
         if ("sdY" %in% nd && d$type == "quant" && !susie &&
             (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
@@ -262,7 +253,7 @@ check_dataset <- function(d,
             if (!is.numeric(d$z))
                 fail("z must be numeric")
             if (any(is.infinite(d$z)))
-                fail("z has infinite values, such as at ", at(which(is.infinite(d$z))[1]))
+                fail("z has infinite values")
         }
     }
     NULL
@@ -308,7 +299,7 @@ check.dataset=function(...) {
 
 check_ld <- function(D,LD) {
     if(is.null(LD))
-      stop("LD is missing, and coloc needs it here")
+      stop("LD is missing")
     if(!is.matrix(LD))
       stop("LD must be a matrix")
     ## if(any(LD[upper.tri(LD)]==1))
@@ -317,12 +308,9 @@ check_ld <- function(D,LD) {
         stop("LD must be square, but it has ", nrow(LD), ngettext(nrow(LD), " row", " rows"),
              " and ", ncol(LD), ngettext(ncol(LD), " column", " columns"))
     if(!identical(colnames(LD),rownames(LD)))
-      stop("LD's row names must match its column names, in the same order")
-    not_in_LD <- setdiff(D$snp,colnames(LD))
-    if(length(not_in_LD))
-        stop("LD has no row or column for ", length(not_in_LD),
-             ngettext(length(not_in_LD), " snp", " snps"), ", such as ", not_in_LD[1],
-             "; LD must cover every snp in snp")
+      stop("LD rownames != colnames")
+    if(length(setdiff(D$snp,colnames(LD))))
+        stop("LD must cover every snp")
     ## finemap.signals() and coloc.signals() compute with LD, so it must be a
     ## numeric correlation matrix, as for SuSiE. Only D's snps are checked, or
     ## all of LD when D names none

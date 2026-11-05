@@ -319,7 +319,7 @@ test_that("coloc.susie() refuses a dataset without snp, as 6.0.3's did, naming i
     no_snp$snp <- NULL
     expect_error(suppressMessages(get_match_6_0_3(coloc.susie(no_snp, D4))))
     expect_error(coloc.susie(no_snp, D4),
-                 "dataset 1: snp is missing, and coloc needs it here", fixed = TRUE)
+                 "dataset 1: missing required element(s) snp", fixed = TRUE)
 })
 
 ## ---- the deliberate differences, one test each -------------------------------
@@ -463,7 +463,7 @@ test_that("check_dataset() reports a dataset with no type, where 6.0.3 gave R's 
                  'dataset 1: type is missing; set type to "quant" for a quantitative trait or "cc" for a case-control trait',
                  fixed = TRUE)
     ## 6.0.3 refused it too when type was required, as coloc.abf() asks
-    expect_error(check_dataset(d, 1), "dataset 1: type is missing, and coloc needs it here", fixed = TRUE)
+    expect_error(check_dataset(d, 1), "dataset 1: missing required element(s) type", fixed = TRUE)
 })
 
 test_that("a SuSiE fit with a duplicated snp id is refused, where 6.0.3 used the first", {

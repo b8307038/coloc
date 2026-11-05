@@ -22,9 +22,9 @@ test_that("coloc_dataset() and as_coloc_dataset() agree", {
 
 test_that("mistakes are refused when the dataset is made", {
     expect_error(coloc_dataset(snp = small$snp, beta = small$beta, varbeta = small$varbeta, sdY = 1),
-                 "type is missing, and coloc needs it here", fixed = TRUE)
+                 "missing required element(s) type", fixed = TRUE)
     expect_error(coloc_dataset(type = "quant", beta = small$beta, varbeta = small$varbeta, sdY = 1),
-                 "snp is missing, and coloc needs it here", fixed = TRUE)
+                 "missing required element(s) snp", fixed = TRUE)
     expect_error(coloc_dataset(snp = small$snp, type = "quant", beta = small$beta, sdY = 1),
                  "pvalues and MAF are missing; without beta and varbeta, coloc needs pvalues, MAF and N",
                  fixed = TRUE)

@@ -35,7 +35,7 @@ test_that("method is per trait: a trait without LD can stay single", {
     D1_noLD$LD <- NULL
     ## SuSiE needs LD, so "susie" for both cannot run
     expect_error(suppressMessages(coloc(D1_noLD, D3, method = "susie")),
-                 "dataset 1: LD is missing, and coloc needs it here", fixed = TRUE)
+                 "dataset 1: missing required element(s) LD", fixed = TRUE)
     mixed <- suppressMessages(coloc(D1_noLD, D3, method = c("single", "susie")))
     expect_equal(mixed$meta$method, c("single", "susie"))
     expect_equal(n_signals(mixed), 2L)
@@ -103,12 +103,12 @@ mistakes <- list(
 
 ## the error each mistake gets, after its "dataset 1: " label. The SuSiE route
 ## doesn't require type, so a missing one gets the check on type's message
-refusals <- c("no type" = "type is missing, and coloc needs it here",
+refusals <- c("no type" = "missing required element(s) type",
               "a wrong type" = "type must be quant or cc",
               "an NA beta" = "beta contains missing values",
-              "a duplicated snp" = "snp has duplicated ids, such as s1; each snp must appear once",
+              "a duplicated snp" = "duplicated snps found",
               "mismatched lengths" = "snp has 500 values but beta has 499",
-              "a zero varbeta" = "varbeta has zeros, such as at s5; a variance must be above 0")
+              "a zero varbeta" = "varbeta must be > 0")
 susie_refusals <- replace(refusals, "no type",
                           'type is missing; set type to "quant" for a quantitative trait or "cc" for a case-control trait')
 
@@ -202,7 +202,7 @@ test_that("both datasets are checked before either is fine-mapped", {
             said <<- c(said, conditionMessage(m))
             invokeRestart("muffleMessage")
         })
-    expect_identical(conditionMessage(err), "dataset 2: LD is missing, and coloc needs it here")
+    expect_identical(conditionMessage(err), "dataset 2: missing required element(s) LD")
     expect_length(said, 0)
 })
 
@@ -263,8 +263,8 @@ test_that("a data frame given as a dataset is refused, naming the trait", {
 test_that("what is neither a fit nor log BFs is checked as a dataset, naming the trait", {
     no_snp <- D1
     no_snp$snp <- NULL
-    expect_error(coloc(no_snp, D2), "dataset 1: snp is missing, and coloc needs it here", fixed = TRUE)
-    expect_error(coloc(D1, no_snp), "dataset 2: snp is missing, and coloc needs it here", fixed = TRUE)
+    expect_error(coloc(no_snp, D2), "dataset 1: missing required element(s) snp", fixed = TRUE)
+    expect_error(coloc(D1, no_snp), "dataset 2: missing required element(s) snp", fixed = TRUE)
     ## NULL is refused the same way whatever the version of R, where
     ## is.atomic(NULL) changed
     expect_error(coloc(NULL, D2),

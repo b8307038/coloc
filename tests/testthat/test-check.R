@@ -10,7 +10,7 @@ B1[c("type","s")]=list(type="cc",s=2)
 test_that("missing or bad required elements throws error", {
   expect_null(check_dataset(D1, req = names(D1)))
   expect_error(check_dataset(D1, req = "test"),
-               "test is missing, and coloc needs it here",
+               "missing required element(s) test",
                fixed = TRUE)
   ## type="cc" and s
   expect_null(check_dataset(C1))
@@ -18,10 +18,10 @@ test_that("missing or bad required elements throws error", {
                "s must be between 0 and 1",
                fixed = TRUE)
   expect_error(check_dataset(list(), ""),
-               "type and snp are missing, and coloc needs both here",
+               "missing required element(s) type, snp",
                fixed = TRUE)
   expect_error(check_dataset(list(beta=1,p=2,type="blah"), ""),
-               "snp is missing, and coloc needs it here",
+               "missing required element(s) snp",
                fixed = TRUE)
 })
 
@@ -30,7 +30,7 @@ test_that("LD matrix must have dimnames", {
   ld_no_dimnames <- D3$LD
   attr(ld_no_dimnames, "dimnames") <- NULL
   expect_error(check_ld(D3, ld_no_dimnames),
-               "LD has no row or column for 500 snps, such as s1; LD must cover every snp in snp",
+               "LD must cover every snp",
                fixed = TRUE)
 })
 
@@ -49,7 +49,7 @@ test_that("issue 79", {
           type="quant",
           MAF=rep(0.5,5))
   expect_error(coloc.abf(d1, d2),
-               "dataset 2: sdY is missing; a quantitative trait needs sdY, the trait's standard deviation, or MAF and N so coloc can estimate sdY",
+               "dataset 2: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated",
                fixed = TRUE)
 })
 
@@ -68,7 +68,7 @@ test_that("issue 79, with coloc() in place of coloc.abf()", {
           type="quant",
           MAF=rep(0.5,5))
   expect_error(coloc(d1, d2),
-               "dataset 2: sdY is missing; a quantitative trait needs sdY, the trait's standard deviation, or MAF and N so coloc can estimate sdY",
+               "dataset 2: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated",
                fixed = TRUE)
 })
 
@@ -116,19 +116,19 @@ test_that("Infinite values in beta/varbeta triggers specific error", {
   D1_beta_inf <- D1
   D1_beta_inf$beta[[1]] <- Inf
   expect_error(check_dataset(D1_beta_inf),
-               "beta has infinite values, such as at s1",
+               "beta has infinite values",
                fixed = TRUE)
 
   D1_varbeta_inf <- D1
   D1_varbeta_inf$varbeta[[1]] <- Inf
   expect_error(check_dataset(D1_varbeta_inf),
-               "varbeta has infinite values, such as at s1",
+               "varbeta has infinite values",
                fixed = TRUE)
 
   D1_varbeta_inf <- D1
   D1_varbeta_inf$varbeta[[1]] <- 0
   expect_error(check_dataset(D1_varbeta_inf),
-               "varbeta has zeros, such as at s1; a variance must be above 0",
+               "varbeta must be > 0",
                fixed = TRUE)
 })
 
@@ -183,7 +183,7 @@ cases <- list(
                  d$snp <- NULL
                  d
              }),
-             error = "dataset 1: snp is missing, and coloc needs it here"),
+             error = "dataset 1: missing required element(s) snp"),
     "two required elements missing" =
         list(d = local({
                  d <- D1
@@ -191,7 +191,7 @@ cases <- list(
                  d$snp <- NULL
                  d
              }),
-             error = "dataset 1: type and snp are missing, and coloc needs both here"),
+             error = "dataset 1: missing required element(s) type, snp"),
     "no missing values in beta" =
         list(d = local({
                  d <- D1
@@ -219,7 +219,7 @@ cases <- list(
                  d$snp[2] <- d$snp[1]
                  d
              }),
-             error = "dataset 1: snp has duplicated ids, such as s1; each snp must appear once"),
+             error = "dataset 1: duplicated snps found"),
     "snp is not a factor" =
         list(d = local({
                  d <- D1
@@ -343,21 +343,21 @@ cases <- list(
                  d$N <- 0
                  d
              }),
-             error = "dataset 1: N must be a finite number above 0"),
+             error = "dataset 1: N must be finite and > 0"),
     "beta and varbeta are finite" =
         list(d = local({
                  d <- D1
                  d$beta[1] <- Inf
                  d
              }),
-             error = "dataset 1: beta has infinite values, such as at s1"),
+             error = "dataset 1: beta has infinite values"),
     "varbeta has no zeros" =
         list(d = local({
                  d <- D1
                  d$varbeta[1] <- 0
                  d
              }),
-             error = "dataset 1: varbeta has zeros, such as at s1; a variance must be above 0"),
+             error = "dataset 1: varbeta must be > 0"),
     "a warning when no p-value is small" =
         list(d = local({
                  d <- D1
@@ -379,7 +379,7 @@ cases <- list(
                  d$MAF <- NULL
                  d
              }),
-             error = "dataset 1: sdY is missing; a quantitative trait needs sdY, the trait's standard deviation, or MAF and N so coloc can estimate sdY"),
+             error = "dataset 1: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
     "a quantitative trait without sdY has N" =
         list(d = local({
                  d <- D1
@@ -387,7 +387,7 @@ cases <- list(
                  d$N <- NULL
                  d
              }),
-             error = "dataset 1: sdY is missing; a quantitative trait needs sdY, the trait's standard deviation, or MAF and N so coloc can estimate sdY"),
+             error = "dataset 1: must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated"),
     "LD is square" =
         list(d = local({
                  d <- D1
@@ -401,21 +401,21 @@ cases <- list(
                  rownames(d$LD)[1] <- "x"
                  d
              }),
-             error = "dataset 1: LD's row names must match its column names, in the same order"),
+             error = "dataset 1: LD rownames != colnames"),
     "LD covers every snp" =
         list(d = local({
                  d <- D1
                  d$LD <- d$LD[-1, -1]
                  d
              }),
-             error = "dataset 1: LD has no row or column for 1 snp, such as s1; LD must cover every snp in snp"),
+             error = "dataset 1: LD must cover every snp"),
     ## the arguments
     "warn.minp sets when the warning is given" =
         list(d = D1, args = list(warn.minp = 1e-30),
              warning = "dataset 1: the smallest p-value is < 2.22e-16, so this dataset may have no association in the region."),
     "req sets the required elements" =
         list(d = D1, args = list(req = c("snp", "pvalues")),
-             error = "dataset 1: pvalues is missing, and coloc needs it here"),
+             error = "dataset 1: missing required element(s) pvalues"),
     ## datasets that fail two checks
     "a wrong type and duplicated snps" =
         list(d = local({
@@ -514,7 +514,7 @@ test_that("check_dataset()'s errors and warnings show no call", {
     weak$beta <- weak$beta / 100
     per_snp_N <- D1
     per_snp_N$N <- rep(D1$N, length(D1$snp))
-    e <- expect_error(check_dataset(dup, 1), "dataset 1: snp has duplicated ids, such as s1; each snp must appear once",
+    e <- expect_error(check_dataset(dup, 1), "dataset 1: duplicated snps found",
                       fixed = TRUE)
     expect_null(conditionCall(e))
     w <- expect_warning(check_dataset(weak, 1),
@@ -530,7 +530,7 @@ test_that("check_dataset()'s errors and warnings show no call", {
                       fixed = TRUE)
     expect_null(conditionCall(e))
     ## and through a function that calls it
-    e <- expect_error(suppressMessages(coloc.abf(dup, D1)), "dataset 1: snp has duplicated ids, such as s1; each snp must appear once",
+    e <- expect_error(suppressMessages(coloc.abf(dup, D1)), "dataset 1: duplicated snps found",
                       fixed = TRUE)
     expect_null(conditionCall(e))
 })
@@ -539,12 +539,12 @@ test_that("check_ld() takes a valid LD, and refuses the others with its own call
     expect_null(expect_no_warning(check_ld(D3, D3$LD)))
     names_differ <- D3$LD
     rownames(names_differ) <- paste0("r", seq_len(nrow(names_differ)))
-    lds <- list(missing = list(LD = NULL, error = "LD is missing, and coloc needs it here"),
+    lds <- list(missing = list(LD = NULL, error = "LD is missing"),
                 data_frame = list(LD = as.data.frame(D3$LD), error = "LD must be a matrix"),
                 not_square = list(LD = D3$LD[, -1],
                                   error = "LD must be square, but it has 500 rows and 499 columns"),
-                names_differ = list(LD = names_differ, error = "LD's row names must match its column names, in the same order"),
-                snp_missing = list(LD = D3$LD[-1, -1], error = "LD has no row or column for 1 snp, such as s1; LD must cover every snp in snp"))
+                names_differ = list(LD = names_differ, error = "LD rownames != colnames"),
+                snp_missing = list(LD = D3$LD[-1, -1], error = "LD must cover every snp"))
     for (nm in names(lds)) {
         LD <- lds[[nm]]$LD
         expect_error(check_ld(D3, LD), lds[[nm]]$error, fixed = TRUE,
