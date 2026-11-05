@@ -1,6 +1,6 @@
 library(coloc)
-D1 <- plain_test_data$D1
-D3 <- plain_test_data$D3
+D1 <- coloc_test_data$D1
+D3 <- coloc_test_data$D3
 
 B1=D1
 C1=D1
@@ -486,13 +486,13 @@ test_that("an sdY far from its estimate from varbeta, MAF and N gets a warning, 
     expect_warning(check_dataset(made),
                    "sdY is 1.1, but varbeta, MAF and N suggest 4.55; check that varbeta holds variances, not standard errors, and that sdY is on the scale of beta",
                    fixed = TRUE, class = "coloc_sdY")
-    expect_warning(no_min_p(utils::capture.output(coloc.abf(plain_test_data$D2, se))),
+    expect_warning(no_min_p(utils::capture.output(coloc.abf(coloc_test_data$D2, se))),
                    "dataset 2: sdY is 1.1, but varbeta, MAF and N suggest 4.55; check that varbeta holds variances, not standard errors, and that sdY is on the scale of beta",
                    fixed = TRUE, class = "coloc_sdY")
     ## coloc() gives it once, with the dataset's number, though wakefield_bf()
     ## checks the dataset again
     classes <- character(0)
-    withCallingHandlers(coloc(made, as_coloc_dataset(plain_test_data$D2)),
+    withCallingHandlers(coloc(made, as_coloc_dataset(coloc_test_data$D2)),
                         warning = function(w) {
                             classes <<- c(classes, class(w)[1])
                             invokeRestart("muffleWarning")
@@ -576,7 +576,7 @@ test_that("check_ld(), and so finemap.signals() and coloc.signals(), refuse an L
     for (nm in c("character", "too_large")) {
         d <- D3
         d$LD <- lds[[nm]]$LD
-        expect_error(coloc.signals(d, plain_test_data$D4, method = "cond", p12 = 1e-5),
+        expect_error(coloc.signals(d, coloc_test_data$D4, method = "cond", p12 = 1e-5),
                      lds[[nm]]$error, fixed = TRUE, label = nm)
     }
 })

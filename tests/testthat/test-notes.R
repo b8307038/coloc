@@ -5,8 +5,8 @@
 ## warnings are worked out before they are checked, as some expectations
 ## evaluate their object twice, and the note comes only once.
 
-L1 <- plain_test_data$D1
-L2 <- plain_test_data$D2
+L1 <- coloc_test_data$D1
+L2 <- coloc_test_data$D2
 D1 <- as_coloc_dataset(L1)
 D2 <- as_coloc_dataset(L2)
 
@@ -59,8 +59,8 @@ test_that("wakefield_bf() notes a plain list, and shares the note with coloc()",
 
 test_that("the older functions take plain lists without a note, and leave it to come", {
     skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
-    L3 <- plain_test_data$D3
-    L4 <- plain_test_data$D4
+    L3 <- coloc_test_data$D3
+    L4 <- coloc_test_data$D4
     fit4 <- suppressMessages(runsusie(L4))
     bf4 <- fit4$lbf_variable[fit4$sets$cs_index, , drop = FALSE]
     forgetting_notes({
@@ -109,9 +109,9 @@ test_that("coloc.susie() and coloc.susie_bf() warn once per weak dataset, and le
         d$beta <- d$beta / 100
         d
     }
-    w3 <- weak(plain_test_data$D3)
-    w4 <- weak(plain_test_data$D4)
-    fit4 <- suppressMessages(runsusie(plain_test_data$D4))
+    w3 <- weak(coloc_test_data$D3)
+    w4 <- weak(coloc_test_data$D4)
+    fit4 <- suppressMessages(runsusie(coloc_test_data$D4))
     bf4 <- fit4$lbf_variable[fit4$sets$cs_index, , drop = FALSE]
     forgetting_notes({
         got <- warning_classes(suppressMessages(coloc.susie(w3, w4)))

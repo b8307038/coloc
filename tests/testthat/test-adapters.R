@@ -12,7 +12,7 @@ stub_fit <- function(cols, empty = FALSE)
               class = "susie")
 
 test_that(".classify_input() tells the kind of input from its class", {
-    expect_equal(.classify_input(plain_test_data$D1), "dataset")
+    expect_equal(.classify_input(coloc_test_data$D1), "dataset")
     expect_equal(.classify_input(stub_fit(snps)), "susie_fit")
     expect_equal(.classify_input(matrix(0, 2, 3, dimnames = list(NULL, snps))), "bf")
     expect_equal(.classify_input(setNames(c(0, 0, 0), snps)), "bf")
@@ -50,7 +50,7 @@ test_that(".resolve_method() resolves each trait against its own input", {
 
 test_that(".adapt_single() hands the engine process.dataset()'s log ABFs", {
     for (trait in 1:2) {
-        d <- plain_test_data[[trait]]                 # D1, D2
+        d <- coloc_test_data[[trait]]                 # D1, D2
         pd <- get_match_6_0_3(process.dataset(d, suffix = paste0("df", trait)))
         a <- .adapt_single(d)
         expect_equal(a$bf, matrix(pd[[paste0("lABF.df", trait)]], nrow = 1,
@@ -61,7 +61,7 @@ test_that(".adapt_single() hands the engine process.dataset()'s log ABFs", {
 
 test_that(".adapt_single() gives wakefield_bf()'s log Bayes factors for a checked dataset", {
     ## coloc() checks the dataset before any adapter runs (test-coloc.R)
-    d <- as_coloc_dataset(plain_test_data$D1)
+    d <- as_coloc_dataset(coloc_test_data$D1)
     w <- wakefield_bf(d)
     expect_identical(.adapt_single(d)$bf,
                      matrix(w$lABF, nrow = 1, dimnames = list("sig1", w$snp)))
@@ -69,7 +69,7 @@ test_that(".adapt_single() gives wakefield_bf()'s log Bayes factors for a checke
 
 test_that(".adapt_susie() hands the engine the credible-set rows", {
     skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
-    for (d in plain_test_data[c("D3", "D4")]) {
+    for (d in coloc_test_data[c("D3", "D4")]) {
         fit <- suppressMessages(get_match_6_0_3(runsusie(d)))
         a <- suppressMessages(.adapt_susie(d))
         expect_equal(unname(a$bf), unname(fit$lbf_variable[fit$sets$cs_index, , drop = FALSE]))
@@ -101,7 +101,7 @@ test_that(".adapt_susie() rejects a broken fit, and a suffix in susie.args", {
                  "trait 1: the susie fit's lbf_variable needs snp ids as colnames, which runsusie() adds",
                  fixed = TRUE)
     ## coloc() sets suffix to the trait number
-    expect_error(.adapt_susie(plain_test_data$D3, susie.args = list(suffix = 3)),
+    expect_error(.adapt_susie(coloc_test_data$D3, susie.args = list(suffix = 3)),
                  "susie.args cannot set suffix: coloc() sets it to each trait's number",
                  fixed = TRUE)
 })
@@ -127,14 +127,14 @@ no_convergence <- list(repeat_until_convergence = FALSE, maxit = 1)
 
 test_that(".adapt_susie() gives runsusie() the dataset by name", {
     call <- call_of(suppressWarnings(suppressMessages(
-        .adapt_susie(plain_test_data$D3, 1, susie.args = no_convergence))))
+        .adapt_susie(coloc_test_data$D3, 1, susie.args = no_convergence))))
     expect_identical(call[[1]], quote(runsusie))
     expect_identical(call$d, quote(x))
 })
 
 test_that("finemap.susie() gives runsusie() the dataset by name", {
     call <- call_of(suppressWarnings(suppressMessages(
-        finemap.susie(plain_test_data$D3, susie.args = no_convergence))))
+        finemap.susie(coloc_test_data$D3, susie.args = no_convergence))))
     expect_identical(call[[1]], quote(runsusie))
     expect_identical(call$d, quote(dataset1))
 })
@@ -192,5 +192,5 @@ test_that("meta$has_null says whether the matrix has a null column", {
     }
     ## runsusie() adds a null column only when given null_weight
     skip_if_not(requireNamespace("susieR", quietly = TRUE), "susieR not installed")
-    expect_false(.adapt_susie(suppressMessages(runsusie(plain_test_data$D4)))$meta$has_null)
+    expect_false(.adapt_susie(suppressMessages(runsusie(coloc_test_data$D4)))$meta$has_null)
 })

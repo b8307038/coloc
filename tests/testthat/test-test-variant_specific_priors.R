@@ -1,6 +1,6 @@
 
-D1 <- plain_test_data$D1
-D2 <- plain_test_data$D2
+D1 <- coloc_test_data$D1
+D2 <- coloc_test_data$D2
 
 # finemap.abf()
 

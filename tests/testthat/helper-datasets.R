@@ -9,11 +9,6 @@ forgetting_notes <- function(code) {
     code
 }
 
-## coloc_test_data's datasets as plain lists, which is what most tests are
-## written for: a coloc_dataset skips the minimum p-value warning, and keeps
-## its class when an element is changed
-plain_test_data <- lapply(coloc_test_data, unclass)
-
 ## the same dataset as case-control, as p-values, and without position
 as_cc <- function(d) {
     d$type <- "cc"
