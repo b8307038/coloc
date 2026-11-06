@@ -21,34 +21,36 @@ test_that("coloc_dataset() and as_coloc_dataset() agree", {
 })
 
 test_that("mistakes are refused when the dataset is made", {
-    expect_error(coloc_dataset(snp = small$snp, beta = small$beta, varbeta = small$varbeta, sdY = 1),
-                 "missing required element(s) type", fixed = TRUE)
-    expect_error(coloc_dataset(type = "quant", beta = small$beta, varbeta = small$varbeta, sdY = 1),
-                 "missing required element(s) snp", fixed = TRUE)
-    expect_error(coloc_dataset(snp = small$snp, type = "quant", beta = small$beta, sdY = 1),
-                 "pvalues and MAF are missing; without beta and varbeta, coloc needs pvalues, MAF and N",
-                 fixed = TRUE)
+    e <- expect_error(coloc_dataset(snp = small$snp, beta = small$beta, varbeta = small$varbeta, sdY = 1))
+    expect_identical(conditionMessage(e), "missing required element(s) type")
+    e <- expect_error(coloc_dataset(type = "quant", beta = small$beta, varbeta = small$varbeta, sdY = 1))
+    expect_identical(conditionMessage(e), "missing required element(s) snp")
+    e <- expect_error(coloc_dataset(snp = small$snp, type = "quant", beta = small$beta, sdY = 1))
+    expect_identical(conditionMessage(e),
+                     "pvalues and MAF are missing; without beta and varbeta, coloc needs pvalues, MAF and N")
     bad <- small
     bad$beta[2] <- NA
-    expect_error(as_coloc_dataset(bad), "beta contains missing values", fixed = TRUE)
+    e <- expect_error(as_coloc_dataset(bad))
+    expect_identical(conditionMessage(e), "beta contains missing values")
     bad <- small
     bad$type <- "binary"
-    expect_error(as_coloc_dataset(bad), "type must be quant or cc", fixed = TRUE)
+    e <- expect_error(as_coloc_dataset(bad))
+    expect_identical(conditionMessage(e), "type must be quant or cc")
 })
 
 test_that("as_coloc_dataset() refuses things that are not datasets", {
-    expect_error(as_coloc_dataset(1:5),
-                 "the dataset is a numeric vector, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
-                 fixed = TRUE)
-    expect_error(as_coloc_dataset(matrix(0, 2, 2)),
-                 "the dataset is a numeric matrix, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
-                 fixed = TRUE)
-    expect_error(as_coloc_dataset(as.data.frame(small[c("snp", "beta", "varbeta")])),
-                 "the dataset is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
-                 fixed = TRUE)
-    expect_error(as_coloc_dataset(structure(list(), class = "susie")),
-                 "the dataset is a SuSiE fit, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
-                 fixed = TRUE)
+    e <- expect_error(as_coloc_dataset(1:5))
+    expect_identical(conditionMessage(e),
+                     "the dataset is a numeric vector, not a list of coloc_dataset elements (snp, beta, varbeta, ...)")
+    e <- expect_error(as_coloc_dataset(matrix(0, 2, 2)))
+    expect_identical(conditionMessage(e),
+                     "the dataset is a numeric matrix, not a list of coloc_dataset elements (snp, beta, varbeta, ...)")
+    e <- expect_error(as_coloc_dataset(as.data.frame(small[c("snp", "beta", "varbeta")])))
+    expect_identical(conditionMessage(e),
+                     "the dataset is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)")
+    e <- expect_error(as_coloc_dataset(structure(list(), class = "susie")))
+    expect_identical(conditionMessage(e),
+                     "the dataset is a SuSiE fit, not a list of coloc_dataset elements (snp, beta, varbeta, ...)")
 })
 
 test_that("as_coloc_dataset() keeps elements coloc does not use, and passes a coloc_dataset through", {
@@ -71,23 +73,26 @@ test_that("the p value warning is given once, when the dataset is made", {
 test_that("a mistake when a dataset is made shows no call, and no dataset", {
     bad <- small
     bad$beta[2] <- NA
-    e <- expect_error(as_coloc_dataset(bad), "beta contains missing values", fixed = TRUE)
+    e <- expect_error(as_coloc_dataset(bad))
+    expect_identical(conditionMessage(e), "beta contains missing values")
     expect_null(conditionCall(e))
     e <- expect_error(coloc_dataset(snp = bad$snp, type = "quant", beta = bad$beta,
-                                    varbeta = bad$varbeta, sdY = 1),
-                      "beta contains missing values", fixed = TRUE)
+                                    varbeta = bad$varbeta, sdY = 1))
+    expect_identical(conditionMessage(e), "beta contains missing values")
     expect_null(conditionCall(e))
     ## nor does the minimum p-value warning
     weak <- small
     weak$beta <- rep(0.01, 5)
     w <- expect_warning(as_coloc_dataset(weak), class = "coloc_min_p")
+    expect_identical(sub("\n.*", "", conditionMessage(w)),
+                     "the smallest p-value is 0.92034, so this dataset may have no association in the region.")
     expect_null(conditionCall(w))
 })
 
 test_that("coloc_dataset() refuses a negative varbeta, with no call", {
     e <- expect_error(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
-                                    varbeta = -D1$varbeta, sdY = 1),
-                      "varbeta must be > 0", fixed = TRUE)
+                                    varbeta = -D1$varbeta, sdY = 1))
+    expect_identical(conditionMessage(e), "varbeta must be > 0")
     expect_null(conditionCall(e))
 })
 
@@ -96,7 +101,8 @@ test_that("as_coloc_dataset() returns a coloc_dataset as it is, even one changed
     broken$beta[2] <- NA                # still a coloc_dataset: $<- keeps the class
     expect_identical(as_coloc_dataset(broken), broken)
     ## check_dataset() is the way to check it again, as the help says
-    expect_error(check_dataset(broken), "beta contains missing values", fixed = TRUE)
+    e <- expect_error(check_dataset(broken))
+    expect_identical(conditionMessage(e), "beta contains missing values")
 })
 
 test_that("a dataset changed after it was made is checked again when used", {

@@ -9,20 +9,16 @@ B1[c("type","s")]=list(type="cc",s=2)
 
 test_that("missing or bad required elements throws error", {
   expect_null(check_dataset(D1, req = names(D1)))
-  expect_error(check_dataset(D1, req = "test"),
-               "missing required element(s) test",
-               fixed = TRUE)
+  e <- expect_error(check_dataset(D1, req = "test"))
+  expect_identical(conditionMessage(e), "missing required element(s) test")
   ## type="cc" and s
   expect_null(check_dataset(C1))
-  expect_error(check_dataset(B1),
-               "s must be between 0 and 1",
-               fixed = TRUE)
-  expect_error(check_dataset(list(), ""),
-               "missing required element(s) type, snp",
-               fixed = TRUE)
-  expect_error(check_dataset(list(beta=1,p=2,type="blah"), ""),
-               "missing required element(s) snp",
-               fixed = TRUE)
+  e <- expect_error(check_dataset(B1))
+  expect_identical(conditionMessage(e), "s must be between 0 and 1")
+  e <- expect_error(check_dataset(list(), ""))
+  expect_identical(conditionMessage(e), "missing required element(s) type, snp")
+  e <- expect_error(check_dataset(list(beta=1,p=2,type="blah"), ""))
+  expect_identical(conditionMessage(e), "missing required element(s) snp")
 })
 
 test_that("LD matrix must have dimnames", {
@@ -115,21 +111,18 @@ test_that("issue 160, with coloc() in place of coloc.abf()", {
 test_that("Infinite values in beta/varbeta triggers specific error", {
   D1_beta_inf <- D1
   D1_beta_inf$beta[[1]] <- Inf
-  expect_error(check_dataset(D1_beta_inf),
-               "beta has infinite values",
-               fixed = TRUE)
+  e <- expect_error(check_dataset(D1_beta_inf))
+  expect_identical(conditionMessage(e), "beta has infinite values")
 
   D1_varbeta_inf <- D1
   D1_varbeta_inf$varbeta[[1]] <- Inf
-  expect_error(check_dataset(D1_varbeta_inf),
-               "varbeta has infinite values",
-               fixed = TRUE)
+  e <- expect_error(check_dataset(D1_varbeta_inf))
+  expect_identical(conditionMessage(e), "varbeta has infinite values")
 
   D1_varbeta_inf <- D1
   D1_varbeta_inf$varbeta[[1]] <- 0
-  expect_error(check_dataset(D1_varbeta_inf),
-               "varbeta must be > 0",
-               fixed = TRUE)
+  e <- expect_error(check_dataset(D1_varbeta_inf))
+  expect_identical(conditionMessage(e), "varbeta must be > 0")
 })
 
 ## ---- check_dataset(), one test per check -----------------------------------
@@ -456,20 +449,24 @@ for (what in names(cases)) {
         case <- cases[[what]]
         for (suffix in list(1, "")) {
             check <- function() do.call(check_dataset, c(list(case$d, suffix), case$args))
+            ## without a label a message has no "dataset 1: ", and the
+            ## not-a-list message begins "the dataset is"
+            expected <- function(m) {
+                if (identical(suffix, 1))
+                    return(m)
+                sub("^dataset 1: ", "", sub("^dataset 1: this is", "the dataset is", m))
+            }
             ## a warning comes before any refusal
             until_refused <- function() tryCatch(check(), error = function(e) NULL)
             if (is.null(case$warning)) {
                 expect_no_warning(until_refused())
             } else {
                 w <- expect_warning(until_refused(), class = "coloc_min_p")
-                if (identical(suffix, 1))
-                    expect_match(conditionMessage(w), case$warning, fixed = TRUE)
+                expect_identical(sub("\n.*", "", conditionMessage(w)), expected(case$warning))
             }
             if (!is.null(case$error)) {
                 e <- expect_error(suppressWarnings(check()))
-                ## without a label, the not-a-list message changes form
-                if (identical(suffix, 1))
-                    expect_identical(conditionMessage(e), case$error)
+                expect_identical(conditionMessage(e), expected(case$error))
             } else {
                 expect_null(suppressWarnings(check()))
             }
@@ -490,9 +487,9 @@ test_that("an sdY far from its estimate from varbeta, MAF and N gets a warning, 
     ## a coloc_dataset edited after it was made, and the old functions
     made <- suppressWarnings(as_coloc_dataset(D1))
     made$varbeta <- sqrt(made$varbeta)
-    expect_warning(check_dataset(made),
-                   "sdY is 1.1, but varbeta, MAF and N suggest 4.55; check that varbeta holds variances, not standard errors, and that sdY is on the scale of beta",
-                   fixed = TRUE, class = "coloc_sdY")
+    w <- expect_warning(check_dataset(made), class = "coloc_sdY")
+    expect_identical(conditionMessage(w),
+                     "sdY is 1.1, but varbeta, MAF and N suggest 4.55; check that varbeta holds variances, not standard errors, and that sdY is on the scale of beta")
     expect_warning(no_min_p(utils::capture.output(coloc.abf(coloc_test_data$D2, se))),
                    "dataset 2: sdY is 1.1, but varbeta, MAF and N suggest 4.55; check that varbeta holds variances, not standard errors, and that sdY is on the scale of beta",
                    fixed = TRUE, class = "coloc_sdY")

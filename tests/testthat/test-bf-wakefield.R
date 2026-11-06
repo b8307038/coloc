@@ -83,20 +83,22 @@ test_that("effect_priors reaches both routes", {
 test_that("wakefield_bf() checks its dataset, and takes a coloc_dataset", {
     d <- D1
     d$beta[1] <- NA
-    expect_error(wakefield_bf(d), "beta contains missing values", fixed = TRUE)
+    e <- expect_error(wakefield_bf(d))
+    expect_identical(conditionMessage(e), "beta contains missing values")
     expect_identical(wakefield_bf(as_coloc_dataset(D1)), wakefield_bf(D1))
 })
 
 test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_dataset again", {
     ## a list goes through as_coloc_dataset(), which refuses a data.frame,
     ## where check_dataset() alone would report "missing required element(s) type"
-    expect_error(wakefield_bf(as.data.frame(D1[c("snp", "beta", "varbeta")])),
-                 "the dataset is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
-                 fixed = TRUE)
+    e <- expect_error(wakefield_bf(as.data.frame(D1[c("snp", "beta", "varbeta")])))
+    expect_identical(conditionMessage(e),
+                     "the dataset is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)")
     ## a coloc_dataset changed since it was made is checked again
     changed <- as_coloc_dataset(D1)
     changed$beta[1] <- NA
-    expect_error(wakefield_bf(changed), "beta contains missing values", fixed = TRUE)
+    e <- expect_error(wakefield_bf(changed))
+    expect_identical(conditionMessage(e), "beta contains missing values")
     ## a weak list gets the minimum p-value warning once
     weak <- D1
     weak$beta <- weak$beta / 100
@@ -110,9 +112,11 @@ test_that("wakefield_bf() makes a list a coloc_dataset, and checks a coloc_datas
     ## coloc_dataset
     bad <- D1
     bad$beta[1] <- NA
-    e <- expect_error(wakefield_bf(bad), "beta contains missing values", fixed = TRUE)
+    e <- expect_error(wakefield_bf(bad))
+    expect_identical(conditionMessage(e), "beta contains missing values")
     expect_null(conditionCall(e))
-    e <- expect_error(wakefield_bf(changed), "beta contains missing values", fixed = TRUE)
+    e <- expect_error(wakefield_bf(changed))
+    expect_identical(conditionMessage(e), "beta contains missing values")
     expect_null(conditionCall(e))
 })
 

@@ -86,9 +86,10 @@ test_that("a broken plain list gets only its error, and the note is still to com
     })
     expect_identical(then_good, "coloc_plain_list")
     forgetting_notes({
-        expect_no_warning(expect_error(wakefield_bf(bad), "beta contains missing values", fixed = TRUE))
+        expect_no_warning(e <- expect_error(wakefield_bf(bad)))
         then_good <- warning_classes(wakefield_bf(L1))
     })
+    expect_identical(conditionMessage(e), "beta contains missing values")
     expect_identical(then_good, "coloc_plain_list")
 })
 

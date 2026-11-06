@@ -34,7 +34,9 @@ at_each_door <- function(d, error, other = D1, susie = FALSE) {
         if (!is.null(error)) {
             expected <- if (is.null(door$dataset)) error
                         else paste0("dataset ", door$dataset, ": ", error)
-            expect_error(quietly(!!door$call), expected, fixed = TRUE)
+            e <- expect_error(quietly(!!door$call))
+            expect_identical(conditionMessage(e), expected,
+                             label = paste("the message of", deparse(door$call)))
         } else {
             expect_no_error(quietly(!!door$call))
         }
@@ -111,7 +113,8 @@ test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
     made$varbeta[5] <- -made$varbeta[5]
     expect_error(coloc(made, D2), "dataset 1: varbeta must be > 0", fixed = TRUE)
     expect_error(coloc.abf(made, D2), "dataset 1: varbeta must be > 0", fixed = TRUE)
-    expect_error(wakefield_bf(made), "varbeta must be > 0", fixed = TRUE)
+    e <- expect_error(wakefield_bf(made))
+    expect_identical(conditionMessage(e), "varbeta must be > 0")
 })
 
 test_that("type and s must be single values, where 6.0.3 failed with R's errors", {
@@ -340,16 +343,17 @@ test_that("per-snp elements must have the same length", {
     ## each per-snp element is compared with snp, position too
     short_position <- D1
     short_position$position <- short_position$position[-1]
-    expect_error(check_dataset(short_position),
-                 "snp has 500 values but position has 499", fixed = TRUE)
+    e <- expect_error(check_dataset(short_position))
+    expect_identical(conditionMessage(e), "snp has 500 values but position has 499")
     short_snp <- D1
     short_snp$snp <- short_snp$snp[-1]
-    expect_error(check_dataset(short_snp), "snp has 499 values but beta has 500", fixed = TRUE)
+    e <- expect_error(check_dataset(short_snp))
+    expect_identical(conditionMessage(e), "snp has 499 values but beta has 500")
     ## without snp, with the first element given
     no_snp <- short
     no_snp$snp <- NULL
-    expect_error(check_dataset(no_snp, req = "type"),
-                 "beta has 499 values but varbeta has 500", fixed = TRUE)
+    e <- expect_error(check_dataset(no_snp, req = "type"))
+    expect_identical(conditionMessage(e), "beta has 499 values but varbeta has 500")
 })
 
 test_that("N must be a single number, not one per snp", {
@@ -368,15 +372,15 @@ test_that("check_alignment() refuses a dataset without LD, beta or varbeta, or w
     p_only$pvalues <- 2 * pnorm(-abs(D3$beta / sqrt(D3$varbeta)))
     for (d in list(no_ld, p_only))
         expect_error(get_match_6_0_3(check_alignment(d, do_plot = FALSE)))
-    expect_error(check_alignment(no_ld, do_plot = FALSE),
-                 "missing required element(s) LD", fixed = TRUE)
-    expect_error(check_alignment(p_only, do_plot = FALSE),
-                 "missing required element(s) beta, varbeta", fixed = TRUE)
+    e <- expect_error(check_alignment(no_ld, do_plot = FALSE))
+    expect_identical(conditionMessage(e), "missing required element(s) LD")
+    e <- expect_error(check_alignment(p_only, do_plot = FALSE))
+    expect_identical(conditionMessage(e), "missing required element(s) beta, varbeta")
     scaled_ld <- D3
     scaled_ld$LD <- 1.5 * D3$LD
     expect_no_error(get_match_6_0_3(check_alignment(scaled_ld, do_plot = FALSE)))
-    expect_error(check_alignment(scaled_ld, do_plot = FALSE),
-                 "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal",
-                 fixed = TRUE)
+    e <- expect_error(check_alignment(scaled_ld, do_plot = FALSE))
+    expect_identical(conditionMessage(e),
+                     "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
     expect_equal(check_alignment(D3, do_plot = FALSE), 0.997, tolerance = 1e-3)
 })

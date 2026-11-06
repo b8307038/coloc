@@ -441,7 +441,8 @@ test_that("a p-value above 1 is refused, which 6.0.3 accepted", {
     expect_error(check_dataset(above, 1),
                  "dataset 1: pvalues must be above 0 and at most 1", fixed = TRUE)
     expect_error(coloc(above, D2), "dataset 1: pvalues must be above 0 and at most 1", fixed = TRUE)
-    expect_error(finemap.abf(above), "pvalues must be above 0 and at most 1", fixed = TRUE)
+    e <- expect_error(finemap.abf(above))
+    expect_identical(conditionMessage(e), "pvalues must be above 0 and at most 1")
     ## 0 and below were refused already
     zero <- to_pvalues(D1)
     zero$pvalues[5] <- 0
@@ -517,8 +518,10 @@ test_that("check_dataset()'s errors and warnings hold the dataset's number, and 
                  "dataset 2: this is a numeric vector, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                  fixed = TRUE)
     ## without a label
-    expect_error(finemap.abf(bad), "beta contains missing values", fixed = TRUE)
-    expect_error(check_dataset(bad), "beta contains missing values", fixed = TRUE)
+    e <- expect_error(finemap.abf(bad))
+    expect_identical(conditionMessage(e), "beta contains missing values")
+    e <- expect_error(check_dataset(bad))
+    expect_identical(conditionMessage(e), "beta contains missing values")
     ## the messages that named no dataset
     per_snp_N <- D2
     per_snp_N$N <- rep(D2$N, length(D2$snp))
@@ -542,9 +545,9 @@ test_that("check_dataset()'s errors and warnings hold the dataset's number, and 
     expect_warning(check_dataset(weak, 2),
                    "dataset 2: the smallest p-value is 0.93383, so this dataset may have no association in the region.",
                    fixed = TRUE, class = "coloc_min_p")
-    expect_warning(check_dataset(weak),
-                   "the smallest p-value is 0.93383, so this dataset may have no association in the region.",
-                   fixed = TRUE, class = "coloc_min_p")
+    w <- expect_warning(check_dataset(weak), class = "coloc_min_p")
+    expect_identical(sub("\n.*", "", conditionMessage(w)),
+                     "the smallest p-value is 0.93383, so this dataset may have no association in the region.")
 })
 
 test_that("check_dataset() doesn't repeat the minimum p-value warning for a coloc_dataset, where 6.0.3 did", {
