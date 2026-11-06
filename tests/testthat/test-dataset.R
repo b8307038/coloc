@@ -87,7 +87,7 @@ test_that("a mistake when a dataset is made shows no call, and no dataset", {
 test_that("coloc_dataset() refuses a negative varbeta, with no call", {
     e <- expect_error(coloc_dataset(snp = D1$snp, type = "quant", beta = D1$beta,
                                     varbeta = -D1$varbeta, sdY = 1),
-                      "varbeta must be positive", fixed = TRUE)
+                      "varbeta must be > 0", fixed = TRUE)
     expect_null(conditionCall(e))
 })
 

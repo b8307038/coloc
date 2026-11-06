@@ -96,7 +96,7 @@ test_that("beta, varbeta and p-values must be numeric where they are read, where
 test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
     neg <- D1
     neg$varbeta[5] <- -neg$varbeta[5]
-    at_each_door(neg, error = "varbeta must be positive", susie = TRUE)
+    at_each_door(neg, error = "varbeta must be > 0", susie = TRUE)
     ## with a zero as well
     zero_too <- neg
     zero_too$varbeta[1] <- 0
@@ -109,9 +109,9 @@ test_that("a negative varbeta is refused, where 6.0.3 failed with R's error", {
     ## p-value comparison is skipped
     made <- as_coloc_dataset(D1)
     made$varbeta[5] <- -made$varbeta[5]
-    expect_error(coloc(made, D2), "dataset 1: varbeta must be positive", fixed = TRUE)
-    expect_error(coloc.abf(made, D2), "dataset 1: varbeta must be positive", fixed = TRUE)
-    expect_error(wakefield_bf(made), "varbeta must be positive", fixed = TRUE)
+    expect_error(coloc(made, D2), "dataset 1: varbeta must be > 0", fixed = TRUE)
+    expect_error(coloc.abf(made, D2), "dataset 1: varbeta must be > 0", fixed = TRUE)
+    expect_error(wakefield_bf(made), "varbeta must be > 0", fixed = TRUE)
 })
 
 test_that("type and s must be single values, where 6.0.3 failed with R's errors", {

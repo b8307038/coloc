@@ -198,7 +198,7 @@ check_dataset <- function(d,
             if (!is.numeric(d[[v]]))
                 fail(v, " must be numeric")
         if (any(d$varbeta < 0))
-            fail("varbeta must be positive")
+            fail("varbeta must be > 0")
         if (d$type == "quant" && !("sdY" %in% nd) && !("MAF" %in% nd && "N" %in% nd))
             fail("must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
         ## sdY is read for a quantitative trait, but not by SuSiE

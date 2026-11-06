@@ -558,7 +558,7 @@ test_that("check_dataset() doesn't repeat the minimum p-value warning for a colo
     ## p-values are worked out, where 6.0.3 went on to compare a NaN and stopped
     made$varbeta[1] <- -made$varbeta[1]
     expect_no_warning(expect_error(check_dataset(made, 1),
-                                   "dataset 1: varbeta must be positive", fixed = TRUE))
+                                   "dataset 1: varbeta must be > 0", fixed = TRUE))
 })
 
 test_that("coloc.susie_bf() refuses a bf2 that isn't log Bayes factors, where 6.0.3 failed with R's errors", {

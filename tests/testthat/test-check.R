@@ -358,6 +358,13 @@ cases <- list(
                  d
              }),
              error = "dataset 1: varbeta must be > 0"),
+    "varbeta has no negative values" =
+        list(d = local({
+                 d <- D1
+                 d$varbeta[1] <- -1
+                 d
+             }),
+             error = "dataset 1: varbeta must be > 0"),
     "a warning when no p-value is small" =
         list(d = local({
                  d <- D1
