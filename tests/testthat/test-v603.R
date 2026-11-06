@@ -514,7 +514,7 @@ test_that("check_dataset()'s errors and warnings hold the dataset's number, and 
     bad3$beta[1] <- NA
     expect_error(runsusie(bad3), "dataset 1: beta contains missing values", fixed = TRUE)
     expect_error(check_dataset(1:3, 2),
-                 "dataset 2: this is a numeric vector, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
+                 "dataset 2: this is a numeric vector, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                  fixed = TRUE)
     ## without a label
     expect_error(finemap.abf(bad), "beta contains missing values", fixed = TRUE)

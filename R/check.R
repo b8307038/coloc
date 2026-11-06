@@ -273,8 +273,7 @@ check.dataset=function(...) {
 ## "dataset 1: ".
 .stop_not_a_dataset <- function(d, dataset = NULL)
     stop(if (is.null(dataset)) "the dataset" else paste0("dataset ", dataset, ": this"),
-         " is ", .what_is(d), ", not a list of dataset elements (snp, beta, varbeta, ...); ",
-         "make a dataset with coloc_dataset() or as_coloc_dataset()",
+         " is ", .what_is(d), ", not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
          call. = FALSE)
 
 ## TRUE when LD is a correlation matrix, to within tol: no missing values,

@@ -256,7 +256,7 @@ test_that("a factor or named type comes back as a string once checked", {
 test_that("a data frame given as a dataset is refused, naming the trait", {
     df <- as.data.frame(D1[c("snp", "beta", "varbeta")])
     expect_error(coloc(df, D2),
-                 "dataset 1: this is a data.frame, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
+                 "dataset 1: this is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                  fixed = TRUE)
 })
 
@@ -268,10 +268,10 @@ test_that("what is neither a fit nor log BFs is checked as a dataset, naming the
     ## NULL is refused the same way whatever the version of R, where
     ## is.atomic(NULL) changed
     expect_error(coloc(NULL, D2),
-                 "dataset 1: this is NULL, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
+                 "dataset 1: this is NULL, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                  fixed = TRUE)
     expect_error(coloc(D1, sum),
-                 "dataset 2: this is a function, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
+                 "dataset 2: this is a function, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                  fixed = TRUE)
 })
 

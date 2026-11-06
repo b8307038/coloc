@@ -176,7 +176,7 @@ cases <- list(
     ## a dataset for each check
     "the dataset is a list" =
         list(d = 1:3,
-             error = "dataset 1: this is a numeric vector, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()"),
+             error = "dataset 1: this is a numeric vector, not a list of coloc_dataset elements (snp, beta, varbeta, ...)"),
     "the required elements are there" =
         list(d = local({
                  d <- D1
@@ -529,7 +529,7 @@ test_that("check_dataset()'s errors and warnings show no call", {
                         fixed = TRUE, class = "coloc_min_p")
     expect_null(conditionCall(w))
     e <- expect_error(check_dataset(1:3, 1),
-                      "dataset 1: this is a numeric vector, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
+                      "dataset 1: this is a numeric vector, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                       fixed = TRUE)
     expect_null(conditionCall(e))
     e <- expect_error(check_dataset(per_snp_N, 1),

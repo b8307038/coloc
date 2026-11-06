@@ -38,16 +38,16 @@ test_that("mistakes are refused when the dataset is made", {
 
 test_that("as_coloc_dataset() refuses things that are not datasets", {
     expect_error(as_coloc_dataset(1:5),
-                 "the dataset is a numeric vector, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
+                 "the dataset is a numeric vector, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                  fixed = TRUE)
     expect_error(as_coloc_dataset(matrix(0, 2, 2)),
-                 "the dataset is a numeric matrix, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
+                 "the dataset is a numeric matrix, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                  fixed = TRUE)
     expect_error(as_coloc_dataset(as.data.frame(small[c("snp", "beta", "varbeta")])),
-                 "the dataset is a data.frame, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
+                 "the dataset is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                  fixed = TRUE)
     expect_error(as_coloc_dataset(structure(list(), class = "susie")),
-                 "the dataset is a SuSiE fit, not a list of dataset elements (snp, beta, varbeta, ...); make a dataset with coloc_dataset() or as_coloc_dataset()",
+                 "the dataset is a SuSiE fit, not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
                  fixed = TRUE)
 })
 
