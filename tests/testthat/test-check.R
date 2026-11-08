@@ -539,6 +539,22 @@ test_that("check_dataset()'s errors and warnings show no call", {
     expect_null(conditionCall(e))
 })
 
+test_that("check_dataset() refuses a data.frame, as coloc() does", {
+    df <- data.frame(snp = D1$snp, beta = D1$beta, varbeta = D1$varbeta,
+                     type = "quant", sdY = D1$sdY)
+    e <- expect_error(check_dataset(df))
+    expect_identical(conditionMessage(e),
+                     "the dataset is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)")
+    ## one row, so type is a single value and only the data.frame test refuses it
+    e <- expect_error(check_dataset(df[1, ], 1))
+    expect_identical(conditionMessage(e),
+                     "dataset 1: this is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)")
+    ## and through a function that calls it
+    e <- expect_error(suppressMessages(coloc.abf(df, D1)))
+    expect_identical(conditionMessage(e),
+                     "dataset 1: this is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)")
+})
+
 test_that("check_ld() takes a valid LD, and refuses the others with its own call", {
     expect_null(expect_no_warning(check_ld(D3, D3$LD)))
     names_differ <- D3$LD

@@ -72,7 +72,7 @@
 ##' may hold standard errors in place of variances; this warning comes each
 ##' time the dataset is checked, except on the SuSiE route.
 ##'
-##' @param d a dataset, as a list or a [coloc_dataset()]
+##' @param d a dataset, as a list or a [coloc_dataset()], but not a data.frame
 ##' @param suffix a label for the dataset, such as 1 or 2, which begins each
 ##'     message as "dataset 1: ". With "" messages have no label
 ##' @param req the elements that must be present. When it includes `"LD"`, as
@@ -100,7 +100,7 @@ check_dataset <- function(d,
     prefix <- if (is.null(dataset)) "" else paste0("dataset ", dataset, ": ")
     fail <- function(...) stop(prefix, ..., call. = FALSE)
 
-    if (!is.list(d))
+    if (!is.list(d) || is.data.frame(d)) # a data.frame repeats type, sdY and N on every row
         .stop_not_a_dataset(d, dataset)
     nd <- intersect(names(d), .dataset_items)          # the elements coloc reads
     p_route <- !("beta" %in% nd && "varbeta" %in% nd)  # p-values unless both are given

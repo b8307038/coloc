@@ -10,7 +10,7 @@ check_dataset(d, suffix = "", req = c("type", "snp"), warn.minp = 1e-06)
 check.dataset(...)
 }
 \arguments{
-\item{d}{a dataset, as a list or a \code{\link[=coloc_dataset]{coloc_dataset()}}}
+\item{d}{a dataset, as a list or a \code{\link[=coloc_dataset]{coloc_dataset()}}, but not a data.frame}
 
 \item{suffix}{a label for the dataset, such as 1 or 2, which begins each
 message as "dataset 1: ". With "" messages have no label}
