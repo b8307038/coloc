@@ -34,10 +34,10 @@
 .plain_list_note <- function(fn, datasets = NULL) {
     what <- if (length(datasets) > 1L)
                 paste("datasets", paste(datasets, collapse = " and "), "are plain lists, so",
-                      paste0(fn, "()"), "converted them to coloc_datasets")
+                      paste0(fn, "()"), "checked them and converted them to coloc_datasets")
             else paste(if (length(datasets)) paste("dataset", datasets) else "the dataset",
-                       "is a plain list, so", paste0(fn, "()"), "converted it to a coloc_dataset")
-    paste0(what, ".\n(shown once per session)")
+                       "is a plain list, so", paste0(fn, "()"), "checked it and converted it to a coloc_dataset")
+    paste0(what, ". To do this yourself, use as_coloc_dataset(), which checks a dataset as it converts it.")
 }
 
 ##' Make a coloc dataset
