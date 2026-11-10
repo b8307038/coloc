@@ -3,8 +3,11 @@
 ##' Wakefield's approximate Bayes factor for each snp
 ##'
 ##' `wakefield_bf()` gives Wakefield's approximate Bayes factor (ABF) for each
-##' snp in a dataset, on the log scale: the evidence for an effect at that snp
-##' against no effect.
+##' snp in a dataset, on the log scale. Each is the evidence for an effect at
+##' that snp against no effect. [coloc()] computes these for each dataset it
+##' analyses with `method = "single"`, and compares the two traits snp by
+##' snp. Call `wakefield_bf()` to see which snps carry one trait's evidence,
+##' or to use its log Bayes factors elsewhere, such as in [finemap.bf()].
 ##'
 ##' Wakefield showed we could get ABF as
 ##'
@@ -24,7 +27,8 @@
 ##' dataset has no `sdY`, it is estimated from `varbeta`, `MAF` and
 ##' `N`, with a warning. Again, please give sdY if known.
 ##'
-##' @param d a dataset made with [coloc_dataset()]
+##' @param d a dataset made with [coloc_dataset()], or a list, which it
+##'     converts with [as_coloc_dataset()] and says so once per session
 ##' @param effect_priors the prior standard deviation of a causal snp's
 ##'     effect, named by the type of trait: `quant` in units of the trait's
 ##'     standard deviation, and `cc` on the log odds ratio scale. This option
@@ -43,7 +47,8 @@
 ##' @export
 ##' @examples
 ##' data(coloc_test_data)
-##' head(wakefield_bf(coloc_test_data$D1))
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' head(wakefield_bf(D1))
 wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
     if (!is.numeric(effect_priors) ||
         !all(c("quant", "cc") %in% names(effect_priors)) ||
@@ -56,6 +61,7 @@ wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
         check_dataset(d)
     } else {
         d <- as_coloc_dataset(d)
+        .note_once("plain_list", .plain_list_note("wakefield_bf"))
     }
     nd <- names(d)
     ## by the type's label: [[ would take a factor type by its code

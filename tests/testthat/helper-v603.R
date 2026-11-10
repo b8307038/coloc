@@ -4,8 +4,8 @@
 ## Copied verbatim from commit 8f20f0b (coloc 6.0.3): the functions coloc()
 ## replaces and the ones of theirs that have changed since; the arithmetic they
 ## share with the new engine; and the dataset-processing and SuSiE-fitting
-## functions, process.dataset() and runsusie() with what each calls. Never edit
-## them: they are what "the same as 6.0.3" means.
+## functions, process.dataset() and runsusie() with what each calls, and
+## check_alignment(). Never edit them: they are what "the same as 6.0.3" means.
 ##
 ## The copies call each other, not the package's versions. What they still
 ## take from outside is in the packages coloc imports: susieR's susie_rss(),
@@ -763,6 +763,23 @@ check_ld <- function(D,LD) {
       stop("LD rownames != colnames")
     if(length(setdiff(D$snp,colnames(LD))))
         stop("colnames in LD do not contain all SNPs")
+}
+
+## R/check.R:204-218
+check_alignment <- function(D,thr=0.2,do_plot=TRUE) {
+  check_dataset(D)
+  bprod=outer(D$beta/sqrt(D$varbeta),D$beta/sqrt(D$varbeta),"*")
+  ## plot(bprod,D$LD[D$snp,D$snp],xlab="product of z scores",ylab="LD")
+  tmp=(bprod/D$LD)[abs(D$LD) > 0.2]
+  if(do_plot) {
+  hist(tmp,
+       xlab="ratio of product of Z scores to LD",
+       main="alignment check plot",
+       sub="expect most values to be positive\nsymmetry is a warning sign of potentially poor alignment")
+  legend("topright",legend=paste0("% positive = ",100*round(mean( tmp > 0 ),3)))
+  abline(v=0,col="red")
+  }
+  return(mean(tmp > 0))
 }
 
 }, envir = v603)

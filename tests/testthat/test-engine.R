@@ -5,15 +5,6 @@
 ## test-v603.R compares its answers, through coloc(), with 6.0.3's;
 ## get_match_6_0_3(), in helper-v603.R, runs a call as 6.0.3 made it.
 
-## P(no causal variant) for each row of a log BF matrix, with the null at log
-## BF 0 and prior p for each snp. Written out, not taken from logbf_to_pp(),
-## so the tests below do not lean on the code they check.
-p0 <- function(bf, p) {
-    bf <- bf[, setdiff(colnames(bf), "null"), drop = FALSE]
-    n <- ncol(bf)
-    unname((1 - n * p) / ((1 - n * p) + p * rowSums(exp(bf))))
-}
-
 snps <- paste0("s", 1:8)
 a <- matrix(c(0, 0, 8, 2, 0, 0, 0, 0), nrow = 1, dimnames = list("sig1", snps))
 b <- matrix(c(0, 0, 7, 3, 0, 0, 0, 0), nrow = 1, dimnames = list("sigA", snps))
@@ -37,8 +28,9 @@ test_that("every status is reachable, and each result validates", {
     expect_equal(nrow(got$no_overlap$summary), 0L)
     expect_true(all(is.na(got$all_trimmed$summary$PP.H4.abf)))
     expect_false(anyNA(got$ok$summary$PP.H4.abf))
-    ## $messages keeps what warning() said
-    expect_match(got$no_overlap$messages, "no snps in common")
+    ## $messages keeps the warning given, and an ok result has none
+    expect_length(got$no_overlap$messages, 1)
+    expect_length(got$ok$messages, 0)
 })
 
 test_that("the five posteriors sum to 1, and H4 beats H3 only when the signals coincide", {
@@ -95,34 +87,37 @@ test_that("prior weights move the posteriors, and are kept for the shared snps",
                           prior = with_weights(1:6, rep(1, 8)))
     expect_equal(part$weights, list(w1 = 1:6, w2 = rep(1, 6)))
     expect_error(.coloc_engine(a, b, prior = with_weights(1:3, NULL)),
-                 "Length of prior_weights1")
+                 "Length of prior_weights1 must match size of dataset 1", fixed = TRUE)
 })
 
-test_that("a trimmed pair with no evidence reports the prior, not a certainty", {
-    ## Neither trait has any evidence (every log BF 0). 3 of 8 snps shared puts
-    ## 0.375 of each posterior on them, under overlap.min, so the pair is
-    ## trimmed. 6.0.3 then reported PP.H0 as rounding noise (AL08) and took the
-    ## smaller of the traits' values (AL13); both are in test-v603.R
-    x <- matrix(0, 1, 8, dimnames = list("sig1", paste0("s", 1:8)))
-    y <- matrix(0, 1, 8, dimnames = list("sigA", paste0("s", 6:13)))
+test_that("a trimmed pair has no posteriors, and names each trait's own top snp", {
+    ## 3 of 8 snps shared, and each top snp outside them: too little of either
+    ## posterior falls on the shared snps, so the pair is trimmed
+    x <- matrix(c(0, 5, 0, 0, 0, 0, 0, 0), 1, dimnames = list("sig1", paste0("s", 1:8)))
+    y <- matrix(c(0, 0, 0, 0, 0, 0, 5, 0), 1, dimnames = list("sigA", paste0("s", 6:13)))
     res <- suppressWarnings(.coloc_engine(x, y))
     expect_equal(res$status, "all_trimmed")
-    ## each trait's P(no causal variant) is its prior, 1 - 8p; H0 is the joint
-    expect_equal(p0(x, 1e-4), 1 - 8 * 1e-4)
-    expect_equal(res$summary$PP.H0.abf, (1 - 8 * 1e-4)^2)
-    ## 6.0.3's 1 - rowSums() of a row that already sums to 1 left noise
-    expect_lt(abs(1 - sum(logbf_to_pp(x, 1e-4, last_is_null = FALSE))), 1e-12)
+    expect_true(all(is.na(unlist(res$summary[, paste0("PP.H", 0:4, ".abf"), with = FALSE]))))
+    expect_equal(res$summary$hit1, "s2")
+    expect_equal(res$summary$hit2, "s12")
 })
 
-test_that("trimmed pairs report PP.H0 as the product of each trait's", {
-    res <- suppressWarnings(.coloc_engine(a[, 5:8, drop = FALSE], b))
-    expect_equal(res$summary$PP.H0.abf, p0(a[, 5:8, drop = FALSE], 1e-4) * p0(b, 1e-4))
+test_that("a trimmed row names a snp, never the null column", {
+    ## no snp is far enough above the null for its posterior to beat the
+    ## null's, but the hit is still the top snp
+    x <- cbind(matrix(c(0, 2, 0, 0, 0, 0, 0, 0), 1, dimnames = list("sig1", paste0("s", 1:8))),
+               null = 0)
+    y <- cbind(matrix(c(0, 0, 0, 0, 0, 0, 3, 0), 1, dimnames = list("sigA", paste0("s", 6:13))),
+               null = 0)
+    res <- suppressWarnings(.coloc_engine(x, y))
+    expect_equal(res$status, "all_trimmed")
+    expect_equal(res$summary$hit1, "s2")
+    expect_equal(res$summary$hit2, "s12")
 })
 
 test_that("an all-NA signal changes only its own pair, which 6.0.3 rewrote to a certainty", {
-    ## 6.0.3 reported an all-NA signal as PP.H2 = 1 (AL12 in test-v603.R).
-    ## coloc() rejects the NA, but today's coloc.bf_bf() still brings it to the
-    ## engine
+    ## 6.0.3 reported an all-NA signal as PP.H2 = 1. coloc() and coloc.bf_bf()
+    ## both refuse the NA, so this gives it to the engine directly
     x <- rbind(a, matrix(c(0, 0, 0, 0, 0, 7, 1, 0), nrow = 1, dimnames = list("sig2", snps)))
     x[1, ] <- NA
     expected <- get_match_6_0_3(coloc.bf_bf(x, b, trim_by_posterior = FALSE))
@@ -146,6 +141,37 @@ test_that("one NA in a row marks that row's pairs, without trimming", {
     expect_false(is.na(res$summary$PP.H4.abf[res$summary$idx1 == 2]))
 })
 
+test_that("coloc.bf_bf() stops on a missing or infinite log BF in either matrix", {
+    for (value in c(NA, NaN, Inf, -Inf)) {
+        x <- a
+        x[1, 2] <- value
+        expect_error(coloc.bf_bf(x, b),
+                     "bf1 has missing or infinite log Bayes factors, such as at s2", fixed = TRUE)
+        expect_error(coloc.bf_bf(b, x),
+                     "bf2 has missing or infinite log Bayes factors, such as at s2", fixed = TRUE)
+    }
+})
+
+test_that("a signal's share on the shared snps holds when its snps are far below the null", {
+    ## five equal snps 800 below the null, three of them shared: the share is
+    ## 3/5, so the pair is kept at overlap.min 0.5 and trimmed at 0.7
+    far <- cbind(matrix(-800, 1, 5, dimnames = list("sig1", snps[1:5])), null = 0)
+    near <- matrix(c(4, 2, 0), nrow = 1, dimnames = list("sigA", snps[1:3]))
+    expect_equal(.coloc_engine(far, near)$status, "ok")
+    trimmed <- suppressWarnings(.coloc_engine(far, near, control = coloc_control(overlap.min = 0.7)))
+    expect_equal(trimmed$status, "all_trimmed")
+})
+
+test_that("a signal's share on the shared snps holds when its log BFs are very large", {
+    ## five equal snps at 1e16, three of them shared: the share is 3/5, so the
+    ## pair is kept at overlap.min 0.5 and trimmed at 0.7
+    big <- matrix(1e16, 1, 5, dimnames = list("sig1", snps[1:5]))
+    near <- matrix(c(4, 2, 0), nrow = 1, dimnames = list("sigA", snps[1:3]))
+    expect_equal(.coloc_engine(big, near)$status, "ok")
+    trimmed <- suppressWarnings(.coloc_engine(big, near, control = coloc_control(overlap.min = 0.7)))
+    expect_equal(trimmed$status, "all_trimmed")
+})
+
 test_that("the engine counts the signal pairs in $meta, and leaves the method to coloc()", {
     x <- a[, 1:4, drop = FALSE]
     y <- rbind(x, x)
@@ -155,6 +181,6 @@ test_that("the engine counts the signal pairs in $meta, and leaves the method to
     expect_equal(res$meta$n_pairs_kept, 2L)
     expect_equal(res$meta$schema, 2L)
     ## the engine sees only log BF matrices, not which adapter made them, so
-    ## coloc() records the method after it returns (R/coloc.R:171)
+    ## coloc() records the method after it returns
     expect_null(res$meta$method)
 })

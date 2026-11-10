@@ -1,29 +1,73 @@
 ## A coloc dataset constructor
 
+## The elements with one value per snp, in the order check_dataset() compares
+## their lengths and print() lists them
+.per_snp_items <- c("beta", "varbeta", "pvalues", "MAF", "snp", "position", "z")
+
 ## The elements a coloc dataset may have. check_dataset() checks these and
 ## ignores anything else.
-.dataset_items <- c("beta", "varbeta", "pvalues", "MAF", "snp", "position", "N", "type", "s", "sdY", "LD")
+.dataset_items <- c(.per_snp_items, "N", "type", "s", "sdY", "LD")
+
+## The elements each of coloc()'s methods needs, as check_dataset()'s req.
+## "single" is also what a dataset is checked for when it is made,
+## check_dataset()'s default. A req naming LD, as "susie"'s does, also brings
+## the checks on LD and z that SuSiE needs.
+.dataset_uses <- list(single = c("type", "snp"),
+                      susie  = c("beta", "varbeta", "LD", "snp", "N"))
+
+## The notes already given this session, by key: "plain_list" for the one
+## coloc() and wakefield_bf() give when they convert a plain list
+.coloc_state <- new.env(parent = emptyenv())
+.coloc_state$noted <- character(0)
+
+## Warn once per session for key. The key is recorded first, so a note turned
+## into an error with options(warn = 2) still counts as given
+.note_once <- function(key, message) {
+    if (key %in% .coloc_state$noted)
+        return(invisible(FALSE))
+    .coloc_state$noted <- c(.coloc_state$noted, key)
+    warning(warningCondition(message, class = paste0("coloc_", key), call = NULL))
+    invisible(TRUE)
+}
+
+## the plain-list note from fn, naming the datasets given as plain lists, if any
+.plain_list_note <- function(fn, datasets = NULL) {
+    what <- if (length(datasets) > 1L)
+                paste("datasets", paste(datasets, collapse = " and "), "are plain lists, so",
+                      paste0(fn, "()"), "checked them and converted them to coloc_datasets")
+            else paste(if (length(datasets)) paste("dataset", datasets) else "the dataset",
+                       "is a plain list, so", paste0(fn, "()"), "checked it and converted it to a coloc_dataset")
+    paste0(what, ". To do this yourself, use as_coloc_dataset(), which checks a dataset as it converts it.")
+}
 
 ##' Make a coloc dataset
 ##'
-##' `coloc_dataset()` builds a dataset from its parts and checks it with
-##' [check_dataset()], so a mistake is reported where the dataset is made
-##' rather than later, inside `coloc()`. The result has class
-##' `"coloc_dataset"`, but is still a list with the same elements, so code that
-##' reads `D$beta` works unchanged.
+##' A coloc dataset holds one trait's summary statistics for one region, in
+##' the form [coloc()] reads. `coloc_dataset()` makes one from its elements,
+##' given as arguments, and `as_coloc_dataset()` makes one from a list that
+##' holds them, such as a dataset made for an earlier version of coloc. Both
+##' check the dataset with [check_dataset()], so a mistake is reported where
+##' the dataset is made, not later inside [coloc()]. Make your datasets with
+##' them before you call [coloc()] or [wakefield_bf()]. Those two also take a
+##' plain list, which they convert, and say so once per session.
 ##'
-##' `as_coloc_dataset()` does the same for a dataset that is already a list, as
-##' made for earlier versions of coloc. Elements coloc does not use are kept.
+##' The result has class `"coloc_dataset"`, but is still a list with the same
+##' elements, so code that reads `D$beta` works unchanged. `as_coloc_dataset()`
+##' keeps elements coloc does not use.
 ##'
 ##' Which elements are needed depends on the data, and [check_dataset()] gives
-##' the details. In brief: always give `snp` and `type`; give `beta` and
-##' `varbeta` if you have them, or `pvalues`, `MAF` and `N` if not; give `s`
-##' for a case-control trait, and `sdY` (or `MAF` and `N`, to estimate it) for
-##' a quantitative one.
+##' the details. In brief, always give `snp` and `type`, and give `beta` and
+##' `varbeta` if you have them. Without them, give `pvalues`, `MAF` and `N`,
+##' and `s` for a case-control trait. A quantitative trait given as `beta` and
+##' `varbeta` needs `sdY`, or `MAF` and `N` so coloc can estimate it.
+##' Fine-mapping with SuSiE needs `beta`, `varbeta`, `LD` and `N`.
 ##'
-##' A dataset is checked when it is made. If you change its elements
-##' afterwards, coloc's functions check it again when they use it, but don't
-##' do that.
+##' If you change a dataset's elements after it is made, coloc's functions
+##' check it again when they use it. `as_coloc_dataset()` returns a
+##' coloc_dataset as it is, without checking it again; [check_dataset()]
+##' checks one you have changed.
+##'
+##' A `type` given as a factor, or with a name, comes back as a plain string.
 ##' 
 ##' @param snp character vector of snp ids
 ##' @param type `"quant"` for a quantitative trait, `"cc"` for
@@ -40,6 +84,8 @@
 ##'     trait
 ##' @param LD matrix of LD between snps, with snp ids as row and
 ##'     column names
+##' @param z per-snp z-scores, optional: [runsusie()] fine-maps from them in
+##'     place of `beta / sqrt(varbeta)`
 ##' @param warn.minp warn if no p value is smaller than this
 ##' @return a list of class `"coloc_dataset"`
 ##' @seealso [check_dataset()] for what each element must look like
@@ -63,14 +109,14 @@
 coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
                           pvalues = NULL, MAF = NULL,
                           position = NULL, N = NULL, s = NULL, sdY = NULL,
-                          LD = NULL, warn.minp = 1e-6) {
+                          LD = NULL, z = NULL, warn.minp = 1e-6) {
     ## every argument defaults to NULL so that a missing snp or type gets
     ## check_dataset()'s message, not R's "argument is missing"
     d <- list(beta = beta, varbeta = varbeta, pvalues = pvalues, MAF = MAF,
               snp = snp, position = position,
-              N = N, type = type, s = s, sdY = sdY, LD = LD)
+              N = N, type = type, s = s, sdY = sdY, LD = LD, z = z)
     d <- d[!sapply(d, is.null)]
-    .new_coloc_dataset(d, warn.minp = warn.minp)
+    new_coloc_dataset(d, warn.minp = warn.minp)
 }
 
 ##' @rdname coloc_dataset
@@ -78,15 +124,24 @@ coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
 ##' @export
 as_coloc_dataset <- function(x, warn.minp = 1e-6) {
     if (inherits(x, "coloc_dataset")) return(x)
-    ## a data.frame and a susie fit are lists too, but neither is a dataset
-    if (!is.list(x) || is.data.frame(x) || inherits(x, "susie"))
-        stop("expected a coloc dataset: a list, or the result of coloc_dataset(), not a ", class(x)[1])
-    .new_coloc_dataset(unclass(x), warn.minp = warn.minp)
+    new_coloc_dataset(x, warn.minp = warn.minp)
 }
 
-## The one place the class is set, so nothing gets it without being checked.
-.new_coloc_dataset <- function(d, warn.minp = 1e-6) {
-    check_dataset(d, warn.minp = warn.minp)
+## Checks d and gives it the coloc_dataset class, the one place the class is
+## given, so every coloc_dataset has been checked. coloc() calls it for each
+## dataset, with the trait's number, which messages begin with, and the
+## method, which says what the dataset needs. A coloc_dataset keeps its class
+## through the check, so it doesn't get the minimum p-value warning again.
+new_coloc_dataset <- function(d, warn.minp = 1e-6, trait = NULL, use = "single") {
+    ## a data.frame and a susie fit are lists too, but neither is a dataset
+    if (!is.list(d) || is.data.frame(d) || inherits(d, "susie"))
+        .stop_not_a_dataset(d, trait)
+    if (!inherits(d, "coloc_dataset"))
+        d <- unclass(d)
+    check_dataset(d, suffix = trait, req = .dataset_uses[[use]], warn.minp = warn.minp)
+    ## read by its label everywhere, so a factor or a name only gets in the way
+    if (!is.null(d[["type"]]))
+        d[["type"]] <- as.character(d[["type"]])
     structure(d, class = c("coloc_dataset", "list"))
 }
 
@@ -97,7 +152,7 @@ print.coloc_dataset <- function(x, ...) {
     cat("coloc dataset:",
         if (isTRUE(x$type == "cc")) "case-control" else "quantitative",
         "trait,", length(x$snp), "snps\n")
-    cat("  per-snp:", paste(intersect(c("beta", "varbeta", "pvalues", "MAF", "position"), names(x)), collapse = ", "), "\n")
+    cat("  per-snp:", paste(intersect(setdiff(.per_snp_items, "snp"), names(x)), collapse = ", "), "\n")
     sc <- unlist(x[intersect(c("N", "s", "sdY"), names(x))])
     if (length(sc))
         cat("  ", paste(names(sc), signif(sc, 4), sep = " = ", collapse = ", "),

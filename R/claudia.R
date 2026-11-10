@@ -145,13 +145,19 @@ combine_abf_weighted <- function(l1, l2, p1, p2, p12,
 ##' @author Chris Wallace
 sdY.est <- function(vbeta, maf, n) {
     warning("estimating sdY from maf and varbeta, please directly supply sdY if known")
-    oneover <- 1/vbeta
-    nvx <- 2 * n * maf * (1-maf)
-    m <- lm(nvx ~ oneover - 1)
-    cf <- coef(m)[['oneover']]
+    cf <- .sdY_fit(vbeta, maf, n)
     if(cf < 0)
         stop("estimated sdY is negative - this can happen with small datasets, or those with errors.  A reasonable estimate of sdY is required to continue.")
     return(sqrt(cf))
+}
+
+## sdY.est()'s fit, the estimate of var(Y), without its warning or its stop,
+## so it can be 0 or below. check_dataset() warns when a given sdY is far from it
+.sdY_fit <- function(vbeta, maf, n) {
+    oneover <- 1/vbeta
+    nvx <- 2 * n * maf * (1-maf)
+    m <- lm(nvx ~ oneover - 1)
+    coef(m)[['oneover']]
 }
 
 ##' Internal function, process each dataset list for coloc.abf.
@@ -169,19 +175,17 @@ sdY.est <- function(vbeta, maf, n) {
 ##' data(coloc_test_data)
 ##' head(process.dataset(coloc_test_data$D1, suffix = "df1"))
 process.dataset <- function(d, suffix, ...) {
-    ## wakefield_bf()'s numbers in 6.0.3's columns: each named for its
-    ## dataset, so that coloc.abf() can merge two, and on the p-value route
-    ## the p-values, MAF and N as well. Unchecked, as process.dataset() never
-    ## checked its dataset; ... is ignored, as it was (AL06)
+    ## wakefield_bf()'s numbers, in columns named for the dataset so that
+    ## coloc.abf() can merge two, and on the p-value route the p-values, MAF
+    ## and N as well. The dataset isn't checked here; coloc.abf() and
+    ## finemap.abf() check it first.
     nd <- names(d)
     beta_route <- "beta" %in% nd && "varbeta" %in% nd
     if(!beta_route && !("pvalues" %in% nd && "MAF" %in% nd && "N" %in% nd))
         stop("Must give, as a minimum, one of:\n(beta, varbeta, type, sdY)\n(beta, varbeta, type, MAF)\n(pvalues, MAF, N, type)")
-    ## wakefield_bf()'s arithmetic, kept here so that process.dataset(), and
-    ## through it coloc.abf(), finemap.abf() and coloc(), keep 6.0.3's answers
-    ## for any dataset, as wakefield_bf() checks its input. It goes when
-    ## process.dataset() does. The priors are 6.0.3's, which process.dataset()
-    ## never let a caller change; a type other than quant gets cc's, as in 6.0.3
+    ## wakefield_bf()'s arithmetic, copied, as wakefield_bf() checks its
+    ## dataset and process.dataset() doesn't; it goes when process.dataset()
+    ## does. The priors are fixed, and a type other than quant gets cc's.
     sd_prior <- c(quant = 0.15, cc = 0.2)[[if (d$type == "quant") "quant" else "cc"]]
     if(beta_route) {
         z <- d$beta / sqrt(d$varbeta)
@@ -195,8 +199,7 @@ process.dataset <- function(d, suffix, ...) {
              else Var.data.cc(d$MAF, d$N, d$s)
     }
     ## names dropped, so the rows take their names only from beta's and
-    ## varbeta's, put back below. With one snp and neither named, 6.0.3 named
-    ## the row "quant" or "cc", after its prior; here it is "1" (AL21)
+    ## varbeta's, put back below
     r <- unname(sd_prior^2 / (sd_prior^2 + V))
     lABF <- unname(0.5 * (log(1 - r) + (r * z^2)))
     V <- unname(V)
@@ -330,9 +333,9 @@ adjust_prior=function(p,nsnps,suffix="") {
 ##'     default 1e-4
 ##' @param p12 prior probability a SNP is associated with both traits,
 ##'     default 1e-5
-##' @param prior_weights1 Non-negative weights for the prior
+##' @param prior_weights1 Positive weights for the prior
 ##'     probability a SNP is associated with trait 1
-##' @param prior_weights2 Non-negative weights for the prior
+##' @param prior_weights2 Positive weights for the prior
 ##'     probability a SNP is asscoiated with trait 2
 ##' @param ... ignored
 ##' @return a list of two \code{data.frame}s: \itemize{ \item summary
@@ -351,6 +354,8 @@ adjust_prior=function(p,nsnps,suffix="") {
 coloc.abf <- function(dataset1, dataset2, MAF=NULL,
                       p1=1e-4, p2=1e-4, p12=1e-5,
                       prior_weights1 = NULL, prior_weights2 = NULL, ...) {
+    ## the same prior checks as coloc()
+    new_coloc_prior(p1, p2, p12, prior_weights1, prior_weights2)
     if(!("MAF" %in% names(dataset1)) & !is.null(MAF))
         dataset1$MAF <- MAF
     if(!("MAF" %in% names(dataset2)) & !is.null(MAF))
@@ -366,14 +371,6 @@ coloc.abf <- function(dataset1, dataset2, MAF=NULL,
     }
     if (!is.null(prior_weights2) && (nrow(df2) != length(prior_weights2))) {
       stop("Length of prior_weights2 must match size of dataset 2")
-    }
-
-    if (!is.null(prior_weights1) && any(is.na(prior_weights1) | (prior_weights1 < 0))) {
-      stop("prior_weights1 must contain non-negative weights.")
-    }
-
-    if (!is.null(prior_weights2) && any(is.na(prior_weights2) | (prior_weights2 < 0))) {
-      stop("prior_weights2 must contain non-negative weights.")
     }
 
     if (!is.null(prior_weights1) && !is.null(prior_weights2)) {

@@ -86,9 +86,9 @@ sensitivity <- function(obj,rule="",
                         npoints=100,doplot=TRUE,plot.manhattans=TRUE,
                         preserve.par=FALSE,
                         row=1) {
-  stopifnot("list" %in% class(obj))
-  stopifnot("priors" %in% names(obj))
-  stopifnot("summary" %in% names(obj))
+  if(!("list" %in% class(obj)) || !all(c("priors", "summary") %in% names(obj)))
+    stop("obj must be the result of coloc.abf(), coloc.signals(), coloc.susie(), ",
+         "coloc.susie_bf() or coloc.bf_bf(); it is ", .what_is(obj))
   if(rule=="")
     stop("please supply a rule to define colocalisation, eg 'H4 > thr' where thr is some probability of H4 that you accept as colocalisation")
   rule.init <- rule

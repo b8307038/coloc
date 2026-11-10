@@ -7,7 +7,8 @@
 wakefield_bf(d, effect_priors = c(quant = 0.15, cc = 0.2))
 }
 \arguments{
-\item{d}{a dataset made with \code{\link[=coloc_dataset]{coloc_dataset()}}}
+\item{d}{a dataset made with \code{\link[=coloc_dataset]{coloc_dataset()}}, or a list, which it
+converts with \code{\link[=as_coloc_dataset]{as_coloc_dataset()}} and says so once per session}
 
 \item{effect_priors}{the prior standard deviation of a causal snp's
 effect, named by the type of trait: \code{quant} in units of the trait's
@@ -23,8 +24,11 @@ log ABF)
 }
 \description{
 \code{wakefield_bf()} gives Wakefield's approximate Bayes factor (ABF) for each
-snp in a dataset, on the log scale: the evidence for an effect at that snp
-against no effect.
+snp in a dataset, on the log scale. Each is the evidence for an effect at
+that snp against no effect. \code{\link[=coloc]{coloc()}} computes these for each dataset it
+analyses with \code{method = "single"}, and compares the two traits snp by
+snp. Call \code{wakefield_bf()} to see which snps carry one trait's evidence,
+or to use its log Bayes factors elsewhere, such as in \code{\link[=finemap.bf]{finemap.bf()}}.
 }
 \details{
 Wakefield showed we could get ABF as
@@ -47,7 +51,8 @@ dataset has no \code{sdY}, it is estimated from \code{varbeta}, \code{MAF} and
 }
 \examples{
 data(coloc_test_data)
-head(wakefield_bf(coloc_test_data$D1))
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+head(wakefield_bf(D1))
 }
 \references{
 Wakefield J (2009). Bayes factors for genome-wide association

@@ -17,6 +17,7 @@ coloc_dataset(
   s = NULL,
   sdY = NULL,
   LD = NULL,
+  z = NULL,
   warn.minp = 1e-06
 )
 
@@ -48,6 +49,9 @@ trait}
 \item{LD}{matrix of LD between snps, with snp ids as row and
 column names}
 
+\item{z}{per-snp z-scores, optional: \code{\link[=runsusie]{runsusie()}} fine-maps from them in
+place of \code{beta / sqrt(varbeta)}}
+
 \item{warn.minp}{warn if no p value is smaller than this}
 
 \item{x}{a list with the elements of a coloc dataset, or a coloc_dataset}
@@ -56,25 +60,33 @@ column names}
 a list of class \code{"coloc_dataset"}
 }
 \description{
-\code{coloc_dataset()} builds a dataset from its parts and checks it with
-\code{\link[=check_dataset]{check_dataset()}}, so a mistake is reported where the dataset is made
-rather than later, inside \code{coloc()}. The result has class
-\code{"coloc_dataset"}, but is still a list with the same elements, so code that
-reads \code{D$beta} works unchanged.
+A coloc dataset holds one trait's summary statistics for one region, in
+the form \code{\link[=coloc]{coloc()}} reads. \code{coloc_dataset()} makes one from its elements,
+given as arguments, and \code{as_coloc_dataset()} makes one from a list that
+holds them, such as a dataset made for an earlier version of coloc. Both
+check the dataset with \code{\link[=check_dataset]{check_dataset()}}, so a mistake is reported where
+the dataset is made, not later inside \code{\link[=coloc]{coloc()}}. Make your datasets with
+them before you call \code{\link[=coloc]{coloc()}} or \code{\link[=wakefield_bf]{wakefield_bf()}}. Those two also take a
+plain list, which they convert, and say so once per session.
 }
 \details{
-\code{as_coloc_dataset()} does the same for a dataset that is already a list, as
-made for earlier versions of coloc. Elements coloc does not use are kept.
+The result has class \code{"coloc_dataset"}, but is still a list with the same
+elements, so code that reads \code{D$beta} works unchanged. \code{as_coloc_dataset()}
+keeps elements coloc does not use.
 
 Which elements are needed depends on the data, and \code{\link[=check_dataset]{check_dataset()}} gives
-the details. In brief: always give \code{snp} and \code{type}; give \code{beta} and
-\code{varbeta} if you have them, or \code{pvalues}, \code{MAF} and \code{N} if not; give \code{s}
-for a case-control trait, and \code{sdY} (or \code{MAF} and \code{N}, to estimate it) for
-a quantitative one.
+the details. In brief, always give \code{snp} and \code{type}, and give \code{beta} and
+\code{varbeta} if you have them. Without them, give \code{pvalues}, \code{MAF} and \code{N},
+and \code{s} for a case-control trait. A quantitative trait given as \code{beta} and
+\code{varbeta} needs \code{sdY}, or \code{MAF} and \code{N} so coloc can estimate it.
+Fine-mapping with SuSiE needs \code{beta}, \code{varbeta}, \code{LD} and \code{N}.
 
-A dataset is checked when it is made. If you change its elements
-afterwards, coloc's functions check it again when they use it, but don't
-do that.
+If you change a dataset's elements after it is made, coloc's functions
+check it again when they use it. \code{as_coloc_dataset()} returns a
+coloc_dataset as it is, without checking it again; \code{\link[=check_dataset]{check_dataset()}}
+checks one you have changed.
+
+A \code{type} given as a factor, or with a name, comes back as a plain string.
 }
 \examples{
 D <- coloc_dataset(snp = paste0("s", 1:5),

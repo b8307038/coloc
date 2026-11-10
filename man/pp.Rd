@@ -20,12 +20,16 @@ one row of the result.
 }
 \examples{
 data(coloc_test_data)
-res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+D2 <- as_coloc_dataset(coloc_test_data$D2)
+res <- coloc(D1, D2)
 pp(res)                   # row = 1, the first pair, by default
 
 if (requireNamespace("susieR", quietly = TRUE)) {
     ## two credible sets in D3 against one in D4: two pairs
-    res2 <- coloc(coloc_test_data$D3, coloc_test_data$D4, method = "susie")
+    D3 <- as_coloc_dataset(coloc_test_data$D3)
+    D4 <- as_coloc_dataset(coloc_test_data$D4)
+    res2 <- coloc(D3, D4, method = "susie")
     n_signals(res2)
     pp(res2, row = 2)
 }

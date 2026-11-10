@@ -1,6 +1,6 @@
 ## The adapters, one at a time. Each hands the engine the log BFs that 6.0.3
-## computed on the code path it lifts: process.dataset() for .adapt_single(),
-## the credible-set rows of a SuSiE fit for .adapt_susie().
+## computed: process.dataset()'s for .adapt_single(), and the credible-set rows
+## of a SuSiE fit for .adapt_susie().
 
 snps <- paste0("s", 1:3)
 
@@ -21,7 +21,11 @@ test_that(".classify_input() tells the kind of input from its class", {
     ## kind only: an unnamed vector is still log BFs, for .adapt_bf() to reject
     expect_equal(.classify_input(1:3), "bf")
     expect_equal(.classify_input(setNames(letters[1:3], snps)), "bf")
-    expect_error(.classify_input(list(a = 1)), "not a susie fit")
+    ## anything else is a dataset, for new_coloc_dataset() to say what is wrong
+    ## with it
+    expect_equal(.classify_input(list(a = 1)), "dataset")
+    expect_equal(.classify_input(NULL), "dataset")
+    expect_equal(.classify_input(sum), "dataset")
 })
 
 test_that(".resolve_method() resolves each trait against its own input", {
@@ -31,11 +35,15 @@ test_that(".resolve_method() resolves each trait against its own input", {
     ## vapply would name the result after the values, and break identical()
     expect_null(names(.resolve_method(c("single", "susie"), c("dataset", "dataset"))))
     ## a fit implies "susie"; only a "single" the caller asked for is an error
-    expect_error(.resolve_method("single", c("susie_fit", "dataset")), "susie fit")
+    expect_error(.resolve_method("single", c("susie_fit", "dataset")),
+                 'trait 1: method = "single" on a susie fit; a fit carries no beta/varbeta to run the Wakefield calculation on',
+                 fixed = TRUE)
     expect_equal(.resolve_method("single", c("susie_fit", "dataset"), supplied = FALSE),
                  c("susie", "single"))
     ## log BFs take no method, and naming one warns
-    expect_warning(m <- .resolve_method("single", c("bf", "dataset")), "inapplicable")
+    expect_warning(m <- .resolve_method("single", c("bf", "dataset")),
+                   "trait 1: method is inapplicable to precomputed log BFs",
+                   fixed = TRUE, class = "coloc_method_ignored")
     expect_equal(m, c(NA, "single"))
     expect_silent(.resolve_method("single", c("bf", "dataset"), supplied = FALSE))
 })
@@ -44,17 +52,19 @@ test_that(".adapt_single() hands the engine process.dataset()'s log ABFs", {
     for (trait in 1:2) {
         d <- coloc_test_data[[trait]]                 # D1, D2
         pd <- get_match_6_0_3(process.dataset(d, suffix = paste0("df", trait)))
-        a <- .adapt_single(d, trait)
+        a <- .adapt_single(d)
         expect_equal(a$bf, matrix(pd[[paste0("lABF.df", trait)]], nrow = 1,
                                   dimnames = list("sig1", pd$snp)))
         expect_equal(a$meta, list(method = "single", idx = 1L, has_null = FALSE))
     }
 })
 
-test_that(".adapt_single() checks the dataset first, naming the trait", {
-    bad <- coloc_test_data$D1
-    bad$beta[1] <- NA
-    expect_error(.adapt_single(bad, 2), "dataset 2: beta contains missing values")
+test_that(".adapt_single() gives wakefield_bf()'s log Bayes factors for a checked dataset", {
+    ## coloc() checks the dataset before any adapter runs (test-coloc.R)
+    d <- as_coloc_dataset(coloc_test_data$D1)
+    w <- wakefield_bf(d)
+    expect_identical(.adapt_single(d)$bf,
+                     matrix(w$lABF, nrow = 1, dimnames = list("sig1", w$snp)))
 })
 
 test_that(".adapt_susie() hands the engine the credible-set rows", {
@@ -85,24 +95,48 @@ test_that(".adapt_susie() rejects a broken fit, and a suffix in susie.args", {
     no_lbf <- structure(list(sets = list(cs_index = 1L)), class = "susie")
     no_names <- structure(list(lbf_variable = matrix(0, 2, 4), sets = list(cs_index = 1L)),
                           class = "susie")
-    expect_error(.adapt_susie(no_lbf, 2), "trait 2: the susie fit has no lbf_variable")
-    expect_error(.adapt_susie(no_names, 1), "trait 1: the susie fit's lbf_variable needs snp ids")
+    expect_error(.adapt_susie(no_lbf, 2),
+                 "trait 2: the susie fit has no lbf_variable", fixed = TRUE)
+    expect_error(.adapt_susie(no_names, 1),
+                 "trait 1: the susie fit's lbf_variable needs snp ids as colnames, which runsusie() adds",
+                 fixed = TRUE)
     ## coloc() sets suffix to the trait number
     expect_error(.adapt_susie(coloc_test_data$D3, susie.args = list(suffix = 3)),
-                 "susie.args cannot set suffix")
+                 "susie.args cannot set suffix: coloc() sets it to each trait's number",
+                 fixed = TRUE)
 })
 
 test_that(".adapt_susie() checks a fit's log BFs as .adapt_bf() does", {
     ## a fit given directly skips runsusie() and its check_dataset()
     na <- stub_fit(snps)
     na$lbf_variable[1, 2] <- NA
-    expect_error(.adapt_susie(na, 2), "trait 2: log Bayes factors contain missing or infinite")
+    expect_error(.adapt_susie(na, 2),
+                 "trait 2: log Bayes factors contain missing or infinite values", fixed = TRUE)
     dup <- stub_fit(c("s1", "s1", "s3"))
-    expect_error(.adapt_susie(dup, 2), "trait 2: duplicated snps found")
+    expect_error(.adapt_susie(dup, 2),
+                 "trait 2: duplicated snps found in the log Bayes factors", fixed = TRUE)
     ## only the credible-set rows go to the engine, so only they are checked
     elsewhere <- stub_fit(snps)
     elsewhere$lbf_variable[2, 2] <- NA
     expect_silent(.adapt_susie(elsewhere, 2))
+})
+
+## one iteration and no repeats, so runsusie() stops with its own error; the
+## call that error carries names the dataset rather than holding it
+no_convergence <- list(repeat_until_convergence = FALSE, maxit = 1)
+
+test_that(".adapt_susie() gives runsusie() the dataset by name", {
+    call <- call_of(suppressWarnings(suppressMessages(
+        .adapt_susie(coloc_test_data$D3, 1, susie.args = no_convergence))))
+    expect_identical(call[[1]], quote(runsusie))
+    expect_identical(call$d, quote(x))
+})
+
+test_that("finemap.susie() gives runsusie() the dataset by name", {
+    call <- call_of(suppressWarnings(suppressMessages(
+        finemap.susie(coloc_test_data$D3, susie.args = no_convergence))))
+    expect_identical(call[[1]], quote(runsusie))
+    expect_identical(call$d, quote(dataset1))
 })
 
 test_that(".adapt_bf() takes a named vector or a matrix, every row", {
@@ -120,23 +154,33 @@ test_that(".adapt_bf() takes a matrix with no rows, which coloc() reports as no 
     none <- matrix(0, 0, 3, dimnames = list(NULL, snps))
     expect_equal(dim(.adapt_bf(none)$bf), c(0L, 3L))
     bf <- matrix(c(0, 8, 0), nrow = 1, dimnames = list("sig1", snps))
-    expect_warning(res <- coloc(none, bf), "no signals")
+    expect_warning(res <- coloc(none, bf),
+                   "trait 1 has no signal, so there is nothing to colocalise; with SuSiE, this means no credible set",
+                   fixed = TRUE)
     expect_equal(res$status, "no_signal")
 })
 
 test_that(".adapt_bf() rejects what are not log BFs, naming the trait", {
     good <- matrix(c(0, 8, 2), nrow = 1, dimnames = list("sig1", snps))
-    na <- good; na[1, 2] <- NA
-    inf <- good; inf[1, 2] <- Inf
-    dup <- good; colnames(dup)[2] <- "s1"
-    expect_error(.adapt_bf(c(1, 2, 3), 2), "trait 2: a log-BF vector must be named by snp")
-    expect_error(.adapt_bf(matrix(0, 2, 2), 2), "trait 2: a log-BF matrix needs snp ids")
+    na <- good
+    na[1, 2] <- NA
+    inf <- good
+    inf[1, 2] <- Inf
+    dup <- good
+    colnames(dup)[2] <- "s1"
+    expect_error(.adapt_bf(c(1, 2, 3), 2),
+                 "trait 2: a log-BF vector must be named by snp", fixed = TRUE)
+    expect_error(.adapt_bf(matrix(0, 2, 2), 2),
+                 "trait 2: a log-BF matrix needs snp ids as colnames", fixed = TRUE)
     ## is.matrix() is TRUE of a character matrix too
     expect_error(.adapt_bf(matrix("a", 1, 3, dimnames = list(NULL, snps)), 2),
-                 "trait 2: log Bayes factors must be numeric")
-    expect_error(.adapt_bf(na, 2), "trait 2: log Bayes factors contain missing or infinite")
-    expect_error(.adapt_bf(inf, 2), "trait 2: log Bayes factors contain missing or infinite")
-    expect_error(.adapt_bf(dup, 2), "trait 2: duplicated snps found")
+                 "trait 2: log Bayes factors must be numeric, not character", fixed = TRUE)
+    expect_error(.adapt_bf(na, 2),
+                 "trait 2: log Bayes factors contain missing or infinite values", fixed = TRUE)
+    expect_error(.adapt_bf(inf, 2),
+                 "trait 2: log Bayes factors contain missing or infinite values", fixed = TRUE)
+    expect_error(.adapt_bf(dup, 2),
+                 "trait 2: duplicated snps found in the log Bayes factors", fixed = TRUE)
 })
 
 test_that("meta$has_null says whether the matrix has a null column", {

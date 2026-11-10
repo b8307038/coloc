@@ -23,13 +23,16 @@ the posteriors for that.
 }
 \details{
 \verb{if (res$summary$PP.H4.abf > 0.9)} fails when the posteriors were not
-computed: with no rows (no shared SNPs, or no signal in a trait) the test
-is \code{logical(0)}, and with posteriors that are \code{NA} (every pair trimmed, or
-a pair that could not be computed) it is \code{NA}. Ask \code{is_ok()} first.
+computed. With no rows, when the traits share no SNPs or a trait has no
+signal, the test is \code{logical(0)}. When every pair was trimmed, or a pair's
+posteriors could not be computed, \code{PP.H0.abf} to \code{PP.H4.abf} are \code{NA}, and
+so is the test. Ask \code{is_ok()} first.
 }
 \examples{
 data(coloc_test_data)
-res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+D2 <- as_coloc_dataset(coloc_test_data$D2)
+res <- coloc(D1, D2)
 if (is_ok(res) && pp(res)["PP.H4.abf"] > 0.8)
     message("the traits share a causal variant")
 }

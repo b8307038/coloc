@@ -12,14 +12,16 @@ check.alignment(...)
 \arguments{
 \item{D}{a coloc dataset}
 
-\item{thr}{plot SNP pairs in absolute LD > thr}
+\item{thr}{count and plot the pairs of SNPs in absolute LD > thr, each
+pair once}
 
 \item{do_plot}{if TRUE (default) plot the diagnostic}
 
 \item{...}{arguments passed to check_alignment()}
 }
 \value{
-proportion of pairs that are positive
+proportion of those pairs whose product of z scores, divided by
+their LD, is positive
 }
 \description{
 check alignment between beta and LD

@@ -36,10 +36,10 @@ default 1e-4}
 \item{p12}{prior probability a SNP is associated with both traits,
 default 1e-5}
 
-\item{prior_weights1}{Non-negative weights for the prior
+\item{prior_weights1}{Positive weights for the prior
 probability a SNP is associated with trait 1}
 
-\item{prior_weights2}{Non-negative weights for the prior
+\item{prior_weights2}{Positive weights for the prior
 probability a SNP is asscoiated with trait 2}
 
 \item{...}{ignored}

@@ -1,19 +1,21 @@
 
-data(coloc_test_data)
 D1 <- coloc_test_data$D1
 D2 <- coloc_test_data$D2
 
 # finemap.abf()
 
 test_that("Prior weight lenght consistency is checked (finemap.abf())", {
-  expect_error(finemap.abf(D1, prior_weights = 1))
+  expect_error(finemap.abf(D1, prior_weights = 1),
+               "Length of prior weights must match size of dataset", fixed = TRUE)
 })
 
 # coloc.abf()
 
 test_that("Prior weights are saved in output (coloc.abf())", {
 
-  expect_warning(coloc_out <- coloc.abf(D1, D2, prior_weights1 = rep(1, 500), prior_weights2 = rep(1, 500)))
+  expect_warning(coloc_out <- coloc.abf(D1, D2, prior_weights1 = rep(1, 500), prior_weights2 = rep(1, 500)),
+                 "Prior weights specified for both traits.\n  The two weight vectors should be derived from independent sources of\n  information, i.e. not computed using the same method.",
+                 fixed = TRUE)
   expect_named(coloc_out, c("summary", "results", "priors", "weights"))
   expect_equal(coloc_out$weights$prior_weights1, rep(1, 500))
   expect_equal(coloc_out$weights$prior_weights2, rep(1, 500))
@@ -27,7 +29,9 @@ test_that("Prior weights are saved in output (coloc.abf())", {
 test_that("Prior weights are saved in output, with coloc() in place of coloc.abf()", {
 
   expect_warning(coloc_out <- coloc(D1, D2, prior = coloc_prior(weights1 = rep(1, 500),
-                                                                weights2 = rep(1, 500))))
+                                                                weights2 = rep(1, 500))),
+                 "Prior weights specified for both traits.\n  The two weight vectors should be derived from independent sources of\n  information, i.e. not computed using the same method.",
+                 fixed = TRUE)
   expect_named(coloc_out, c("summary", "results", "priors", "status", "messages", "meta",
                             "weights", "bf"))
   expect_equal(coloc_out$weights$w1, rep(1, 500))
@@ -38,10 +42,12 @@ test_that("Prior weights are saved in output, with coloc() in place of coloc.abf
 test_that("Prior weight length consistency is checked (coloc.abf())", {
 
   expect_error(
-    coloc.abf(D1, D2, prior_weights1 = 1, prior_weights2 = rep(1, 500))
+    coloc.abf(D1, D2, prior_weights1 = 1, prior_weights2 = rep(1, 500)),
+    "Length of prior_weights1 must match size of dataset 1", fixed = TRUE
   )
   expect_error(
-    coloc.abf(D1, D2, prior_weights1 = rep(1, 500), prior_weights2 = 1)
+    coloc.abf(D1, D2, prior_weights1 = rep(1, 500), prior_weights2 = 1),
+    "Length of prior_weights2 must match size of dataset 2", fixed = TRUE
   )
 
 })
@@ -49,13 +55,19 @@ test_that("Prior weight length consistency is checked (coloc.abf())", {
 test_that("Prior weight length consistency is checked, with coloc() in place of coloc.abf()", {
 
   ## the length is checked once the snps are known, after coloc_prior() warns
-  expect_warning(prior <- coloc_prior(weights1 = 1, weights2 = rep(1, 500)), "both traits")
+  expect_warning(prior <- coloc_prior(weights1 = 1, weights2 = rep(1, 500)),
+                 "Prior weights specified for both traits.\n  The two weight vectors should be derived from independent sources of\n  information, i.e. not computed using the same method.",
+                 fixed = TRUE)
   expect_error(
-    coloc(D1, D2, prior = prior)
+    coloc(D1, D2, prior = prior),
+    "Length of prior_weights1 must match size of dataset 1", fixed = TRUE
   )
-  expect_warning(prior <- coloc_prior(weights1 = rep(1, 500), weights2 = 1), "both traits")
+  expect_warning(prior <- coloc_prior(weights1 = rep(1, 500), weights2 = 1),
+                 "Prior weights specified for both traits.\n  The two weight vectors should be derived from independent sources of\n  information, i.e. not computed using the same method.",
+                 fixed = TRUE)
   expect_error(
-    coloc(D1, D2, prior = prior)
+    coloc(D1, D2, prior = prior),
+    "Length of prior_weights2 must match size of dataset 2", fixed = TRUE
   )
 
 })
@@ -63,10 +75,12 @@ test_that("Prior weight length consistency is checked, with coloc() in place of 
 test_that("Negative prior weights cause errors (coloc.abf())", {
 
   expect_error(
-    coloc.abf(D1, D2, prior_weights1 = c(-1, rep(1, 499)), prior_weights2 = rep(1, 500))
+    coloc.abf(D1, D2, prior_weights1 = c(-1, rep(1, 499)), prior_weights2 = rep(1, 500)),
+    "weights1 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
   expect_error(
-    coloc.abf(D1, D2, prior_weights1 = rep(1, 500), prior_weights2 = c(-1, rep(1, 499)))
+    coloc.abf(D1, D2, prior_weights1 = rep(1, 500), prior_weights2 = c(-1, rep(1, 499))),
+    "weights2 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
 
 })
@@ -74,23 +88,38 @@ test_that("Negative prior weights cause errors (coloc.abf())", {
 test_that("Negative prior weights cause errors, with coloc() in place of coloc.abf()", {
 
   expect_error(
-    coloc(D1, D2, prior = coloc_prior(weights1 = c(-1, rep(1, 499)), weights2 = rep(1, 500)))
+    coloc(D1, D2, prior = coloc_prior(weights1 = c(-1, rep(1, 499)), weights2 = rep(1, 500))),
+    "weights1 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
   expect_error(
-    coloc(D1, D2, prior = coloc_prior(weights1 = rep(1, 500), weights2 = c(-1, rep(1, 499))))
+    coloc(D1, D2, prior = coloc_prior(weights1 = rep(1, 500), weights2 = c(-1, rep(1, 499)))),
+    "weights2 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
 
 })
 
+test_that("A prior weight of 0 causes errors (coloc.abf()), where 6.0.3 took it", {
+  one_zero <- c(0, rep(1, 499))
+  expect_no_error(utils::capture.output(res <- get_match_6_0_3(coloc.abf(D1, D2, prior_weights1 = one_zero))))
+  expect_error(coloc.abf(D1, D2, prior_weights1 = one_zero),
+               "weights1 must be above 0 with no missing values; weight 1 is 0", fixed = TRUE)
+  expect_error(coloc.abf(D1, D2, prior_weights2 = one_zero),
+               "weights2 must be above 0 with no missing values; weight 1 is 0", fixed = TRUE)
+  expect_error(coloc.abf(D1, D2, prior_weights1 = rep(0, 500)),
+               "weights1 must be above 0 with no missing values; weight 1 is 0", fixed = TRUE)
+})
+
 test_that("NA prior weights cause errors (coloc.abf())", {
   expect_error(
-    coloc.abf(D1, D2, prior_weights1 = rep(NA, 500))
+    coloc.abf(D1, D2, prior_weights1 = rep(NA, 500)),
+    "weights1 must be above 0 with no missing values; weight 1 is NA", fixed = TRUE
   )
 })
 
 test_that("NA prior weights cause errors, with coloc() in place of coloc.abf()", {
   expect_error(
-    coloc(D1, D2, prior = coloc_prior(weights1 = rep(NA, 500)))
+    coloc(D1, D2, prior = coloc_prior(weights1 = rep(NA, 500))),
+    "weights1 must be above 0 with no missing values; weight 1 is NA", fixed = TRUE
   )
 })
 
@@ -102,43 +131,54 @@ susie_D2 <- runsusie(D2)
 test_that("Prior weight length consistency is checked (coloc.susie())", {
 
   expect_error(
-    coloc.susie(susie_D1, susie_D2, prior_weights1 = 1, prior_weights2 = rep(1, 500))
+    coloc.susie(susie_D1, susie_D2, prior_weights1 = 1, prior_weights2 = rep(1, 500)),
+    "Length of prior_weights1 must match size of dataset 1", fixed = TRUE
   )
   expect_error(
-    coloc.susie(susie_D1, susie_D2, prior_weights1 = rep(1, 500), prior_weights2 = 1)
+    coloc.susie(susie_D1, susie_D2, prior_weights1 = rep(1, 500), prior_weights2 = 1),
+    "Length of prior_weights2 must match size of dataset 2", fixed = TRUE
   )
 
 })
 
 test_that("Prior weight length consistency is checked, with coloc() in place of coloc.susie()", {
 
-  expect_warning(prior <- coloc_prior(weights1 = 1, weights2 = rep(1, 500)), "both traits")
+  expect_warning(prior <- coloc_prior(weights1 = 1, weights2 = rep(1, 500)),
+                 "Prior weights specified for both traits.\n  The two weight vectors should be derived from independent sources of\n  information, i.e. not computed using the same method.",
+                 fixed = TRUE)
   expect_error(
-    coloc(susie_D1, susie_D2, prior = prior)
+    coloc(susie_D1, susie_D2, prior = prior),
+    "Length of prior_weights1 must match size of dataset 1", fixed = TRUE
   )
-  expect_warning(prior <- coloc_prior(weights1 = rep(1, 500), weights2 = 1), "both traits")
+  expect_warning(prior <- coloc_prior(weights1 = rep(1, 500), weights2 = 1),
+                 "Prior weights specified for both traits.\n  The two weight vectors should be derived from independent sources of\n  information, i.e. not computed using the same method.",
+                 fixed = TRUE)
   expect_error(
-    coloc(susie_D1, susie_D2, prior = prior)
+    coloc(susie_D1, susie_D2, prior = prior),
+    "Length of prior_weights2 must match size of dataset 2", fixed = TRUE
   )
 
 })
 
 test_that("NA prior weights cause errors (coloc.susie())", {
   expect_error(
-    coloc.susie(susie_D1, susie_D2, prior_weights1 = rep(NA, 500))
+    coloc.susie(susie_D1, susie_D2, prior_weights1 = rep(NA, 500)),
+    "weights1 must be above 0 with no missing values; weight 1 is NA", fixed = TRUE
   )
 })
 
 test_that("NA prior weights cause errors, with coloc() in place of coloc.susie()", {
   expect_error(
-    coloc(susie_D1, susie_D2, prior = coloc_prior(weights1 = rep(NA, 500)))
+    coloc(susie_D1, susie_D2, prior = coloc_prior(weights1 = rep(NA, 500))),
+    "weights1 must be above 0 with no missing values; weight 1 is NA", fixed = TRUE
   )
 })
 
 test_that("Negative prior weights cause errors (coloc.susie())", {
 
   expect_error(
-    coloc.susie(susie_D1, susie_D2, prior_weights1 = c(-1, rep(1, 499)))
+    coloc.susie(susie_D1, susie_D2, prior_weights1 = c(-1, rep(1, 499))),
+    "weights1 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
 
 })
@@ -146,18 +186,13 @@ test_that("Negative prior weights cause errors (coloc.susie())", {
 test_that("Negative prior weights cause errors, with coloc() in place of coloc.susie()", {
 
   expect_error(
-    coloc(susie_D1, susie_D2, prior = coloc_prior(weights1 = c(-1, rep(1, 499))))
+    coloc(susie_D1, susie_D2, prior = coloc_prior(weights1 = c(-1, rep(1, 499)))),
+    "weights1 must be above 0 with no missing values; weight 1 is -1", fixed = TRUE
   )
 
 })
 
 # combine_abf_weighted()
-
-test_that("combine_abf_weighted() errors appropriately", {
-  expect_error(combine_abf_weighted(1:10, 1:5, 0.1, 0.1, 0.1, 1:10, 1:10))
-  expect_error(combine_abf_weighted(1:10, 1:10, 0.1, 0.1, 0.1, 1:10, 1:5))
-  expect_error(combine_abf_weighted(1:5, 1:5, 0.1, 0.1, 0.1, 1:10, 1:10))
-})
 
 test_that("combine_abf_weighted() and combine.abf() are consistent", {
 

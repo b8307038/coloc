@@ -1,19 +1,12 @@
 ## ---------------------------------------------------------------------------
-## The coloc_result contract.
+## The coloc_result. Every result has the same fields, whatever happened, and
+## $status says what happened. Two rules hold for every result:
 ##
-## 6.0.3's problem is that THE SHAPE ENCODES THE OUTCOME: coloc.bf_bf() alone
-## has five return shapes, and a consumer cannot know what it is holding until
-## it inspects it. Two of those shapes are already broken, failing
-## sensitivity()'s stopifnot("priors" %in% names(obj)) with an opaque message.
+##   rows exist if and only if a signal pair was considered;
+##   posteriors are NA if and only if they could not be computed.
 ##
-## One class, one shape, outcome in a field. The governing rule:
-##
-##   Rows exist iff a signal pair was considered.
-##   Posteriors are NA iff they could not be computed.
-##
-## THE SHAPE IS FROZEN HERE. Any later change to it is stop-the-line, which is
-## why the contract is a function rather than a roxygen block: a contract in a
-## comment drifts, a contract that is asserted on every return cannot.
+## validate_coloc_result() checks the fields and the rules on every result the
+## engine returns.
 ## ---------------------------------------------------------------------------
 
 ##' The result of coloc()
@@ -34,8 +27,9 @@
 ##'     compared, one signal from each trait. Its columns are `nsnps`, the
 ##'     number of SNPs the two traits share; `hit1` and `hit2`, each signal's
 ##'     top SNP; `PP.H0.abf` to `PP.H4.abf`, the posterior probabilities of
-##'     the five hypotheses; and `idx1` and `idx2`, which signal of each trait
-##'     the row compares, as listed in `meta$idx1` and `meta$idx2`.}
+##'     the five hypotheses, all five `NA` when they were not computed (see
+##'     Status); and `idx1` and `idx2`, which signal of each trait the row
+##'     compares, as listed in `meta$idx1` and `meta$idx2`.}
 ##'   \item{`results`}{a data.table with one row per shared SNP: `snp`, and
 ##'     for each row of `summary` the posterior probability that this SNP is
 ##'     the shared causal variant, if H4 is true. The column is
@@ -76,13 +70,14 @@
 ##'   \item{`"no_overlap"`}{the two traits share no SNPs. `summary` has no
 ##'     rows.}
 ##'   \item{`"all_trimmed"`}{every pair was left out under `overlap.min`.
-##'     `summary` keeps a row for each, with `PP.H1.abf` to `PP.H4.abf` `NA`,
-##'     because telling those apart needs the shared SNPs; `PP.H0.abf` is the
-##'     probability that neither trait has a causal variant, from each
-##'     trait's own SNPs.}
+##'     `summary` keeps a row for each, with `PP.H0.abf` to `PP.H4.abf` `NA`,
+##'     because the hypotheses are weighed on the shared SNPs, and too little
+##'     of a signal falls on them. `hit1` and `hit2` are each trait's own top
+##'     SNP, shared or not.}
 ##'   \item{`"degenerate"`}{the posteriors of some pair could not be
-##'     computed. That pair's posteriors are `NA`. [coloc()] checks its
-##'     inputs to prevent this, so it should not be seen.}
+##'     computed. That pair's posteriors, `PP.H0.abf` to `PP.H4.abf`, are
+##'     `NA`. [coloc()] and [coloc.bf_bf()] refuse missing log Bayes factors,
+##'     which would cause this, so it should be rare.}
 ##' }
 ##'
 ##' Two rules hold for every result: `summary` has no rows only when no pair
@@ -100,7 +95,9 @@
 ##' @seealso [coloc()], [pp()], [is_ok()], [n_signals()], [log_bf()]
 ##' @examples
 ##' data(coloc_test_data)
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' names(res)
 ##' res$status
 ##' res$summary
@@ -109,7 +106,7 @@
 ##' @name coloc_result
 NULL
 
-## The one summary shape. Zero rows is legal; a different column set is not.
+## An empty $summary, with the columns every $summary has
 .empty_summary <- function() {
     data.table(nsnps = integer(0), hit1 = character(0), hit2 = character(0),
                PP.H0.abf = numeric(0), PP.H1.abf = numeric(0),
@@ -176,8 +173,8 @@ validate_coloc_result <- function(x) {
             else paste0("of class '", class(x$meta$schema)[1], "'"),
             " but should be a number, the version of the result's shape")
 
-    ## rows exist iff a signal pair was considered; posteriors are NA iff they
-    ## could not be computed
+    ## rows only where a signal pair was considered, and NA posteriors only
+    ## where they could not be computed
     if (x$status %in% c("no_overlap", "no_signal") && nrow(x$summary))
         bug("a result with status '", x$status, "' has ", nrow(x$summary),
             " row(s) in $summary but should have none, as no signal pair was considered")
@@ -209,10 +206,10 @@ validate_coloc_result <- function(x) {
 }
 
 ## Every exit from the engine goes through here, and validates on the way out.
-.new_coloc_result <- function(summary = .empty_summary(),
-                              results = data.table(snp = character(0)),
-                              prior, weights = NULL, status = "ok",
-                              messages = character(0), meta = list()) {
+new_coloc_result <- function(summary = .empty_summary(),
+                             results = data.table(snp = character(0)),
+                             prior, weights = NULL, status = "ok",
+                             messages = character(0), meta = list()) {
     ## 2 from when coloc() kept each trait's log BFs in $bf; a result saved
     ## at schema 1 has none
     meta$schema <- 2L
@@ -222,7 +219,7 @@ validate_coloc_result <- function(x) {
                 status  = status,
                 messages = messages,
                 meta    = meta)
-    ## present iff prior weights were actually used
+    ## only when prior weights were given
     if (!is.null(weights)) out$weights <- weights
     validate_coloc_result(structure(out, class = "coloc_result"))
 }

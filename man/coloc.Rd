@@ -47,25 +47,33 @@ fit, or log Bayes factors, in any combination.
 
 Each of \code{x1} and \code{x2} is one of three things.
 \itemize{
-\item \strong{A coloc dataset}: a list holding one trait's summary statistics for
-the region. It has vectors with one value per SNP (\code{snp}, and \code{beta}
-with \code{varbeta}, or \code{pvalues} with \code{MAF}) and single values that describe
-the study (\code{type}, which is \code{"quant"} or \code{"cc"}; \code{N}; and \code{sdY} or \code{s}).
-Fine-mapping with SuSiE also needs \code{LD}, the correlation matrix of the
-SNPs, and \code{beta} with \code{varbeta}: p-values are not enough.
-\code{\link[=check_dataset]{check_dataset()}} lists every element and which combinations are
-needed, and checks a dataset for you. \link{coloc_test_data} holds four
-examples.
-\item \strong{A SuSiE fit}: the result of \code{\link[=runsusie]{runsusie()}} on a coloc dataset, or of
-\code{susieR::susie_rss()} passed through \code{\link[=annotate_susie]{annotate_susie()}}. \code{coloc()} uses
-the log Bayes factors of the credible sets the fit found, one signal per
-credible set.
-\item \strong{Log Bayes factors}: a numeric vector with one value per SNP, named by
-SNP id, for a single signal; or a matrix with one row per signal and one
-column per SNP, with SNP ids as its column names. A column named
+\item A coloc dataset, which holds one trait's summary statistics for the
+region. It is a list with vectors that have one value per SNP (\code{snp},
+and \code{beta} with \code{varbeta}, or \code{pvalues} with \code{MAF}) and single values
+that describe the study (\code{type}, which is \code{"quant"} or \code{"cc"}; \code{N}; and
+\code{sdY} or \code{s}). Fine-mapping with SuSiE also needs \code{LD}, the correlation
+matrix of the SNPs, and \code{beta} with \code{varbeta}, as p-values are not
+enough. \code{\link[=check_dataset]{check_dataset()}} lists every element and which combinations
+are needed. Make a dataset with \code{\link[=coloc_dataset]{coloc_dataset()}}, or with
+\code{\link[=as_coloc_dataset]{as_coloc_dataset()}} from a list you already have; both check it as
+they make it. \link{coloc_test_data} holds four examples. A plain list works
+too, as \code{coloc()} converts it and says so once per session.
+\item A SuSiE fit, the result of \code{\link[=runsusie]{runsusie()}} on a coloc dataset, or of
+\code{susieR::susie_rss()} passed through \code{\link[=annotate_susie]{annotate_susie()}}, which names its
+SNPs. \code{coloc()} uses the log Bayes factors of the credible sets the fit
+found, one signal per credible set.
+\item Log Bayes factors, as a numeric vector with one value per SNP, named by
+SNP id, for a single signal; or as a matrix with one row per signal and
+one column per SNP, with SNP ids as its column names. A column named
 \code{"null"}, if there is one, holds the log Bayes factor for no
-association.
+association. They must have no missing or infinite values, and no SNP
+id twice.
 }
+
+\code{coloc()} checks each dataset with \code{\link[=check_dataset]{check_dataset()}}, for what its
+\code{method} needs, before it fine-maps either trait. It stops at the first
+problem, with a message that begins "dataset 1:" or "dataset 2:", so a
+mistake in trait 2 stops \code{coloc()} before SuSiE runs on trait 1.
 
 The two traits are matched by SNP id, and only the SNPs both have are
 compared.
@@ -94,8 +102,8 @@ given as log Bayes factors gives a warning.
 
 \examples{
 data(coloc_test_data)
-D1 <- coloc_test_data$D1
-D2 <- coloc_test_data$D2
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+D2 <- as_coloc_dataset(coloc_test_data$D2)
 
 ## two datasets, with at most one causal variant assumed in each trait
 res <- coloc(D1, D2)
@@ -109,8 +117,8 @@ bf1 <- log_bf(res, 1)   # trait 1's log Bayes factors, to fine-map
 finemap.bf(bf1)$summary
 
 if (requireNamespace("susieR", quietly = TRUE)) {
-    D3 <- coloc_test_data$D3
-    D4 <- coloc_test_data$D4
+    D3 <- as_coloc_dataset(coloc_test_data$D3)
+    D4 <- as_coloc_dataset(coloc_test_data$D4)
 
     ## fine-map both traits with SuSiE: one row per pair of credible sets
     res2 <- coloc(D3, D4, method = "susie")

@@ -3,84 +3,105 @@
 \name{check_dataset}
 \alias{check_dataset}
 \alias{check.dataset}
-\title{check_dataset}
+\title{Check a coloc dataset}
 \usage{
 check_dataset(d, suffix = "", req = c("type", "snp"), warn.minp = 1e-06)
 
 check.dataset(...)
 }
 \arguments{
-\item{d}{dataset to check}
+\item{d}{a dataset, as a list or a \code{\link[=coloc_dataset]{coloc_dataset()}}, but not a data.frame}
 
-\item{suffix}{string to identify which dataset (1 or 2)}
+\item{suffix}{a label for the dataset, such as 1 or 2, which begins each
+message as "dataset 1: ". With "" messages have no label}
 
-\item{req}{names of elements that must be present}
+\item{req}{the elements that must be present. When it includes \code{"LD"}, as
+\code{\link[=runsusie]{runsusie()}}'s does, \code{check_dataset()} also checks what SuSiE reads,
+step 3 in Details}
 
-\item{warn.minp}{print warning if no p value < warn.minp}
+\item{warn.minp}{warn when no p-value is below this}
 
 \item{...}{arguments passed to check_dataset()}
 }
 \value{
-NULL if no errors found
+\code{NULL} when it finds no problem. Otherwise it stops with an error
 }
 \description{
-Check coloc dataset inputs for errors
+\code{check_dataset()} checks that a dataset has the elements coloc needs, and
+that coloc can use their values. It stops at the first problem it finds,
+with a message that names the element and says what is wrong. You seldom
+need to call it, as \code{\link[=coloc_dataset]{coloc_dataset()}} and \code{\link[=as_coloc_dataset]{as_coloc_dataset()}} check a
+dataset when they make it, and \code{\link[=coloc]{coloc()}}, \code{\link[=wakefield_bf]{wakefield_bf()}}, \code{\link[=runsusie]{runsusie()}}
+and the older functions, such as \code{\link[=coloc.abf]{coloc.abf()}}, check every dataset they
+are given. Call it yourself to check your datasets before you analyse
+them, for example every region of a study before a loop over the regions,
+or to check a dataset you have changed.
 }
 \details{
-A coloc dataset is a list, containing a mixture of vectors
-capturing quantities that vary between snps (these vectors must
-all have equal length) and scalars capturing quantities that
-describe the dataset.
-
-Coloc is flexible, requiring perhaps only p values, or z scores, or effect
-estimates and standard errors, but with this flexibility, also comes
-difficulties describing exactly the combinations of items required.
-
-Required vectors are some subset of
-
-\describe{
-\item{beta}{regression coefficient for each SNP from dataset 1}
-\item{varbeta}{variance of beta}
-\item{pvalues}{P-values for each SNP in dataset 1}
-\item{MAF}{minor allele frequency of the variants}
-\item{snp}{a character vector of snp ids, optional. It will be used to merge dataset1 and dataset2 and will be retained in the results.}
+A coloc dataset is a list that describes one trait in one region. Some of
+its elements have one value per snp, and these must all have the same
+length:
+\itemize{
+\item \code{snp}, the snp ids, which coloc matches the two traits on;
+\item \code{beta}, the regression coefficient of each snp, and \code{varbeta}, its
+variance, the standard error squared;
+\item \code{pvalues}, the p-value of each snp, and \code{MAF}, its minor allele
+frequency;
+\item \code{position}, the position of each snp, which \code{\link[=plot_dataset]{plot_dataset()}} needs;
+\item \code{z}, the z-score of each snp, which \code{\link[=runsusie]{runsusie()}} fine-maps from in place
+of \code{beta / sqrt(varbeta)}.
 }
 
-Preferably, give \code{beta} and \code{varbeta}.  But if these are not available, sufficient statistics can be approximated from \code{pvalues} and \code{MAF}.
-
-Required scalars are some subset of
-
-\describe{
-\item{N}{Number of samples in dataset 1}
-\item{type}{the type of data in dataset 1 - either "quant" or "cc" to denote quantitative or case-control}
-\item{s}{for a case control dataset, the proportion of samples in dataset 1 that are cases}
-\item{sdY}{for a quantitative trait, the population standard deviation of the trait.  if not given, it can be estimated from the vectors of varbeta and MAF}
+The other elements are single values that describe the study, and the LD
+matrix:
+\itemize{
+\item \code{type}, \code{"quant"} for a quantitative trait or \code{"cc"} for a case-control
+trait;
+\item \code{N}, the number of samples;
+\item \code{s}, for a case-control trait, the proportion of samples that are cases;
+\item \code{sdY}, for a quantitative trait, the standard deviation of the trait;
+\item \code{LD}, the correlation matrix of the snps, with snp ids as its row and
+column names, which fine-mapping with SuSiE needs.
 }
 
-You must always give {\code{type}}.  Then,
-\describe{
-\item{if \code{type}=="cc"}{\code{s}}
-\item{if \code{type}=="quant" and \code{sdY} known}{\code{sdY}}
-\item{if beta, varbeta not known}{\code{N}}
+Which elements are needed depends on the data. Always give \code{type} and
+\code{snp}. Give \code{beta} and \code{varbeta} if you have them. Without them, coloc
+approximates them from \code{pvalues}, \code{MAF} and \code{N}, and a case-control trait
+also needs \code{s}. A quantitative trait given as \code{beta} and \code{varbeta} needs
+\code{sdY}, or \code{MAF} and \code{N} so coloc can estimate \code{sdY}.
+
+\code{check_dataset()} checks in three steps, and stops at the first problem:
+\enumerate{
+\item Each element, wherever it is given. The elements that \code{req} names must
+be present, and no element but \code{z} may have missing values. \code{type} must
+be given, as one value, \code{"quant"} or \code{"cc"}. \code{s} must be one number
+between 0 and 1, \code{MAF} numbers above 0 and below 1, and \code{N} one finite
+number above 0. Each snp id must appear once, and \code{snp} must not be a
+factor. The per-snp elements must have the same length. \code{beta} and
+\code{varbeta}, when both are given, must have no infinite values, and
+\code{varbeta} must have no zeros. \code{LD} must have two dimensions and be
+square, with row names that match its column names, in the same order,
+and cover every snp.
+\item What coloc reads on the dataset's route. Without both \code{beta} and
+\code{varbeta}, coloc reads \code{pvalues}, which must be numbers above 0 and at
+most 1, \code{MAF} and \code{N}, and \code{s} for a case-control trait. With them,
+\code{beta} and \code{varbeta} must be numeric and \code{varbeta} not negative, and a
+quantitative trait needs \code{sdY}, one finite number above 0, or \code{MAF} and
+\code{N} so coloc can estimate it.
+\item What SuSiE reads, when \code{req} includes \code{"LD"}, as \code{\link[=runsusie]{runsusie()}}'s does.
+\code{LD} must be a numeric correlation matrix for the dataset's snps, with
+values from -1 to 1, symmetric, and 1 on the diagonal. \code{N} must be above
+1, and a \code{z}, if given, must have a finite number for each snp. SuSiE
+doesn't read \code{sdY}, so step 2 doesn't check it on this route.
 }
-If \code{sdY} is unknown, it will be approximated, and this will require
-\describe{
-\item{summary data to estimate \code{sdY}}{\code{beta}, \code{varbeta}, \code{N}, \code{MAF}}
-}
 
-Optional vectors are
-
-\describe{
-\item{position}{a vector of snp positions, required for \code{plot_dataset}}
-}
-
-\code{check_dataset} calls stop() unless a series of expectations on dataset
-input format are met
-
-This is a helper function for use by other coloc functions, but
-you can use it directly to check the format of a dataset to be
-supplied to coloc.abf(), coloc.signals(), finemap.abf(), or
-finemap.signals().
+It also warns, without stopping, in two cases. When no p-value is below
+\code{warn.minp}, the trait may have no association in the region; a
+\code{\link[=coloc_dataset]{coloc_dataset()}} gets this warning once, when it is made. When a
+quantitative trait given as \code{beta} and \code{varbeta} has an \code{sdY} more than
+twice or under half its estimate from \code{varbeta}, \code{MAF} and \code{N}, \code{varbeta}
+may hold standard errors in place of variances; this warning comes each
+time the dataset is checked, except on the SuSiE route.
 }
 \examples{
 data(coloc_test_data)

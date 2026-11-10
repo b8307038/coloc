@@ -17,6 +17,8 @@ How many signal pairs a coloc_result carries
 }
 \examples{
 data(coloc_test_data)
-res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+D2 <- as_coloc_dataset(coloc_test_data$D2)
+res <- coloc(D1, D2)
 n_signals(res)
 }

@@ -1,65 +1,85 @@
-##' Check coloc dataset inputs for errors
+##' Check a coloc dataset
 ##'
-##' A coloc dataset is a list, containing a mixture of vectors
-##' capturing quantities that vary between snps (these vectors must
-##' all have equal length) and scalars capturing quantities that
-##' describe the dataset.
+##' `check_dataset()` checks that a dataset has the elements coloc needs, and
+##' that coloc can use their values. It stops at the first problem it finds,
+##' with a message that names the element and says what is wrong. You seldom
+##' need to call it, as [coloc_dataset()] and [as_coloc_dataset()] check a
+##' dataset when they make it, and [coloc()], [wakefield_bf()], [runsusie()]
+##' and the older functions, such as [coloc.abf()], check every dataset they
+##' are given. Call it yourself to check your datasets before you analyse
+##' them, for example every region of a study before a loop over the regions,
+##' or to check a dataset you have changed.
 ##'
-##' Coloc is flexible, requiring perhaps only p values, or z scores, or effect
-##' estimates and standard errors, but with this flexibility, also comes
-##' difficulties describing exactly the combinations of items required.
+##' A coloc dataset is a list that describes one trait in one region. Some of
+##' its elements have one value per snp, and these must all have the same
+##' length:
 ##'
-##' Required vectors are some subset of
+##' * `snp`, the snp ids, which coloc matches the two traits on;
+##' * `beta`, the regression coefficient of each snp, and `varbeta`, its
+##'   variance, the standard error squared;
+##' * `pvalues`, the p-value of each snp, and `MAF`, its minor allele
+##'   frequency;
+##' * `position`, the position of each snp, which [plot_dataset()] needs;
+##' * `z`, the z-score of each snp, which [runsusie()] fine-maps from in place
+##'   of `beta / sqrt(varbeta)`.
 ##'
-##' \describe{
-##'   \item{beta}{regression coefficient for each SNP from dataset 1}
-##'   \item{varbeta}{variance of beta}
-##'   \item{pvalues}{P-values for each SNP in dataset 1}
-##'   \item{MAF}{minor allele frequency of the variants}
-##'   \item{snp}{a character vector of snp ids, optional. It will be used to merge dataset1 and dataset2 and will be retained in the results.}
-##' }
+##' The other elements are single values that describe the study, and the LD
+##' matrix:
 ##'
-##' Preferably, give \code{beta} and \code{varbeta}.  But if these are not available, sufficient statistics can be approximated from \code{pvalues} and \code{MAF}.
+##' * `type`, `"quant"` for a quantitative trait or `"cc"` for a case-control
+##'   trait;
+##' * `N`, the number of samples;
+##' * `s`, for a case-control trait, the proportion of samples that are cases;
+##' * `sdY`, for a quantitative trait, the standard deviation of the trait;
+##' * `LD`, the correlation matrix of the snps, with snp ids as its row and
+##'   column names, which fine-mapping with SuSiE needs.
 ##'
-##' Required scalars are some subset of
+##' Which elements are needed depends on the data. Always give `type` and
+##' `snp`. Give `beta` and `varbeta` if you have them. Without them, coloc
+##' approximates them from `pvalues`, `MAF` and `N`, and a case-control trait
+##' also needs `s`. A quantitative trait given as `beta` and `varbeta` needs
+##' `sdY`, or `MAF` and `N` so coloc can estimate `sdY`.
 ##'
-##' \describe{
-##'   \item{N}{Number of samples in dataset 1}
-##'   \item{type}{the type of data in dataset 1 - either "quant" or "cc" to denote quantitative or case-control}
-##'   \item{s}{for a case control dataset, the proportion of samples in dataset 1 that are cases}
-##'   \item{sdY}{for a quantitative trait, the population standard deviation of the trait.  if not given, it can be estimated from the vectors of varbeta and MAF}
-##' }
+##' `check_dataset()` checks in three steps, and stops at the first problem:
 ##'
-##' You must always give {\code{type}}.  Then,
-##' \describe{
-##' \item{if \code{type}=="cc"}{\code{s}}
-##' \item{if \code{type}=="quant" and \code{sdY} known}{\code{sdY}}
-##' \item{if beta, varbeta not known}{\code{N}}
-##' }
-##' If \code{sdY} is unknown, it will be approximated, and this will require
-##' \describe{
-##' \item{summary data to estimate \code{sdY}}{\code{beta}, \code{varbeta}, \code{N}, \code{MAF}}
-##' }
+##' 1. Each element, wherever it is given. The elements that `req` names must
+##'    be present, and no element but `z` may have missing values. `type` must
+##'    be given, as one value, `"quant"` or `"cc"`. `s` must be one number
+##'    between 0 and 1, `MAF` numbers above 0 and below 1, and `N` one finite
+##'    number above 0. Each snp id must appear once, and `snp` must not be a
+##'    factor. The per-snp elements must have the same length. `beta` and
+##'    `varbeta`, when both are given, must have no infinite values, and
+##'    `varbeta` must have no zeros. `LD` must have two dimensions and be
+##'    square, with row names that match its column names, in the same order,
+##'    and cover every snp.
+##' 2. What coloc reads on the dataset's route. Without both `beta` and
+##'    `varbeta`, coloc reads `pvalues`, which must be numbers above 0 and at
+##'    most 1, `MAF` and `N`, and `s` for a case-control trait. With them,
+##'    `beta` and `varbeta` must be numeric and `varbeta` not negative, and a
+##'    quantitative trait needs `sdY`, one finite number above 0, or `MAF` and
+##'    `N` so coloc can estimate it.
+##' 3. What SuSiE reads, when `req` includes `"LD"`, as [runsusie()]'s does.
+##'    `LD` must be a numeric correlation matrix for the dataset's snps, with
+##'    values from -1 to 1, symmetric, and 1 on the diagonal. `N` must be above
+##'    1, and a `z`, if given, must have a finite number for each snp. SuSiE
+##'    doesn't read `sdY`, so step 2 doesn't check it on this route.
 ##'
-##' Optional vectors are
+##' It also warns, without stopping, in two cases. When no p-value is below
+##' `warn.minp`, the trait may have no association in the region; a
+##' [coloc_dataset()] gets this warning once, when it is made. When a
+##' quantitative trait given as `beta` and `varbeta` has an `sdY` more than
+##' twice or under half its estimate from `varbeta`, `MAF` and `N`, `varbeta`
+##' may hold standard errors in place of variances; this warning comes each
+##' time the dataset is checked, except on the SuSiE route.
 ##'
-##' \describe{
-##'   \item{position}{a vector of snp positions, required for \code{plot_dataset}}
-##' }
-##'
-##' \code{check_dataset} calls stop() unless a series of expectations on dataset
-##' input format are met
-##'
-##' This is a helper function for use by other coloc functions, but
-##' you can use it directly to check the format of a dataset to be
-##' supplied to coloc.abf(), coloc.signals(), finemap.abf(), or
-##' finemap.signals().
-##' @title check_dataset
-##' @param d dataset to check
-##' @param suffix string to identify which dataset (1 or 2)
-##' @param req names of elements that must be present
-##' @param warn.minp print warning if no p value < warn.minp
-##' @return NULL if no errors found
+##' @param d a dataset, as a list or a [coloc_dataset()], but not a data.frame
+##' @param suffix a label for the dataset, such as 1 or 2, which begins each
+##'     message as "dataset 1: ". With "" messages have no label
+##' @param req the elements that must be present. When it includes `"LD"`, as
+##'     [runsusie()]'s does, `check_dataset()` also checks what SuSiE reads,
+##'     step 3 in Details
+##' @param warn.minp warn when no p-value is below this
+##' @return `NULL` when it finds no problem. Otherwise it stops with an error
 ##' @export
 ##' @author Chris Wallace
 ##' @examples
@@ -72,109 +92,170 @@ check_dataset <- function(d,
                           suffix="",
                           req=c("type","snp"),
                           warn.minp=1e-6) {
-    if(!is.list(d) )
-        stop("dataset ",suffix,": is not a list")
-    recognised_items <- .dataset_items # defined in R/dataset.R
-    nd <- intersect(names(d), recognised_items)
+    ## A label, such as 1 or 2, starts each message as "dataset 1: "; "", NULL,
+    ## NA or more than one value is no label. No call is shown, as the message
+    ## names the dataset.
+    dataset <- if (length(suffix) == 1L && !is.na(suffix) && !identical(as.character(suffix), ""))
+                   suffix
+    prefix <- if (is.null(dataset)) "" else paste0("dataset ", dataset, ": ")
+    fail <- function(...) stop(prefix, ..., call. = FALSE)
 
-    ## no missing values - make people clean their own data rather
-    ## than make assumptions here for datasets I don't know
-    n <- 0
-    
-    if(length(setdiff(req,nd)))
-        stop("dataset ",suffix,": missing required element(s) ",paste(setdiff(req,nd),collapse=", "))
+    if (!is.list(d) || is.data.frame(d)) # a data.frame repeats type, sdY and N on every row
+        .stop_not_a_dataset(d, dataset)
+    nd <- intersect(names(d), .dataset_items)          # the elements coloc reads
+    p_route <- !("beta" %in% nd && "varbeta" %in% nd)  # p-values unless both are given
+    susie <- "LD" %in% req                             # SuSiE reads LD, N and z, not sdY
+    ## for messages: "pvalues is missing", "pvalues and MAF are missing"
+    is_missing <- function(v)
+        paste(if (length(v) < 2L) v else paste(paste(v[-length(v)], collapse = ", "), "and", v[length(v)]),
+              ngettext(length(v), "is missing", "are missing"))
 
-    for(v in nd) {
-        if(any(is.na(d[[v]])))
-            stop("dataset ",suffix,": ",v," contains missing values")
+    ## The checks stop at the first problem, in three blocks: what each element
+    ## must be wherever it is given, then what each route reads, then what
+    ## SuSiE reads. So an element's shape is checked before a route reads it.
+
+    ## 1. Each element, wherever it is given
+    absent <- setdiff(req, nd)
+    if (length(absent))
+        fail("missing required element(s) ", paste(absent, collapse = ", "))
+    ## no missing values - make people clean their own data rather than make
+    ## assumptions here for datasets I don't know. z is checked where SuSiE
+    ## reads it, below
+    for (v in setdiff(nd, "z"))
+        if (any(is.na(d[[v]])))
+            fail(v, " contains missing values")
+    if (!("type" %in% nd))
+        fail('type is missing; set type to "quant" for a quantitative trait or "cc" for a case-control trait')
+    if (length(d$type) != 1L)
+        fail("type must be a single value, quant or cc")
+    if (!(d$type %in% c("quant", "cc")))
+        fail("type must be quant or cc")
+    if ("s" %in% nd) {
+        if (length(d$s) != 1L)
+            fail("s must be a single number between 0 and 1")
+        if (!is.numeric(d$s) || d$s <= 0 || d$s >= 1)
+            fail("s must be between 0 and 1")
     }
-
-    ## guarded, so a dataset with no type reaches "variable type not set"
-    ## below rather than failing here on a zero-length condition: runsusie()
-    ## leaves type out of req
-    if ("type" %in% nd && !(d$type %in% c("quant", "cc")))
-        stop("dataset ", suffix, ": ", "type must be quant or cc")
-
-    ## snps should be unique
-    if("snp" %in% nd && any(duplicated(d$snp)))
-        stop("dataset ",suffix,": duplicated snps found")
-    if("snp" %in% nd && is.factor(d$snp))
-        stop("dataset ",suffix,": snp should be a character vector but is a factor")
-
-    ## MAF should be > 0, < 1
-    if("MAF" %in% nd && (!is.numeric(d$MAF) || any(is.na(d$MAF)) ||
-                         any(d$MAF<=0) || any(d$MAF>=1)))
-        stop("dataset ",suffix,": MAF should be a numeric, strictly >0 & <1")
-
-    ## lengths of vector arguments should match
-    l <- -1 # impossible length
-    shouldmatch <- intersect(nd, c("pvalues","MAF","beta","varbeta","snp","position"))
-    for(v in shouldmatch)
-        if(l<0) { ## update
-            l <- length(d[[v]])
-        } else { ## check
-            if(length(d[[v]])!=l) {
-                stop("dataset ",suffix,": lengths of inputs don't match: ")
-                print(shouldmatch)
-            }
-        }
-    ## N should be scalar if present
-    if("N" %in% nd && (!is.numeric(d[["N"]]) || length(d[["N"]])!=1))
-       stop("N should be a single numeric. coloc does not accomodate per-snp sample sizes.")
-
-    ## type of data
-    if (! ('type' %in% nd))
-        stop("dataset ",suffix,": variable type not set")
-    if(!(d$type %in% c("quant","cc")))
-        stop("dataset ",suffix,": ","type must be quant or cc")
-
-    ## no beta/varbeta
-    if(("s" %in% nd) && (!is.numeric(d$s) || d$s<=0 || d$s>=1))
-        stop("dataset ",suffix,": ","s must be between 0 and 1")
-    if(!("beta" %in% nd) || !("varbeta" %in% nd)) { # need to estimate var (Y)
-        if(!("pvalues" %in% nd) || !( "MAF" %in% nd))
-            stop("dataset ",suffix,": ","require p values and MAF if beta, varbeta are unavailable")
-        if(any(d$pvalues<=0 | d$pvalues>1))
-            stop("dataset ",suffix,": ","pvalues must be above 0 and at most 1")
-        if(d$type=="cc" && !("s" %in% nd))
-            stop("dataset ",suffix,": ","require, s, proportion of samples who are cases, if beta, varbeta are unavailable")
-        if (!('N' %in% nd) || is.null(d$N) || any(d$N<=0) )
-            stop("dataset ",suffix,": sample size N <=0 or not set")
-        p=d$pvalues
-    } else {
-        p=pnorm( -abs( d$beta/sqrt(d$varbeta) ) ) * 2
+    if ("snp" %in% nd && any(duplicated(d$snp)))
+        fail("duplicated snps found")
+    if ("snp" %in% nd && is.factor(d$snp))
+        fail("snp should be a character vector but is a factor")
+    if ("MAF" %in% nd && (!is.numeric(d$MAF) || any(d$MAF <= 0 | d$MAF >= 1)))
+        fail("MAF should be a numeric, strictly >0 & <1")
+    ## each per-snp element but z has as many values as snp, or, without snp,
+    ## as the first of them in .per_snp_items' order; z is compared with the
+    ## same element below
+    per_snp <- intersect(setdiff(.per_snp_items, "z"), nd)
+    ref <- if ("snp" %in% per_snp) "snp" else per_snp[1]
+    for (v in per_snp)
+        if (length(d[[v]]) != length(d[[ref]]))
+            fail(ref, " has ", length(d[[ref]]), if (length(d[[ref]]) == 1L) " value" else " values",
+                 " but ", v, " has ", length(d[[v]]))
+    if ("N" %in% nd) {
+        if (!is.numeric(d$N) || length(d$N) != 1L)
+            fail("N must be a single number; coloc does not take per-snp sample sizes")
+        if (!is.finite(d$N) || d$N <= 0)
+            fail("N must be finite and > 0")
     }
-
-    # Infinite values.
     if (any(is.infinite(d$beta) | is.infinite(d$varbeta))) {
-      stop("dataset ", suffix,": Infinite values in beta and/or varbeta")
+        v <- if (any(is.infinite(d$beta))) "beta" else "varbeta"
+        fail(v, " has infinite values")
+    }
+    ## a varbeta that isn't a number is refused where it is read, below
+    if (is.numeric(d$varbeta) && any(d$varbeta == 0))
+        fail("varbeta must be > 0")
+    if ("LD" %in% nd) {
+        if (length(dim(d$LD)) < 2L)
+            fail("LD must be a matrix")
+        if (nrow(d$LD) != ncol(d$LD))
+            fail("LD must be square, but it has ", nrow(d$LD), ngettext(nrow(d$LD), " row", " rows"),
+                 " and ", ncol(d$LD), ngettext(ncol(d$LD), " column", " columns"))
+        if (!identical(colnames(d$LD), rownames(d$LD)))
+            fail("LD rownames != colnames")
+        if (length(setdiff(d$snp, colnames(d$LD))))
+            fail("LD must cover every snp")
+        if (length(dim(d$LD)) > 2L)
+            fail("LD must be a matrix")
     }
 
-    # zero variance.
-    if (any(d$varbeta==0)) {
-      stop("dataset ", suffix,": Zero values in varbeta")
+    ## 2. What each route reads
+    if (p_route) {
+        ## without beta and varbeta, coloc works from p-values, MAF and N
+        if (!("pvalues" %in% nd && "MAF" %in% nd))
+            fail(is_missing(setdiff(c("pvalues", "MAF"), nd)),
+                 "; without beta and varbeta, coloc needs pvalues, MAF and N")
+        if (!is.numeric(d$pvalues))
+            fail("pvalues must be numeric")
+        if (any(d$pvalues <= 0 | d$pvalues > 1))
+            fail("pvalues must be above 0 and at most 1")
+        if (d$type == "cc" && !("s" %in% nd))
+            fail("s is missing; a case-control dataset without beta and varbeta needs s, ",
+                 "the proportion of samples who are cases")
+        if (!("N" %in% nd))
+            fail("N is missing; without beta and varbeta, coloc needs N, the sample size")
+    } else {
+        for (v in c("beta", "varbeta"))
+            if (!is.numeric(d[[v]]))
+                fail(v, " must be numeric")
+        if (any(d$varbeta < 0))
+            fail("varbeta must be > 0")
+        if (d$type == "quant" && !("sdY" %in% nd) && !("MAF" %in% nd && "N" %in% nd))
+            fail("must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
+        ## sdY is read for a quantitative trait, but not by SuSiE
+        if ("sdY" %in% nd && d$type == "quant" && !susie &&
+            (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
+            fail("sdY must be a single finite number above 0")
+    }
+    ## a warning when no p-value is below warn.minp; a coloc_dataset had it
+    ## when it was made
+    if (!inherits(d, "coloc_dataset")) {
+        p <- min(if (p_route) d$pvalues else pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2)
+        if (p > warn.minp)
+            warning(warningCondition(
+                paste0(prefix, "the smallest p-value is ", format.pval(p),
+                       ", so this dataset may have no association in the region.",
+                       "\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette."),
+                class = "coloc_min_p", call = NULL))
+    }
+    ## Where sdY is read and MAF and N are given, an sdY more than twice or
+    ## under half its estimate from varbeta, MAF and N gets a warning, as when
+    ## varbeta holds standard errors. It doesn't stop, as covariates or a mixed
+    ## model can move a correct sdY away from the estimate. A coloc_dataset
+    ## gets it too, as it may have been edited since it was made.
+    if (all(c("sdY", "MAF", "N") %in% nd) && !p_route && d$type == "quant" && !susie &&
+        length(d$varbeta)) {
+        fit <- .sdY_fit(d$varbeta, d$MAF, d$N)
+        if (is.finite(fit) && fit > 0 && max(d$sdY / sqrt(fit), sqrt(fit) / d$sdY) > 2)
+            warning(warningCondition(
+                paste0(prefix, sprintf("sdY is %.3g, but varbeta, MAF and N suggest %.3g; ", d$sdY, sqrt(fit)),
+                       "check that varbeta holds variances, not standard errors, ",
+                       "and that sdY is on the scale of beta"),
+                class = "coloc_sdY", call = NULL))
     }
 
-    ## minp. A coloc_dataset gave this warning when it was made, so it is not
-    ## repeated each time the dataset is used
-    if(!inherits(d, "coloc_dataset") && min(p) > warn.minp)
-        warning("minimum p value is: ",format.pval(min(p)),"\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette.")
-
-    ## sdY
-    if(d$type=="quant" && !("sdY" %in% nd))
-        if(!("MAF" %in% nd && "N" %in% nd ))
-            stop("dataset ",suffix,": ","must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
-
-    if("LD" %in% nd) {
-        if(nrow(d$LD)!=ncol(d$LD))
-            stop("LD not square")
-        if(!identical(colnames(d$LD),rownames(d$LD)))
-            stop("LD rownames != colnames")
-        if(length(setdiff(d$snp,colnames(d$LD))))
-            stop("colnames in LD do not contain all SNPs")
+    ## 3. What SuSiE reads; LD is given, as req names it
+    if (susie) {
+        if (!(is.matrix(d$LD) && is.numeric(d$LD)))
+            fail("LD must be a numeric matrix")
+        ## only the dataset's snps, which are all SuSiE uses, copied out only
+        ## when LD covers more; with as many, they are the same snps
+        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
+        if (!.is_correlation(LD))
+            fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
+        if ("N" %in% nd && d$N <= 1)
+            fail("N must be above 1 for SuSiE")
+        if ("z" %in% nd) {
+            if (any(is.na(d$z)))
+                fail("z contains missing values")
+            if (length(d$z) != length(d[[ref]]))
+                fail(ref, " has ", length(d[[ref]]), if (length(d[[ref]]) == 1L) " value" else " values",
+                     " but z has ", length(d$z))
+            if (!is.numeric(d$z))
+                fail("z must be numeric")
+            if (any(is.infinite(d$z)))
+                fail("z has infinite values")
+        }
     }
-
-    ## if we reach here, no badness detected
     NULL
 }
 
@@ -187,39 +268,91 @@ check.dataset=function(...) {
 }
 
 
+## The refusal of anything but a list of dataset elements, for check_dataset()
+## and new_coloc_dataset(). With a label, such as 1, the message begins
+## "dataset 1: ".
+.stop_not_a_dataset <- function(d, dataset = NULL)
+    stop(if (is.null(dataset)) "the dataset" else paste0("dataset ", dataset, ": this"),
+         " is ", .what_is(d), ", not a list of coloc_dataset elements (snp, beta, varbeta, ...)",
+         call. = FALSE)
+
+## TRUE when LD is a correlation matrix, to within tol: no missing values,
+## values in [-1, 1], 1 on the diagonal, and symmetric. The default passes an
+## LD worked out in 64-bit arithmetic or stored as 32-bit floats, but one
+## worked out in 32-bit arithmetic can be out by about 2e-5, and is refused.
+## The transpose is compared in blocks of 500 columns, so a large LD isn't
+## copied whole.
+.is_correlation <- function(LD, tol = 1e-6) {
+    if (anyNA(LD))
+        return(FALSE)
+    r <- range(LD)
+    if (r[1] < -1 - tol || r[2] > 1 + tol)
+        return(FALSE)
+    if (any(abs(diag(LD) - 1) > tol))
+        return(FALSE)
+    for (j in split(seq_len(ncol(LD)), ceiling(seq_len(ncol(LD)) / 500)))
+        if (max(abs(LD[, j, drop = FALSE] - t(LD[j, , drop = FALSE]))) > tol)
+            return(FALSE)
+    TRUE
+}
+
 check_ld <- function(D,LD) {
     if(is.null(LD))
-      stop("LD required")
+      stop("LD is missing")
     if(!is.matrix(LD))
-      stop("LD must be of class matrix")
+      stop("LD must be a matrix")
     ## if(any(LD[upper.tri(LD)]==1))
     ##   stop("LD includes SNPs in perfect LD")
     if(nrow(LD)!=ncol(LD))
-        stop("LD not square")
+        stop("LD must be square, but it has ", nrow(LD), ngettext(nrow(LD), " row", " rows"),
+             " and ", ncol(LD), ngettext(ncol(LD), " column", " columns"))
     if(!identical(colnames(LD),rownames(LD)))
       stop("LD rownames != colnames")
     if(length(setdiff(D$snp,colnames(LD))))
-        stop("colnames in LD do not contain all SNPs")
+        stop("LD must cover every snp")
+    ## finemap.signals() and coloc.signals() compute with LD, so it must be a
+    ## numeric correlation matrix, as for SuSiE. Only D's snps are checked, or
+    ## all of LD when D names none
+    if(!is.numeric(LD))
+        stop("LD must be a numeric matrix")
+    if(length(D$snp) && ncol(LD) > length(D$snp))
+        LD <- LD[D$snp,D$snp]
+    if(anyNA(LD))
+        stop("LD contains missing values")
+    if(!.is_correlation(LD))
+        stop("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
 }
 
 ##' check alignment between beta and LD
 ##'
 ##' @title check alignment
 ##' @param D a coloc dataset
-##' @param thr plot SNP pairs in absolute LD > thr
+##' @param thr count and plot the pairs of SNPs in absolute LD > thr, each
+##'     pair once
 ##' @param do_plot if TRUE (default) plot the diagnostic
 ##' @export
-##' @return proportion of pairs that are positive
+##' @return proportion of those pairs whose product of z scores, divided by
+##'     their LD, is positive
 ##' @author Chris Wallace
 ##' @examples
 ##' data(coloc_test_data)
 ##' ## close to 1 when beta and LD are aligned to the same alleles
 ##' check_alignment(coloc_test_data$D3, do_plot = FALSE)
 check_alignment <- function(D,thr=0.2,do_plot=TRUE) {
-  check_dataset(D)
-  bprod=outer(D$beta/sqrt(D$varbeta),D$beta/sqrt(D$varbeta),"*")
-  ## plot(bprod,D$LD[D$snp,D$snp],xlab="product of z scores",ylab="LD")
-  tmp=(bprod/D$LD)[abs(D$LD) > 0.2]
+  check_dataset(D, req = c("type", "snp", "beta", "varbeta", "LD"))
+  ## z_i * z_j / LD_ij for each pair of snps i < j with |LD_ij| above thr,
+  ## positive when the two z-scores agree in sign with their LD. LD is matched
+  ## to the snps by name, and read in blocks of 500 columns to bound the memory
+  z <- D$beta/sqrt(D$varbeta)
+  at <- match(D$snp, colnames(D$LD))
+  tmp <- list()
+  for (j in split(seq_along(at), ceiling(seq_along(at) / 500))) {
+    i <- seq_len(max(j))
+    R <- D$LD[at[i], at[j], drop = FALSE]
+    pair <- outer(i, j, "<") & abs(R) > thr
+    tmp[[length(tmp) + 1L]] <- (outer(z[i], z[j]) / R)[pair]
+  }
+  tmp <- unlist(tmp)
   if(do_plot) {
   hist(tmp,
        xlab="ratio of product of Z scores to LD",

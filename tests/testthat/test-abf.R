@@ -87,10 +87,10 @@ RESULTS.coloc <- suppressWarnings(list(dd = coloc(DQ, DCC, prior = coloc_prior(p
 lapply(RESULTS.coloc, pp)
 
 test_that("process.dataset", {
-  expect_error(process.dataset(DQ,suffix=".q"), NA)
-  expect_error(process.dataset(DCC,suffix=".q"), NA)
-  expect_error(process.dataset(PQ,suffix=".q"), NA)
-  expect_error(process.dataset(PCC,suffix=".q"), NA)
+  expect_no_error(process.dataset(DQ,suffix=".q"))
+  expect_no_error(process.dataset(DCC,suffix=".q"))
+  expect_no_error(process.dataset(PQ,suffix=".q"))
+  expect_no_error(process.dataset(PCC,suffix=".q"))
   pd.cc <- process.dataset(DCC,suffix=".cc")
   pd.q <- process.dataset(DQ,suffix=".q")
   expect_s3_class(pd.q, "data.frame")
@@ -101,15 +101,15 @@ test_that("process.dataset", {
 
 ## coloc.abf with coefficients
 test_that("coloc.abf", {
-    expect_error(suppressWarnings(coloc.abf(dataset1=DQ,dataset2=DCC)), NA)
-    expect_warning(result <- coloc.abf(dataset1=DQ,dataset2=DCC), "minimum p value")
+    expect_no_error(suppressWarnings(coloc.abf(dataset1=DQ,dataset2=DCC)))
+    expect_warning(result <- coloc.abf(dataset1=DQ,dataset2=DCC), class = "coloc_min_p")
     expect_true(which.max(result$summary[-1]) == 5)
     expect_true(result$summary[1] == ncol(X))
 })
 
 test_that("the coloc.abf checks, with coloc() in place of coloc.abf()", {
-    expect_error(suppressWarnings(coloc(DQ, DCC, prior = coloc_prior(p12 = 1e-5))), NA)
-    expect_warning(result <- coloc(DQ, DCC, prior = coloc_prior(p12 = 1e-5)), "minimum p value")
+    expect_no_error(suppressWarnings(coloc(DQ, DCC, prior = coloc_prior(p12 = 1e-5))))
+    expect_warning(result <- coloc(DQ, DCC, prior = coloc_prior(p12 = 1e-5)), class = "coloc_min_p")
     expect_true(which.max(pp(result)[-1]) == 5)
     expect_true(pp(result)[1] == ncol(X))
 })

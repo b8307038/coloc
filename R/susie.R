@@ -68,20 +68,22 @@ logbf_to_pp=function(bf,pi, last_is_null) {
 ##'   values for causal association with one trait (p1, p2) or both (p12) and
 ##'   and prior weights.
 coloc.susie=function(dataset1, dataset2, back_calculate_lbf=FALSE, susie.args=list(), ...) {
-  ## One implementation from here: the susie fitting, the credible-set row
-  ## selection and the arithmetic all come from the adapters and the engine
-  ## by way of coloc(). What stays is the old return shape.
+  ## coloc() does the work; this keeps the old function's arguments and the
+  ## shape of its result
   dots <- list(...)
   .coloc_result_as_6_0_3(
-      coloc(dataset1, dataset2, method = "susie", susie.args = susie.args,
-            prior = .prior_from_dots(dots), control = .control_from_dots(dots)))
+      .as_old_function(
+          coloc(dataset1, dataset2, method = "susie", prior = .prior_from_dots(dots),
+                control = .control_from_dots(dots), susie.args = susie.args)))
 }
 
 finemap.susie=function(dataset1, susie.args=list(),  ...) {
   if("susie" %in% class(dataset1))
     s1=dataset1
   else
-    s1=do.call("runsusie", c(list(d=dataset1,suffix=1),susie.args))
+    ## the dataset goes in by its name, so an error from runsusie()
+    ## doesn't carry a call holding the whole dataset
+    s1=do.call("runsusie", c(list(d=quote(dataset1),suffix=1),susie.args))
   cs1=s1$sets
   if(is.null(cs1$cs) || length(cs1$cs)==0 )
     return(data.table(nsnps=NA))
@@ -99,7 +101,9 @@ finemap.susie=function(dataset1, susie.args=list(),  ...) {
 ##'
 ##' @title run coloc using susie to detect separate signals
 ##' @inheritParams coloc.signals
-##' @param bf2 named vector of log BF, names are snp ids and will be matched to column names of susie object's alpha
+##' @param bf2 log Bayes factors: a named vector, names are snp ids and will be
+##'     matched to column names of susie object's alpha, or a matrix with snp ids
+##'     as colnames. Anything else, such as a dataset or a SuSiE fit, is refused
 ##' @param susie.args named list of arguments to be passed to susieR::susie_rss()
 ##' @param ... other arguments passed to \link{coloc.bf_bf}, in particular prior
 ##'   values for causal association with one trait (p1, p2) or both (p12) and
@@ -108,19 +112,22 @@ finemap.susie=function(dataset1, susie.args=list(),  ...) {
 ##' @export
 ##' @author Chris Wallace
 coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=list(), ...) {
+  ## coloc() sorts its inputs by shape, so it would fine-map a dataset or a
+  ## SuSiE fit given here; bf2 has to be log Bayes factors already
+  if (!is.numeric(bf2))
+    stop("bf2 is ", .what_is(bf2), "; it must hold log Bayes factors, as a numeric vector ",
+         "named by snp or a numeric matrix with snp ids as column names")
   dots <- list(...)
   prior <- .prior_from_dots(dots)
-  ## AL02: 6.0.3 declared p1/p2/p12 here and forwarded none of them, so a
-  ## caller's values were silently discarded and the hardcoded defaults of
-  ## coloc.bf_bf() were used instead. They are forwarded now.
+  ## the caller's p1, p2 and p12, from the signature
   if (is.null(dots$p1))  prior$p1  <- p1
   if (is.null(dots$p2))  prior$p2  <- p2
   if (is.null(dots$p12)) prior$p12 <- p12
 
   .coloc_result_as_6_0_3(
-      .without_method_warning(
-          coloc(dataset1, bf2, method = "susie", susie.args = susie.args,
-                prior = prior, control = .control_from_dots(dots))))
+      .as_old_function(
+          coloc(dataset1, bf2, method = "susie", prior = prior,
+                control = .control_from_dots(dots), susie.args = susie.args)))
 }
 
 ##' Finemap one dataset represented by Bayes factors
@@ -136,7 +143,9 @@ coloc.susie_bf=function(dataset1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, susie.args=lis
 ##' @examples
 ##' data(coloc_test_data)
 ##' ## one signal's log Bayes factors, as kept by coloc()
-##' res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+##' D1 <- as_coloc_dataset(coloc_test_data$D1)
+##' D2 <- as_coloc_dataset(coloc_test_data$D2)
+##' res <- coloc(D1, D2)
 ##' fm <- finemap.bf(log_bf(res, 1))
 ##' fm$summary
 ##' head(fm$results[order(fm$results$SNP.PP.abf, decreasing = TRUE), ])
@@ -193,39 +202,45 @@ finemap.bf=function(bf1, p1=1e-4) {
        priors=c(p1=p1))
 }
 
-##' Colocalise two datasets represented by Bayes factors
+##' Colocalise two traits given as log Bayes factors
 ##'
-##' This is the workhorse behind many coloc functions
+##' `coloc.bf_bf()` compares two traits given as log Bayes factors, such as
+##' the credible sets of two SuSiE fits, each signal of trait 1 with each
+##' signal of trait 2. It returns the result in the form [coloc.signals()]
+##' does. [coloc()] takes log Bayes factors too, and returns a
+##' [coloc_result].
 ##'
-##' @title Coloc data through Bayes factors
+##' A missing or infinite value in `bf1` or `bf2` leaves its signal's
+##' posterior probabilities undefined, so `coloc.bf_bf()` stops on one,
+##' naming the matrix and a snp, as [coloc()] does.
+##'
 ##' @inheritParams coloc.signals
-##' @param bf1 named vector of log BF, or matrix of BF with colnames (cols=snps, rows=signals)
-##' @param bf2 named vector of log BF, or matrix of BF with colnames (cols=snps, rows=signals)
-##' @param trim_by_posterior it is important that the signals to be colocalised
-##'   are covered by adequate numbers of snps in both datasets. If TRUE, signals
-##'   for which snps in common do not capture least overlap.min proportion of
-##'   their posteriors support are dropped and colocalisation not attempted.
-##' @param overlap.min see trim_by_posterior
-##' @param prior_weights1 Non-negative weights for the prior probability a SNP is associated with trait 1 
-##' @param prior_weights2 Non-negative weights for the prior probability a SNP is asscoiated with trait 2
+##' @param bf1 trait 1's log Bayes factors, as a vector named by snp, for one
+##'   signal, or as a matrix with one row per signal and snp ids as column
+##'   names
+##' @param bf2 trait 2's log Bayes factors, in the same form
+##' @param p12 prior probability a SNP is associated with both traits,
+##'   default 5e-6. It must be at least `p1 * p2` and at most the smaller of
+##'   `p1` and `p2`
+##' @param trim_by_posterior whether to drop signal pairs failing overlap.min
+##' @param overlap.min minimum proportion of a signal's posterior that must
+##'   fall on snps shared with the other trait before the pair is considered
+##' @param prior_weights1 weights for the prior probability that each snp is
+##'   associated with trait 1, above 0 with no missing values
+##' @param prior_weights2 weights for the prior probability that each snp is
+##'   associated with trait 2, above 0 with no missing values
 ##' @return coloc.signals style result
 ##' @export
 ##' @author Chris Wallace
 coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
                      trim_by_posterior=TRUE, prior_weights1 = NULL, prior_weights2 = NULL) {
 
-  ## A thin wrapper over .coloc_engine(). The arithmetic moved to R/engine.R;
-  ## what stays here is 6.0.3's user-facing validation, its vector promotion
-  ## and the translation of coloc_result back into the five return shapes
-  ## callers still expect. That translation is temporary: it keeps the old
-  ## entry points' 6.0.3 return shapes, which test-v603.R compares, and lives
-  ## as long as the old entry points do.
+  ## the engine does the work; this checks the prior and the log BFs, and
+  ## returns the result in the old function's shapes
 
   prior <- list(p1 = p1, p2 = p2, p12 = p12,
                 weights1 = prior_weights1, weights2 = prior_weights2)
-  .check_prior_weights(prior)
-  ## 6.0.3 accepted a vector p1/p2 here (allowlist AL10); the engine does not
-  .check_scalar_prior(prior)
+  validate_coloc_prior(prior)
 
   ## a named vector is one signal: make it a one-row matrix here, as
   ## coloc() does in .adapt_bf(), which coloc.bf_bf() does not call
@@ -233,6 +248,17 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
     bf1=matrix(bf1,nrow=1,dimnames=list(NULL,names(bf1)))
   if(is.vector(bf2))
     bf2=matrix(bf2,nrow=1,dimnames=list(NULL,names(bf2)))
+  ## a missing or infinite log BF leaves its signal's posteriors undefined
+  bad <- function(bf) is.numeric(bf) && any(!is.finite(bf))
+  ## the snp of the first such value, for the message
+  first_bad <- function(bf) {
+    j <- which(!is.finite(bf), arr.ind = TRUE)[1, "col"]
+    if(is.null(colnames(bf))) paste("column", j) else colnames(bf)[j]
+  }
+  if(bad(bf1))
+    stop("bf1 has missing or infinite log Bayes factors, such as at ", first_bad(bf1))
+  if(bad(bf2))
+    stop("bf2 has missing or infinite log Bayes factors, such as at ", first_bad(bf2))
 
   res <- .coloc_engine(bf1, bf2, prior = prior,
                        control = list(overlap.min = overlap.min,
@@ -240,19 +266,18 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
   .coloc_result_as_6_0_3(res)
 }
 
-## Turn a coloc_result, the one shape coloc() returns, back into the five
-## shapes the old functions returned in 6.0.3. Deliberately lossy: $status,
-## $messages and $meta have nowhere to go in the old shapes, which is the
-## whole argument for replacing them.
+## Puts a coloc_result in the shapes the old functions return: a data.table
+## with nsnps = NA when no pair was formed, the summary alone when every pair
+## was trimmed, and otherwise the summary, results and priors. $status,
+## $messages and $meta are dropped.
 .coloc_result_as_6_0_3 <- function(res) {
   if (res$status %in% c("no_overlap", "no_signal"))
     return(data.table(nsnps = NA))
 
   s <- data.table::copy(res$summary)
   if (res$status == "all_trimmed") {
-    ## 6.0.3 writes a bare NA into this branch, which makes the columns
-    ## logical rather than numeric. A coloc_result's $summary columns are
-    ## always numeric, so the old type is restored here, not in the engine.
+    ## in the old shape, PP.H1.abf to PP.H4.abf are logical when every pair is
+    ## trimmed
     for (col in paste0("PP.H", 1:4, ".abf"))
       data.table::set(s, j = col, value = as.logical(s[[col]]))
     return(list(summary = s))
@@ -301,8 +326,7 @@ coloc.bf_bf=function(bf1,bf2, p1=1e-4, p2=1e-4, p12=5e-6, overlap.min=0.5,
 runsusie=function(d,suffix=1,
                   maxit=100,repeat_until_convergence=TRUE,
                   s_init=NULL, ...) {
-  check_dataset(d,suffix,req=c("beta","varbeta","LD","snp","N"))
-  check_ld(d,d$LD)
+  check_dataset(d,suffix,req=.dataset_uses$susie)
   ##make copies of z and LD so we can subset if needed
   if(!("z" %in% names(d)))
     z=d$beta/sqrt(d$varbeta)

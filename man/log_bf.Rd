@@ -24,7 +24,9 @@ the same numbers \code{\link[=coloc]{coloc()}} used.
 }
 \examples{
 data(coloc_test_data)
-res <- coloc(coloc_test_data$D1, coloc_test_data$D2)
+D1 <- as_coloc_dataset(coloc_test_data$D1)
+D2 <- as_coloc_dataset(coloc_test_data$D2)
+res <- coloc(D1, D2)
 bf1 <- log_bf(res, 1)
 dim(bf1)                         # one signal, 500 SNPs
 ## fine-map trait 1 from the same numbers coloc() used
