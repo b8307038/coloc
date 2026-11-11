@@ -112,7 +112,7 @@ check_dataset <- function(d,
     ## assumptions here for datasets I don't know. z is left to runsusie(),
     ## which reads it
     for (v in setdiff(nd, "z"))
-        if (any(is.na(d[[v]])))
+        if (anyNA(d[[v]]))
             fail(v, " contains missing values")
     if (!("type" %in% nd))
         fail('type is missing; set type to "quant" for a quantitative trait or "cc" for a case-control trait')
