@@ -46,7 +46,7 @@
 ##'    be present, and no element but `z` may have missing values. `type` must
 ##'    be given, as one value, `"quant"` or `"cc"`. `s` must be one number
 ##'    between 0 and 1, `MAF` numbers above 0 and below 1, and `N` one finite
-##'    number above 0. Each snp id must appear once, and `snp` must not be a
+##'    number above 1. Each snp id must appear once, and `snp` must not be a
 ##'    factor. The per-snp elements must have the same length. `beta` and
 ##'    `varbeta`, when both are given, must have no infinite values, and
 ##'    `varbeta` must have no zeros. `LD` must have two dimensions and be
@@ -60,9 +60,9 @@
 ##'    `N` so coloc can estimate it.
 ##' 3. What SuSiE reads, when `req` includes `"LD"`, as [runsusie()]'s does.
 ##'    `LD` must be a numeric correlation matrix for the dataset's snps, with
-##'    values from -1 to 1, symmetric, and 1 on the diagonal. `N` must be above
-##'    1, and a `z`, if given, must have a finite number for each snp. SuSiE
-##'    doesn't read `sdY`, so step 2 doesn't check it on this route.
+##'    values from -1 to 1, symmetric, and 1 on the diagonal. A `z`, if given,
+##'    must have a finite number for each snp. SuSiE doesn't read `sdY`, so
+##'    step 2 doesn't check it on this route.
 ##'
 ##' It also warns, without stopping, in two cases. When no p-value is below
 ##' `warn.minp`, the trait may have no association in the region; a
@@ -154,8 +154,8 @@ check_dataset <- function(d,
     if ("N" %in% nd) {
         if (!is.numeric(d$N) || length(d$N) != 1L)
             fail("N must be a single number; coloc does not take per-snp sample sizes")
-        if (!is.finite(d$N) || d$N <= 0)
-            fail("N must be finite and > 0")
+        if (!is.finite(d$N) || d$N <= 1)
+            fail("N must be finite and > 1")
     }
     if (any(is.infinite(d$beta) | is.infinite(d$varbeta))) {
         v <- if (any(is.infinite(d$beta))) "beta" else "varbeta"
@@ -242,8 +242,6 @@ check_dataset <- function(d,
         LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
         if (!.is_correlation(LD))
             fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
-        if ("N" %in% nd && d$N <= 1)
-            fail("N must be above 1 for SuSiE")
         if ("z" %in% nd) {
             if (any(is.na(d$z)))
                 fail("z contains missing values")

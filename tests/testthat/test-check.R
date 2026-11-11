@@ -330,13 +330,13 @@ cases <- list(
                  d
              }),
              error = "dataset 1: N is missing; without beta and varbeta, coloc needs N, the sample size"),
-    "a trait given as p-values has N above 0" =
+    "a trait given as p-values has N above 1" =
         list(d = local({
                  d <- pv1
-                 d$N <- 0
+                 d$N <- 1
                  d
              }),
-             error = "dataset 1: N must be finite and > 0"),
+             error = "dataset 1: N must be finite and > 1"),
     "beta and varbeta are finite" =
         list(d = local({
                  d <- D1
