@@ -5,12 +5,12 @@
 \alias{check.alignment}
 \title{check alignment}
 \usage{
-check_alignment(D, thr = 0.2, do_plot = TRUE)
+check_alignment(d, thr = 0.2, do_plot = TRUE)
 
 check.alignment(...)
 }
 \arguments{
-\item{D}{a coloc dataset}
+\item{d}{a coloc dataset}
 
 \item{thr}{count and plot the pairs of SNPs in absolute LD > thr, each
 pair once}

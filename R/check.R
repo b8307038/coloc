@@ -253,7 +253,7 @@ check.dataset=function(...) {
     TRUE
 }
 
-check_ld <- function(D,LD) {
+check_ld <- function(d,LD) {
     if(is.null(LD))
       stop("LD is missing")
     if(!is.matrix(LD))
@@ -265,15 +265,15 @@ check_ld <- function(D,LD) {
              " and ", ncol(LD), ngettext(ncol(LD), " column", " columns"))
     if(!identical(colnames(LD),rownames(LD)))
       stop("LD rownames != colnames")
-    if(length(setdiff(D$snp,colnames(LD))))
+    if(length(setdiff(d$snp,colnames(LD))))
         stop("LD must cover every snp")
     ## finemap.signals() and coloc.signals() compute with LD, so it must be a
-    ## numeric correlation matrix, as for SuSiE. Only D's snps are checked, or
-    ## all of LD when D names none
+    ## numeric correlation matrix, as for SuSiE. Only d's snps are checked, or
+    ## all of LD when d names none
     if(!is.numeric(LD))
         stop("LD must be a numeric matrix")
-    if(length(D$snp) && ncol(LD) > length(D$snp))
-        LD <- LD[D$snp,D$snp]
+    if(length(d$snp) && ncol(LD) > length(d$snp))
+        LD <- LD[d$snp,d$snp]
     if(anyNA(LD))
         stop("LD contains missing values")
     if(!.is_correlation(LD))
@@ -283,7 +283,7 @@ check_ld <- function(D,LD) {
 ##' check alignment between beta and LD
 ##'
 ##' @title check alignment
-##' @param D a coloc dataset
+##' @param d a coloc dataset
 ##' @param thr count and plot the pairs of SNPs in absolute LD > thr, each
 ##'     pair once
 ##' @param do_plot if TRUE (default) plot the diagnostic
@@ -295,17 +295,17 @@ check_ld <- function(D,LD) {
 ##' data(coloc_test_data)
 ##' ## close to 1 when beta and LD are aligned to the same alleles
 ##' check_alignment(coloc_test_data$D3, do_plot = FALSE)
-check_alignment <- function(D,thr=0.2,do_plot=TRUE) {
-  check_dataset(D, req = c("type", "snp", "beta", "varbeta", "LD"))
+check_alignment <- function(d,thr=0.2,do_plot=TRUE) {
+  check_dataset(d, req = c("type", "snp", "beta", "varbeta", "LD"))
   ## z_i * z_j / LD_ij for each pair of snps i < j with |LD_ij| above thr,
   ## positive when the two z-scores agree in sign with their LD. LD is matched
   ## to the snps by name, and read in blocks of 500 columns to bound the memory
-  z <- D$beta/sqrt(D$varbeta)
-  at <- match(D$snp, colnames(D$LD))
+  z <- d$beta/sqrt(d$varbeta)
+  at <- match(d$snp, colnames(d$LD))
   tmp <- list()
   for (j in split(seq_along(at), ceiling(seq_along(at) / 500))) {
     i <- seq_len(max(j))
-    R <- D$LD[at[i], at[j], drop = FALSE]
+    R <- d$LD[at[i], at[j], drop = FALSE]
     pair <- outer(i, j, "<") & abs(R) > thr
     tmp[[length(tmp) + 1L]] <- (outer(z[i], z[j]) / R)[pair]
   }
