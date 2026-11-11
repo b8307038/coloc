@@ -282,7 +282,7 @@ test_that(".is_correlation() compares every block of a large LD", {
     expect_false(.is_correlation(ld))
 })
 
-test_that("for SuSiE z must have a finite number for each snp, where 6.0.3 failed with R's errors or fit it as given", {
+test_that("runsusie() checks z, which check_dataset() leaves to it, where 6.0.3 failed with R's errors or fit it as given", {
     z3 <- D3$beta / sqrt(D3$varbeta)
     ## each z, and whether 6.0.3's runsusie() failed on it with R's or susieR's
     ## error or fine-mapped it as given
@@ -292,13 +292,6 @@ test_that("for SuSiE z must have a finite number for each snp, where 6.0.3 faile
                    "character" = list(z = as.character(z3), failed = TRUE),
                    "logical" = list(z = z3 > 0, failed = FALSE),
                    "an infinite value" = list(z = replace(z3, 5, Inf), failed = FALSE))
-    ## and the error each gets now, after its "dataset 1: " label
-    errors <- c("a missing value" = "z contains missing values",
-                "one value short" = "snp has 500 values but z has 499",
-                "one value too many" = "snp has 500 values but z has 501",
-                "character" = "z must be numeric",
-                "logical" = "z must be numeric",
-                "an infinite value" = "z has infinite values")
     for (what in names(broken)) {
         b <- broken[[what]]
         d <- D3
@@ -308,8 +301,14 @@ test_that("for SuSiE z must have a finite number for each snp, where 6.0.3 faile
             FALSE
         }, error = function(e) TRUE)
         expect_identical(failed, b$failed, label = what)
-        expect_error(runsusie(d), paste0("dataset 1: ", errors[[what]]), fixed = TRUE)
-        refused_before_susie(coloc(D4, d, method = "susie"), paste0("dataset 2: ", errors[[what]]))
+        ## check_dataset() passes it, with the req that runsusie() gives
+        expect_null(check_dataset(d, 1, req = .dataset_uses$susie), label = what)
+        ## runsusie() refuses it, with one message for every fault
+        e <- expect_error(runsusie(d))
+        expect_identical(conditionMessage(e), "dataset 1: z must be a finite number for each snp", label = what)
+        ## and so does coloc(), with the trait's number, when it fine-maps the trait
+        e <- expect_error(coloc(fit3, d, method = "susie"))
+        expect_identical(conditionMessage(e), "dataset 2: z must be a finite number for each snp", label = what)
         ## where nothing reads z it passes, with 6.0.3's answer
         d1 <- D1
         d1$z <- b$z

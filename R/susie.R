@@ -327,6 +327,10 @@ runsusie=function(d,suffix=1,
                   maxit=100,repeat_until_convergence=TRUE,
                   s_init=NULL, ...) {
   check_dataset(d,suffix,req=.dataset_uses$susie)
+  ## z is read only here, so it is checked here and not by check_dataset()
+  if("z" %in% names(d) &&
+     (!is.numeric(d$z) || length(d$z) != length(d$snp) || !all(is.finite(d$z))))
+    stop("dataset ",suffix,": z must be a finite number for each snp", call.=FALSE)
   ##make copies of z and LD so we can subset if needed
   if(!("z" %in% names(d)))
     z=d$beta/sqrt(d$varbeta)

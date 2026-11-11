@@ -73,15 +73,15 @@ also needs \code{s}. A quantitative trait given as \code{beta} and \code{varbeta
 \code{check_dataset()} checks in three steps, and stops at the first problem:
 \enumerate{
 \item Each element, wherever it is given. The elements that \code{req} names must
-be present, and no element but \code{z} may have missing values. \code{type} must
-be given, as one value, \code{"quant"} or \code{"cc"}. \code{s} must be one number
-between 0 and 1, \code{MAF} numbers above 0 and below 1, and \code{N} one finite
-number above 1. Each snp id must appear once, and \code{snp} must not be a
-factor. The per-snp elements must have the same length. \code{beta} and
-\code{varbeta}, when both are given, must have no infinite values, and
-\code{varbeta} must have no zeros. \code{LD} must have two dimensions and be
-square, with row names that match its column names, in the same order,
-and cover every snp.
+be present, and no element may have missing values. This step leaves
+\code{z} to \code{\link[=runsusie]{runsusie()}}, which reads it and checks it. \code{type} must be given,
+as one value, \code{"quant"} or \code{"cc"}. \code{s} must be one number between 0 and
+1, \code{MAF} numbers above 0 and below 1, and \code{N} one finite number above 1.
+Each snp id must appear once, and \code{snp} must not be a factor. The
+per-snp elements must have the same length. \code{beta} and \code{varbeta}, when
+both are given, must have no infinite values, and \code{varbeta} must have no
+zeros. \code{LD} must have two dimensions and be square, with row names that
+match its column names, in the same order, and cover every snp.
 \item What coloc reads on the dataset's route. Without both \code{beta} and
 \code{varbeta}, coloc reads \code{pvalues}, which must be numbers above 0 and at
 most 1, \code{MAF} and \code{N}, and \code{s} for a case-control trait. With them,
@@ -90,9 +90,8 @@ quantitative trait needs \code{sdY}, one finite number above 0, or \code{MAF} an
 \code{N} so coloc can estimate it.
 \item What SuSiE reads, when \code{req} includes \code{"LD"}, as \code{\link[=runsusie]{runsusie()}}'s does.
 \code{LD} must be a numeric correlation matrix for the dataset's snps, with
-values from -1 to 1, symmetric, and 1 on the diagonal. A \code{z}, if given,
-must have a finite number for each snp. SuSiE doesn't read \code{sdY}, so
-step 2 doesn't check it on this route.
+values from -1 to 1, symmetric, and 1 on the diagonal. SuSiE doesn't
+read \code{sdY}, so step 2 doesn't check it on this route.
 }
 
 It also warns, without stopping, in two cases. When no p-value is below

@@ -43,15 +43,15 @@
 ##' `check_dataset()` checks in three steps, and stops at the first problem:
 ##'
 ##' 1. Each element, wherever it is given. The elements that `req` names must
-##'    be present, and no element but `z` may have missing values. `type` must
-##'    be given, as one value, `"quant"` or `"cc"`. `s` must be one number
-##'    between 0 and 1, `MAF` numbers above 0 and below 1, and `N` one finite
-##'    number above 1. Each snp id must appear once, and `snp` must not be a
-##'    factor. The per-snp elements must have the same length. `beta` and
-##'    `varbeta`, when both are given, must have no infinite values, and
-##'    `varbeta` must have no zeros. `LD` must have two dimensions and be
-##'    square, with row names that match its column names, in the same order,
-##'    and cover every snp.
+##'    be present, and no element may have missing values. This step leaves
+##'    `z` to [runsusie()], which reads it and checks it. `type` must be given,
+##'    as one value, `"quant"` or `"cc"`. `s` must be one number between 0 and
+##'    1, `MAF` numbers above 0 and below 1, and `N` one finite number above 1.
+##'    Each snp id must appear once, and `snp` must not be a factor. The
+##'    per-snp elements must have the same length. `beta` and `varbeta`, when
+##'    both are given, must have no infinite values, and `varbeta` must have no
+##'    zeros. `LD` must have two dimensions and be square, with row names that
+##'    match its column names, in the same order, and cover every snp.
 ##' 2. What coloc reads on the dataset's route. Without both `beta` and
 ##'    `varbeta`, coloc reads `pvalues`, which must be numbers above 0 and at
 ##'    most 1, `MAF` and `N`, and `s` for a case-control trait. With them,
@@ -60,9 +60,8 @@
 ##'    `N` so coloc can estimate it.
 ##' 3. What SuSiE reads, when `req` includes `"LD"`, as [runsusie()]'s does.
 ##'    `LD` must be a numeric correlation matrix for the dataset's snps, with
-##'    values from -1 to 1, symmetric, and 1 on the diagonal. A `z`, if given,
-##'    must have a finite number for each snp. SuSiE doesn't read `sdY`, so
-##'    step 2 doesn't check it on this route.
+##'    values from -1 to 1, symmetric, and 1 on the diagonal. SuSiE doesn't
+##'    read `sdY`, so step 2 doesn't check it on this route.
 ##'
 ##' It also warns, without stopping, in two cases. When no p-value is below
 ##' `warn.minp`, the trait may have no association in the region; a
@@ -104,7 +103,7 @@ check_dataset <- function(d,
         .stop_not_a_dataset(d, dataset)
     nd <- intersect(names(d), .dataset_items)          # the elements coloc reads
     p_route <- !("beta" %in% nd && "varbeta" %in% nd)  # p-values unless both are given
-    susie <- "LD" %in% req                             # SuSiE reads LD, N and z, not sdY
+    susie <- "LD" %in% req                             # SuSiE reads LD, not sdY
     ## for messages: "pvalues is missing", "pvalues and MAF are missing"
     is_missing <- function(v)
         paste(if (length(v) < 2L) v else paste(paste(v[-length(v)], collapse = ", "), "and", v[length(v)]),
@@ -119,8 +118,8 @@ check_dataset <- function(d,
     if (length(absent))
         fail("missing required element(s) ", paste(absent, collapse = ", "))
     ## no missing values - make people clean their own data rather than make
-    ## assumptions here for datasets I don't know. z is checked where SuSiE
-    ## reads it, below
+    ## assumptions here for datasets I don't know. z is left to runsusie(),
+    ## which reads it
     for (v in setdiff(nd, "z"))
         if (any(is.na(d[[v]])))
             fail(v, " contains missing values")
@@ -143,8 +142,7 @@ check_dataset <- function(d,
     if ("MAF" %in% nd && (!is.numeric(d$MAF) || any(d$MAF <= 0 | d$MAF >= 1)))
         fail("MAF should be a numeric, strictly >0 & <1")
     ## each per-snp element but z has as many values as snp, or, without snp,
-    ## as the first of them in .per_snp_items' order; z is compared with the
-    ## same element below
+    ## as the first of them in .per_snp_items' order
     per_snp <- intersect(setdiff(.per_snp_items, "z"), nd)
     ref <- if ("snp" %in% per_snp) "snp" else per_snp[1]
     for (v in per_snp)
@@ -242,17 +240,6 @@ check_dataset <- function(d,
         LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
         if (!.is_correlation(LD))
             fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
-        if ("z" %in% nd) {
-            if (any(is.na(d$z)))
-                fail("z contains missing values")
-            if (length(d$z) != length(d[[ref]]))
-                fail(ref, " has ", length(d[[ref]]), if (length(d[[ref]]) == 1L) " value" else " values",
-                     " but z has ", length(d$z))
-            if (!is.numeric(d$z))
-                fail("z must be numeric")
-            if (any(is.infinite(d$z)))
-                fail("z has infinite values")
-        }
     }
     NULL
 }

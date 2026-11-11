@@ -142,7 +142,8 @@ coloc <- function(x1, x2,
     ## Each dataset is checked, with the trait's number and what its method
     ## needs, before either is fine-mapped, and comes back a coloc_dataset. A
     ## mistake in trait 2 then stops coloc() before SuSiE runs on trait 1, and
-    ## the checks inside wakefield_bf() and runsusie() find nothing more.
+    ## the checks inside wakefield_bf() and runsusie() find nothing more, except
+    ## a bad z, which only runsusie() checks.
     xs <- list(x1, x2)
     for (i in 1:2)
         if (kinds[i] == "dataset")
