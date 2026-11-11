@@ -94,13 +94,9 @@ values from -1 to 1, symmetric, and 1 on the diagonal. SuSiE doesn't
 read \code{sdY}, so step 2 doesn't check it on this route.
 }
 
-It also warns, without stopping, in two cases. When no p-value is below
-\code{warn.minp}, the trait may have no association in the region; a
-\code{\link[=coloc_dataset]{coloc_dataset()}} gets this warning once, when it is made. When a
-quantitative trait given as \code{beta} and \code{varbeta} has an \code{sdY} more than
-twice or under half its estimate from \code{varbeta}, \code{MAF} and \code{N}, \code{varbeta}
-may hold standard errors in place of variances; this warning comes each
-time the dataset is checked, except on the SuSiE route.
+It also warns, without stopping, when no p-value is below \code{warn.minp}, as
+the trait may then have no association in the region. A \code{\link[=coloc_dataset]{coloc_dataset()}}
+gets this warning once, when it is made.
 }
 \examples{
 data(coloc_test_data)

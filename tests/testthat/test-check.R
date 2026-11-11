@@ -474,39 +474,6 @@ for (what in names(cases)) {
     })
 }
 
-test_that("an sdY far from its estimate from varbeta, MAF and N gets a warning, as when varbeta holds standard errors", {
-    ## standard errors in varbeta also make the minimum p-value warning
-    no_min_p <- function(expr)
-        withCallingHandlers(expr, coloc_min_p = function(w) invokeRestart("muffleWarning"))
-    se <- D1
-    se$varbeta <- sqrt(se$varbeta)
-    expect_warning(no_min_p(check_dataset(se, 1)),
-                   "dataset 1: sdY is 1.1, but varbeta, MAF and N suggest 4.55; check that varbeta holds variances, not standard errors, and that sdY is on the scale of beta",
-                   fixed = TRUE, class = "coloc_sdY")
-    expect_no_warning(check_dataset(D1, 1))
-    ## a coloc_dataset edited after it was made, and the old functions
-    made <- suppressWarnings(as_coloc_dataset(D1))
-    made$varbeta <- sqrt(made$varbeta)
-    w <- expect_warning(check_dataset(made), class = "coloc_sdY")
-    expect_identical(conditionMessage(w),
-                     "sdY is 1.1, but varbeta, MAF and N suggest 4.55; check that varbeta holds variances, not standard errors, and that sdY is on the scale of beta")
-    expect_warning(no_min_p(utils::capture.output(coloc.abf(coloc_test_data$D2, se))),
-                   "dataset 2: sdY is 1.1, but varbeta, MAF and N suggest 4.55; check that varbeta holds variances, not standard errors, and that sdY is on the scale of beta",
-                   fixed = TRUE, class = "coloc_sdY")
-    ## coloc() gives it once, with the dataset's number, though wakefield_bf()
-    ## checks the dataset again
-    classes <- character(0)
-    withCallingHandlers(coloc(made, as_coloc_dataset(coloc_test_data$D2)),
-                        warning = function(w) {
-                            classes <<- c(classes, class(w)[1])
-                            invokeRestart("muffleWarning")
-                        })
-    expect_equal(sum(classes == "coloc_sdY"), 1)
-    ## not where sdY isn't read
-    expect_no_warning(no_min_p(check_dataset(se, 1, req = .dataset_uses$susie)), class = "coloc_sdY")
-    expect_no_warning(no_min_p(check_dataset(to_pvalues(se), 1)), class = "coloc_sdY")
-})
-
 ## ---- what else check_dataset() and check_ld() must keep -----------------------
 ## check_dataset()'s errors and warnings show no call, as the message names the
 ## dataset; check_ld()'s show its own (call_of() is in helper-datasets.R)

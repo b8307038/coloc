@@ -63,13 +63,9 @@
 ##'    values from -1 to 1, symmetric, and 1 on the diagonal. SuSiE doesn't
 ##'    read `sdY`, so step 2 doesn't check it on this route.
 ##'
-##' It also warns, without stopping, in two cases. When no p-value is below
-##' `warn.minp`, the trait may have no association in the region; a
-##' [coloc_dataset()] gets this warning once, when it is made. When a
-##' quantitative trait given as `beta` and `varbeta` has an `sdY` more than
-##' twice or under half its estimate from `varbeta`, `MAF` and `N`, `varbeta`
-##' may hold standard errors in place of variances; this warning comes each
-##' time the dataset is checked, except on the SuSiE route.
+##' It also warns, without stopping, when no p-value is below `warn.minp`, as
+##' the trait may then have no association in the region. A [coloc_dataset()]
+##' gets this warning once, when it is made.
 ##'
 ##' @param d a dataset, as a list or a [coloc_dataset()], but not a data.frame
 ##' @param suffix a label for the dataset, such as 1 or 2, which begins each
@@ -214,21 +210,6 @@ check_dataset <- function(d,
                        ", so this dataset may have no association in the region.",
                        "\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette."),
                 class = "coloc_min_p", call = NULL))
-    }
-    ## Where sdY is read and MAF and N are given, an sdY more than twice or
-    ## under half its estimate from varbeta, MAF and N gets a warning, as when
-    ## varbeta holds standard errors. It doesn't stop, as covariates or a mixed
-    ## model can move a correct sdY away from the estimate. A coloc_dataset
-    ## gets it too, as it may have been edited since it was made.
-    if (all(c("sdY", "MAF", "N") %in% nd) && !p_route && d$type == "quant" && !susie &&
-        length(d$varbeta)) {
-        fit <- .sdY_fit(d$varbeta, d$MAF, d$N)
-        if (is.finite(fit) && fit > 0 && max(d$sdY / sqrt(fit), sqrt(fit) / d$sdY) > 2)
-            warning(warningCondition(
-                paste0(prefix, sprintf("sdY is %.3g, but varbeta, MAF and N suggest %.3g; ", d$sdY, sqrt(fit)),
-                       "check that varbeta holds variances, not standard errors, ",
-                       "and that sdY is on the scale of beta"),
-                class = "coloc_sdY", call = NULL))
     }
 
     ## 3. What SuSiE reads; LD is given, as req names it

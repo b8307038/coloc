@@ -60,10 +60,7 @@
 ## computes them. The matrix has one row, for the one causal variant the
 ## method assumes, and no null column, as coloc.abf() has none.
 .adapt_single <- function(x) {
-    ## coloc() has checked x and given its sdY warning; wakefield_bf() checks
-    ## it again, and would repeat the warning without the dataset's number
-    w <- withCallingHandlers(wakefield_bf(x),
-                             coloc_sdY = function(w) invokeRestart("muffleWarning"))
+    w <- wakefield_bf(x)
     bf <- matrix(w$lABF, nrow = 1L, dimnames = list("sig1", w$snp))
     list(bf = bf, meta = list(method = "single", idx = 1L, has_null = FALSE))
 }
