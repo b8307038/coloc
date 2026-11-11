@@ -15,9 +15,7 @@ check.dataset(...)
 \item{suffix}{a label for the dataset, such as 1 or 2, which begins each
 message as "dataset 1: ". With "" messages have no label}
 
-\item{req}{the elements that must be present. When it includes \code{"LD"}, as
-\code{\link[=runsusie]{runsusie()}}'s does, \code{check_dataset()} also checks what SuSiE reads,
-step 3 in Details}
+\item{req}{the elements that must be present}
 
 \item{warn.minp}{warn when no p-value is below this}
 
@@ -70,7 +68,7 @@ approximates them from \code{pvalues}, \code{MAF} and \code{N}, and a case-contr
 also needs \code{s}. A quantitative trait given as \code{beta} and \code{varbeta} needs
 \code{sdY}, or \code{MAF} and \code{N} so coloc can estimate \code{sdY}.
 
-\code{check_dataset()} checks in three steps, and stops at the first problem:
+\code{check_dataset()} checks in two steps, and stops at the first problem:
 \enumerate{
 \item Each element, wherever it is given. The elements that \code{req} names must
 be present, and no element may have missing values. This step leaves
@@ -80,18 +78,16 @@ as one value, \code{"quant"} or \code{"cc"}. \code{s} must be one number between
 Each snp id must appear once, and \code{snp} must not be a factor. The
 per-snp elements must have the same length. \code{beta} and \code{varbeta}, when
 both are given, must have no infinite values, and \code{varbeta} must have no
-zeros. \code{LD} must have two dimensions and be square, with row names that
-match its column names, in the same order, and cover every snp.
+zeros. \code{LD} must be a numeric matrix and square, with row names that
+match its column names, in the same order, and cover every snp. For the
+dataset's snps it must be a correlation matrix, with values from -1 to
+1, symmetric, and 1 on the diagonal.
 \item What coloc reads on the dataset's route. Without both \code{beta} and
 \code{varbeta}, coloc reads \code{pvalues}, which must be numbers above 0 and at
 most 1, \code{MAF} and \code{N}, and \code{s} for a case-control trait. With them,
 \code{beta} and \code{varbeta} must be numeric and \code{varbeta} not negative, and a
 quantitative trait needs \code{sdY}, one finite number above 0, or \code{MAF} and
 \code{N} so coloc can estimate it.
-\item What SuSiE reads, when \code{req} includes \code{"LD"}, as \code{\link[=runsusie]{runsusie()}}'s does.
-\code{LD} must be a numeric correlation matrix for the dataset's snps, with
-values from -1 to 1, symmetric, and 1 on the diagonal. SuSiE doesn't
-read \code{sdY}, so step 2 doesn't check it on this route.
 }
 
 It also warns, without stopping, when no p-value is below \code{warn.minp}, as

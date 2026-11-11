@@ -317,6 +317,6 @@ factors and SuSiE fits as well, and it uses the priors given where 6.0.3's
 `coloc.susie_bf()` ignored them. Its checks of a dataset also refuse values
 coloc can't use, before either trait is fine-mapped: an `N` that isn't a
 finite number above 1; an `sdY` that isn't a single number above 0 where it
-is read; and for SuSiE, an `LD` that isn't a
-correlation matrix. `runsusie()` refuses a `z` with missing or infinite values
-when it fine-maps the trait. The NEWS file lists each change.
+is read; and an `LD` that isn't a correlation matrix. `runsusie()` refuses a
+`z` with missing or infinite values when it fine-maps the trait. The NEWS file
+lists each change.

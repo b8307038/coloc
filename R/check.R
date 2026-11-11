@@ -40,7 +40,7 @@
 ##' also needs `s`. A quantitative trait given as `beta` and `varbeta` needs
 ##' `sdY`, or `MAF` and `N` so coloc can estimate `sdY`.
 ##'
-##' `check_dataset()` checks in three steps, and stops at the first problem:
+##' `check_dataset()` checks in two steps, and stops at the first problem:
 ##'
 ##' 1. Each element, wherever it is given. The elements that `req` names must
 ##'    be present, and no element may have missing values. This step leaves
@@ -50,18 +50,16 @@
 ##'    Each snp id must appear once, and `snp` must not be a factor. The
 ##'    per-snp elements must have the same length. `beta` and `varbeta`, when
 ##'    both are given, must have no infinite values, and `varbeta` must have no
-##'    zeros. `LD` must have two dimensions and be square, with row names that
-##'    match its column names, in the same order, and cover every snp.
+##'    zeros. `LD` must be a numeric matrix and square, with row names that
+##'    match its column names, in the same order, and cover every snp. For the
+##'    dataset's snps it must be a correlation matrix, with values from -1 to
+##'    1, symmetric, and 1 on the diagonal.
 ##' 2. What coloc reads on the dataset's route. Without both `beta` and
 ##'    `varbeta`, coloc reads `pvalues`, which must be numbers above 0 and at
 ##'    most 1, `MAF` and `N`, and `s` for a case-control trait. With them,
 ##'    `beta` and `varbeta` must be numeric and `varbeta` not negative, and a
 ##'    quantitative trait needs `sdY`, one finite number above 0, or `MAF` and
 ##'    `N` so coloc can estimate it.
-##' 3. What SuSiE reads, when `req` includes `"LD"`, as [runsusie()]'s does.
-##'    `LD` must be a numeric correlation matrix for the dataset's snps, with
-##'    values from -1 to 1, symmetric, and 1 on the diagonal. SuSiE doesn't
-##'    read `sdY`, so step 2 doesn't check it on this route.
 ##'
 ##' It also warns, without stopping, when no p-value is below `warn.minp`, as
 ##' the trait may then have no association in the region. A [coloc_dataset()]
@@ -70,9 +68,7 @@
 ##' @param d a dataset, as a list or a [coloc_dataset()], but not a data.frame
 ##' @param suffix a label for the dataset, such as 1 or 2, which begins each
 ##'     message as "dataset 1: ". With "" messages have no label
-##' @param req the elements that must be present. When it includes `"LD"`, as
-##'     [runsusie()]'s does, `check_dataset()` also checks what SuSiE reads,
-##'     step 3 in Details
+##' @param req the elements that must be present
 ##' @param warn.minp warn when no p-value is below this
 ##' @return `NULL` when it finds no problem. Otherwise it stops with an error
 ##' @export
@@ -99,15 +95,14 @@ check_dataset <- function(d,
         .stop_not_a_dataset(d, dataset)
     nd <- intersect(names(d), .dataset_items)          # the elements coloc reads
     p_route <- !("beta" %in% nd && "varbeta" %in% nd)  # p-values unless both are given
-    susie <- "LD" %in% req                             # SuSiE reads LD, not sdY
     ## for messages: "pvalues is missing", "pvalues and MAF are missing"
     is_missing <- function(v)
         paste(if (length(v) < 2L) v else paste(paste(v[-length(v)], collapse = ", "), "and", v[length(v)]),
               ngettext(length(v), "is missing", "are missing"))
 
-    ## The checks stop at the first problem, in three blocks: what each element
-    ## must be wherever it is given, then what each route reads, then what
-    ## SuSiE reads. So an element's shape is checked before a route reads it.
+    ## The checks stop at the first problem, in two blocks: what each element
+    ## must be wherever it is given, then what each route reads. So an
+    ## element's shape is checked before a route reads it.
 
     ## 1. Each element, wherever it is given
     absent <- setdiff(req, nd)
@@ -170,6 +165,13 @@ check_dataset <- function(d,
             fail("LD must cover every snp")
         if (length(dim(d$LD)) > 2L)
             fail("LD must be a matrix")
+        if (!(is.matrix(d$LD) && is.numeric(d$LD)))
+            fail("LD must be a numeric matrix")
+        ## only the dataset's snps, copied out only when LD covers more; with
+        ## as many, they are the same snps. Without snp, all of LD
+        LD <- if ("snp" %in% nd && ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
+        if (!.is_correlation(LD))
+            fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
     }
 
     ## 2. What each route reads
@@ -195,8 +197,8 @@ check_dataset <- function(d,
             fail("varbeta must be > 0")
         if (d$type == "quant" && !("sdY" %in% nd) && !("MAF" %in% nd && "N" %in% nd))
             fail("must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
-        ## sdY is read for a quantitative trait, but not by SuSiE
-        if ("sdY" %in% nd && d$type == "quant" && !susie &&
+        ## sdY is read for a quantitative trait
+        if ("sdY" %in% nd && d$type == "quant" &&
             (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
             fail("sdY must be a single finite number above 0")
     }
@@ -210,17 +212,6 @@ check_dataset <- function(d,
                        ", so this dataset may have no association in the region.",
                        "\nIf this is what you expected, this is not a problem.\nIf this is not as small as you expected, please check you supplied var(beta) and not sd(beta) for the varbeta argument. If that's not the explanation, please check the 02_data vignette."),
                 class = "coloc_min_p", call = NULL))
-    }
-
-    ## 3. What SuSiE reads; LD is given, as req names it
-    if (susie) {
-        if (!(is.matrix(d$LD) && is.numeric(d$LD)))
-            fail("LD must be a numeric matrix")
-        ## only the dataset's snps, which are all SuSiE uses, copied out only
-        ## when LD covers more; with as many, they are the same snps
-        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
-        if (!.is_correlation(LD))
-            fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
     }
     NULL
 }

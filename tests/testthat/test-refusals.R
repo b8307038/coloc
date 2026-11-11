@@ -128,7 +128,7 @@ test_that("type and s must be single values, where 6.0.3 failed with R's errors"
     at_each_door(two_s, error = "s must be a single number between 0 and 1")
 })
 
-test_that("LD must be a matrix, and for SuSiE a numeric one, where 6.0.3 failed with R's errors", {
+test_that("LD must be a numeric matrix wherever it is given, where 6.0.3 failed with R's errors or took a data frame", {
     vector_ld <- D1
     vector_ld$LD <- as.vector(D1$LD)
     at_each_door(vector_ld, error = "LD must be a matrix", susie = TRUE)
@@ -141,15 +141,15 @@ test_that("LD must be a matrix, and for SuSiE a numeric one, where 6.0.3 failed 
     not_square$LD <- array(D1$LD[, -1], c(500, 499, 1), dimnames = list(D1$snp, D1$snp[-1], NULL))
     expect_error(check_dataset(not_square, 2),
                  "dataset 2: LD must be square, but it has 500 rows and 499 columns", fixed = TRUE)
-    ## a data frame LD has two dimensions: where LD isn't required it passes,
-    ## with 6.0.3's answer
+    ## a data frame LD is refused at each door; 6.0.3's coloc.abf(), which
+    ## doesn't read LD, took it
     df_ld <- D1
     df_ld$LD <- as.data.frame(D1$LD)
-    at_each_door(df_ld, error = NULL)
-    expect_equal(abf_summary(D1, df_ld), get_match_6_0_3(coloc.abf(D1, df_ld))$summary)
-    ## SuSiE needs a numeric matrix. 6.0.3's check_ld() refused a data frame
-    ## after check_dataset(), and a character matrix failed in R; now the check
-    ## refuses both, before either trait is fine-mapped
+    expect_no_error(utils::capture.output(get_match_6_0_3(coloc.abf(D1, df_ld))))
+    at_each_door(df_ld, error = "LD must be a numeric matrix", susie = TRUE)
+    ## 6.0.3's check_ld() refused a data frame for SuSiE after check_dataset(),
+    ## and a character matrix failed in R; now the check refuses both, before
+    ## either trait is fine-mapped
     df_ld3 <- D3
     df_ld3$LD <- as.data.frame(D3$LD)
     chr_ld3 <- D3
@@ -194,12 +194,12 @@ test_that("N must be a finite number above 1 wherever it is given, where 6.0.3 t
     }
 })
 
-test_that("sdY must be a single finite number above 0 where it is read, where 6.0.3 took any", {
-    ## a quantitative trait given as beta and varbeta
+test_that("sdY must be a single finite number above 0 for a quantitative trait given as beta and varbeta, where 6.0.3 took any", {
+    ## at runsusie() too, though SuSiE doesn't read it
     for (sdY in list(0, -1, c(1, 1), Inf, "1")) {
         d <- D1
         d$sdY <- sdY
-        at_each_door(d, error = "sdY must be a single finite number above 0")
+        at_each_door(d, error = "sdY must be a single finite number above 0", susie = TRUE)
     }
     ## where nothing reads it, it passes with 6.0.3's answer: on a case-control
     ## trait, and with p-values
@@ -211,13 +211,9 @@ test_that("sdY must be a single finite number above 0 where it is read, where 6.
         at_each_door(d, error = NULL)
         expect_equal(abf_summary(D1, d), get_match_6_0_3(coloc.abf(D1, d))$summary)
     }
-    ## and for SuSiE, which never reads it
-    susie3 <- D3
-    susie3$sdY <- 0
-    expect_null(check_dataset(susie3, 1, req = .dataset_uses$susie))
 })
 
-test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numeric matrix", {
+test_that("LD must be a correlation matrix wherever it is given, where 6.0.3 took any numeric matrix", {
     above_one <- D3
     above_one$LD[1, 2] <- 1.5
     above_one$LD[2, 1] <- 1.5
@@ -232,12 +228,13 @@ test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numer
                              "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
         refused_before_susie(coloc(D4, d, method = "susie"),
                              "dataset 2: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
-        ## where LD isn't required it isn't tested, and the answer is 6.0.3's
-        expect_null(check_dataset(d, 2))
-        expect_equal(abf_summary(D4, d), get_match_6_0_3(coloc.abf(D4, d))$summary)
+        ## and at each door, though only SuSiE reads LD; 6.0.3's coloc.abf()
+        ## took it
+        expect_no_error(utils::capture.output(get_match_6_0_3(coloc.abf(D4, d))))
+        at_each_door(d, other = D4,
+                     error = "LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
     }
     ## to within 1e-6, on the diagonal and off it
-    susie_check <- function(d) check_dataset(d, 1, req = .dataset_uses$susie)
     for (off in c(5e-7, 2e-6)) {
         diagonal <- D3
         diag(diagonal$LD) <- 1 + off
@@ -245,14 +242,14 @@ test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numer
         pair$LD[1, 2] <- pair$LD[1, 2] + off
         for (d in list(diagonal, pair)) {
             if (off < 1e-6)
-                expect_null(susie_check(d))
+                expect_null(check_dataset(d, 1))
             else
-                expect_error(susie_check(d),
+                expect_error(check_dataset(d, 1),
                              "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal",
                              fixed = TRUE)
         }
     }
-    ## only the dataset's snps, the part runsusie() uses: an LD covering more
+    ## only the dataset's snps, the part coloc reads: an LD covering more
     ## snps passes with a fault among the others, and not with one among them
     fewer <- D3
     for (v in c("beta", "varbeta", "snp", "position", "MAF"))
@@ -263,14 +260,14 @@ test_that("for SuSiE LD must be a correlation matrix, where 6.0.3 took any numer
     inside <- fewer
     inside$LD[11, 12] <- 1.5
     inside$LD[12, 11] <- 1.5
-    expect_null(susie_check(outside))
-    expect_error(susie_check(inside),
+    expect_null(check_dataset(outside, 1))
+    expect_error(check_dataset(inside, 1),
                  "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal",
                  fixed = TRUE)
-    ## and a non-square LD is refused for SuSiE too
+    ## a non-square LD gets the message about its shape
     not_square <- D3
     not_square$LD <- D3$LD[, -1]
-    expect_error(susie_check(not_square),
+    expect_error(check_dataset(not_square, 1),
                  "dataset 1: LD must be square, but it has 500 rows and 499 columns", fixed = TRUE)
 })
 

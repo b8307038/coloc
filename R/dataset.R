@@ -10,8 +10,7 @@
 
 ## The elements each of coloc()'s methods needs, as check_dataset()'s req.
 ## "single" is also what a dataset is checked for when it is made,
-## check_dataset()'s default. A req naming LD, as "susie"'s does, also brings
-## the checks on LD that SuSiE needs.
+## check_dataset()'s default.
 .dataset_uses <- list(single = c("type", "snp"),
                       susie  = c("beta", "varbeta", "LD", "snp", "N"))
 
